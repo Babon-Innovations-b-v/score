@@ -10,7 +10,8 @@ CC0 park sky as world and ground, the incident meter, 85 mm): standing front; wa
 The cloth: the shell's faces of each simulated garment (cloth.SIMULATED) taken off the skinned shell into a mesh of
 their own, its points and their normals set every frame to the run's (each Blender point to the nearest garment
 point at the bind), never thickened (the shell is the skinned person's own: a solidify's inner layer poked through
-its thin noisy walls as dark blotches all over the jacket; round 4, 2026-11-27); the collision body drawn under them,
+its thin noisy walls as dark blotches all over the jacket; round 4, 2026-11-27), opened along a fused sleeve's cut and
+the cut's flaps drawn in its own paint (cloth.sleeves_cut); the collision body drawn under them,
 so a lifted hem shows a body and a T-shirt, never the hollow shell. The armature plays the clip at the run's clip
 time, in place (the run's travel taken out).
 """
@@ -160,16 +161,94 @@ def body_made(armature, shell, data):
     return body
 
 
+def sleeves_opened(garment, data, kind):
+    """The garment's edges along its fused sleeves' cuts (cloth.sleeves_cut) split, so sleeve and side move apart;
+    each polygon's sleeve flag (the nearest garment face middle's in cloth.npz)."""
+    points, faces = data[f"{kind}_points"], data[f"{kind}_faces"]
+    tree = tree_of(to_blender(points[faces].mean(1)))
+    cut = data[f"{kind}_cut"]
+    near = tree_of(to_blender(points))
+    mesh = bmesh.new()
+    mesh.from_mesh(garment.data)
+    mesh.faces.ensure_lookup_table()
+    sleeve = {face.index: bool(data[f"{kind}_sleeve"][tree.find(face.calc_center_median())[1]]) for face in mesh.faces}
+    on_cut = {vertex.index: bool(cut[near.find(vertex.co)[1]]) for vertex in mesh.verts}
+    opened = [edge for edge in mesh.edges if len(edge.link_faces) == 2
+              and sleeve[edge.link_faces[0].index] != sleeve[edge.link_faces[1].index]
+              and on_cut[edge.verts[0].index] and on_cut[edge.verts[1].index]]
+    if opened:
+        bmesh.ops.split_edges(mesh, edges=opened)
+    mesh.faces.ensure_lookup_table()
+    flags = np.array([sleeve[face.index] for face in mesh.faces])
+    mesh.to_mesh(garment.data)
+    mesh.free()
+    return flags
+
+
+def mapped(garment, data, kind, flags):
+    """Each Blender point's garment point: the nearest at the bind among the points of its own piece's faces (a sleeve
+    polygon's among the sleeve's, else the side's: a cut point's two copies stand in one place)."""
+    points, faces = data[f"{kind}_points"], data[f"{kind}_faces"]
+    sleeve = data[f"{kind}_sleeve"]
+    trees = {}
+    for flag in (True, False):
+        own = np.unique(faces[sleeve == flag]) if (sleeve == flag).any() else np.arange(len(points))
+        trees[flag] = (tree_of(to_blender(points[own])), own)
+    piece = np.zeros(len(garment.data.vertices), bool)
+    for polygon, flag in zip(garment.data.polygons, flags):
+        if flag:
+            piece[list(polygon.vertices)] = True
+    found = []
+    for vertex, flag in zip(coordinates(garment.data), piece):
+        tree, own = trees[bool(flag)]
+        found.append(own[tree.find(Vector(vertex))[1]])
+    return np.array(found)
+
+
+def flaps_made(garment, data, kind, mapping):
+    """The flaps closing each cut edge (cloth.flaps_of) as their own mesh in the garment's material, each corner
+    wearing its edge point's texture place (cloth.npz's `source`: the point each was copied from); (object, its
+    points' garment points) or None."""
+    flaps = data[f"{kind}_flaps"]
+    if not len(flaps):
+        return None
+    used = np.unique(flaps)
+    renumber = {int(point): number for number, point in enumerate(used)}
+    mesh = bpy.data.meshes.new(f"{kind}_flaps")
+    mesh.from_pydata(to_blender(data[f"{kind}_points"][used]).tolist(), [],
+                     [[renumber[int(point)] for point in face] for face in flaps])
+    source = data[f"{kind}_source"]
+    places = {}
+    layer = garment.data.uv_layers.active
+    for polygon in garment.data.polygons:
+        for loop in polygon.loop_indices:
+            places.setdefault(int(mapping[garment.data.loops[loop].vertex_index]), tuple(layer.data[loop].uv))
+    uv = mesh.uv_layers.new()
+    for polygon in mesh.polygons:
+        for loop in polygon.loop_indices:
+            point = int(used[mesh.loops[loop].vertex_index])
+            uv.data[loop].uv = places.get(point, places.get(int(source[point]), (0.0, 0.0)))
+    for material in garment.data.materials:
+        mesh.materials.append(material)
+    if garment.data.polygons:
+        common = np.bincount([polygon.material_index for polygon in garment.data.polygons]).argmax()
+        mesh.polygons.foreach_set("material_index", np.full(len(mesh.polygons), common, np.int32))
+    mesh.shade_flat()
+    flap = bpy.data.objects.new(f"{kind}_flaps", mesh)
+    bpy.context.scene.collection.objects.link(flap)
+    flap.parent, flap.matrix_world = garment.parent, garment.matrix_world.copy()
+    return flap, used
+
+
 def garments_made(shell, data):
-    """{kind: (object, each Blender point's garment point)}; the skinned shell keeps the other kinds."""
+    """{kind: (object, each Blender point's garment point, flaps or None)}; the skinned shell keeps the other kinds."""
     kinds = face_kinds(shell, data)
     found = {}
     for kind in simulated_of(data):
         garment = split_off(shell, kinds, kind, kinds_of(data).index(kind))
-        used = data[f"{kind}_used"]
-        tree = tree_of(to_blender(data["shell_points"][used]))
-        mapping = np.array([tree.find(Vector(point))[1] for point in coordinates(garment.data)])
-        found[kind] = (garment, mapping)
+        flags = sleeves_opened(garment, data, kind)
+        mapping = mapped(garment, data, kind, flags)
+        found[kind] = (garment, mapping, flaps_made(garment, data, kind, mapping))
     kept_only(shell, kinds, [kinds_of(data).index(kind) for kind in simulated_of(data)])
     return found
 
@@ -185,11 +264,14 @@ def laid(garments, data, key, index):
     """Each garment's points set to the run's at `key` frame `index` (the run's points are in the glTF frame), each
     shaded by its own smooth normal as the run turns it (the shell's, as the skinned person is: the moved surface's
     own faces drew it lumpy)."""
-    for kind, (garment, mapping) in garments.items():
-        points = to_blender(data[f"{key}/{kind}"][index])[mapping]
-        garment.data.vertices.foreach_set("co", points.ravel())
+    for kind, (garment, mapping, flaps) in garments.items():
+        points = to_blender(data[f"{key}/{kind}"][index])
+        garment.data.vertices.foreach_set("co", points[mapping].ravel())
         garment.data.normals_split_custom_set_from_vertices(to_blender(data[f"{key}/{kind}_normal"][index])[mapping])
         garment.data.update()
+        if flaps:
+            flaps[0].data.vertices.foreach_set("co", points[flaps[1]].ravel())
+            flaps[0].data.update()
 
 
 def playing(armature, clip):

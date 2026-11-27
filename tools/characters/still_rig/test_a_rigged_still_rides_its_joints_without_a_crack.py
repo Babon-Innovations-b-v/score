@@ -42,6 +42,11 @@ above it touching the backpack, and a stray backpack face inside the cloth. Each
   played on the wrong bones), takes a clips rig's joints in the rig's order rather than the skin's, loses a byte of the
   numbers it had (the clips it was built with changed), or a climb keeps its height's run over the loop, gives a rise
   other than its own, or a climb going the wrong way is kept (`level_climb`).
+- a person's clip bringing an arm 5 degrees off its trunk while the still's arm hangs 15 out keeps it nearer than 15
+  (`arms_kept_out` not raising it: the hands into the older woman's coat, 2026-11-27), an arm swung out to 30 or
+  brought across the trunk to -20 (a hand on the far knee) is moved, the hand's bone changes its length, or the
+  written local turn and its parent's world miss the arm's world. Breaks applied once, seen red, reverted
+  (2026-11-27): the floor's turn left at zero; `ARM_ACROSS_DEGREES` 1000 (the arm across pushed out).
 """
 import pathlib
 import sys
@@ -258,3 +263,29 @@ def test_a_rigged_still_rides_its_joints_without_a_crack():
         sleeve = (np.abs(samples[:, 0] - x) < 0.045) & (samples[:, 1] > 0.9) & (samples[:, 1] < 1.3)
         assert (fit["limbs"][sleeve] == side + "Arm").all()
     assert (fit["limbs"][(np.abs(samples[:, 0]) < 0.1) & (samples[:, 1] > 0.9)] == "").all()
+
+    kept_names = ["Root", "Chest", "LeftArm", "LeftHand", "RightArm", "RightHand"]
+    kept_parents = np.array([-1, 0, 1, 2, 1, 4])
+
+    def arm_worlds(left, right):
+        """Worlds with each arm (0.2 m out at 1.4 m) hanging `left` and `right` degrees out from straight down."""
+        worlds = np.repeat(np.eye(4)[None], 6, axis=0)
+        worlds[1, 1, 3] = 1.3
+        for side, sign, angle in (("Left", 1.0, left), ("Right", -1.0, right)):
+            turn = Rotation.from_euler("z", sign * angle, degrees=True).as_matrix()
+            arm, hand = kept_names.index(side + "Arm"), kept_names.index(side + "Hand")
+            worlds[arm, :3, :3], worlds[arm, :3, 3] = turn, [sign * 0.2, 1.4, 0.0]
+            worlds[hand, :3, :3], worlds[hand, :3, 3] = turn, worlds[arm, :3, 3] + turn @ [0.0, -0.5, 0.0]
+        return worlds
+
+    kept_bind = arm_worlds(15.0, 15.0)
+    swung = np.stack([arm_worlds(5.0, 30.0), arm_worlds(-20.0, 15.0)])
+    out, turned = still_rig.arms_kept_out(swung, kept_bind, kept_names, kept_parents)
+    left_angle = still_rig.abduction(out, kept_bind, kept_names, "Left")[0]
+    right_angle = still_rig.abduction(out, kept_bind, kept_names, "Right")[0]
+    assert left_angle[0] >= 15.0 - 1e-6 and abs(left_angle[1] + 20.0) < 1e-6 and abs(right_angle[0] - 30.0) < 0.01
+    lengths = np.linalg.norm(out[:, 3, :3, 3] - out[:, 2, :3, 3], axis=1)
+    assert np.allclose(lengths, 0.5)
+    for arm in (2, 4):
+        local = Rotation.from_quat(turned[arm]).as_matrix()
+        assert np.allclose(out[:, 1, :3, :3] @ local, out[:, arm, :3, :3])

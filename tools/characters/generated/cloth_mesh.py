@@ -20,8 +20,9 @@ rims metres long. So the cloth is laid over the body instead, and the shell's su
 3. `remeshed`: the rims resampled to EDGE_M along themselves (`rims_split`, `rims_merged`: Botsch and Kobbelt's
    remesher keeps every rim point where it stands), then `cloth_remesh.py` in its own Python (gpytoolbox's
    remesh_botsch, MIT; kept out of the repo's environment as MediaPipe is) makes an even mesh of EDGE_M edges over the
-   surface, reprojected onto it; a triangle left with a corner under ANGLE_LEAST has its shortest edge collapsed
-   (`slivers_collapsed`: the remesher left a 1e-19 m^2 needle, 2026-11-26).
+   surface, reprojected onto it; a triangle left with a corner under ANGLE_LEAST or an edge under SHORT_LEAST of
+   EDGE_M has its shortest edge collapsed (`slivers_collapsed`: the remesher left a 1e-19 m^2 needle, 2026-11-26, and
+   a 1 mm edge by the jeans' rim, 2026-11-27).
 4. `bound` and `displaced`: each point of the detailed render surface (the garment as the shell has it, both walls and
    its specks) bound to its sim mesh's nearest triangle at its barycentric place, and moved off its own skinned place
    by as much as the cloth there stands off its target, so its folds and paint ride along, the rest shape comes back
@@ -50,6 +51,8 @@ UNLAID = ("Head", "HeadEnd", "LeftHand", "RightHand", "LeftFoot", "LeftToeBase",
           "RightToeBase", "RightToeEnd")  # body points that never lay a garment (a hem ends at the ankle)
 ARM_CLOSE_M = 0.04  # an arm's point lands on cloth weighted to the trunk this near (a fused sleeve's inner wall)
 ANGLE_LEAST = 5.0  # degrees: a remeshed triangle with a corner under this has its shortest edge collapsed
+SHORT_LEAST = 0.3  # and one with an edge under this share of EDGE_M (round 5, 2026-11-27: the hoodie man's jeans
+# kept a 1.0 mm edge among 12 mm ones, and the cloth's 0.7 mm move along it read as a stretch of 0.68)
 AREA_LEAST = 1e-9  # m^2: a sliver
 PIECE_LEAST_M2 = 0.002  # a piece under 20 cm^2 is a speck, not cloth
 HOLE_M = 0.12  # a rim shorter than this is a hole a missed ray left, never an opening (a cuff's is about 25 cm)
@@ -333,12 +336,19 @@ def corner_angles(points, faces):
     return np.column_stack(found)
 
 
-def slivers_collapsed(points, faces, least=ANGLE_LEAST, rounds=5):
-    """Each face with a corner under `least` degrees has its shortest edge collapsed to its middle (the faces that
-    closed up dropped, made manifold again), up to `rounds` times: (points, faces)."""
+def edge_lengths(points, faces):
+    """Each face's three edge lengths (faces x 3)."""
+    return np.linalg.norm(points[np.roll(faces, -1, axis=1)] - points[faces], axis=2)
+
+
+def slivers_collapsed(points, faces, least=ANGLE_LEAST, shortest=SHORT_LEAST * EDGE_M, rounds=5):
+    """Each face with a corner under `least` degrees or an edge under `shortest` metres has its shortest edge
+    collapsed to its middle (the faces that closed up dropped, made manifold again), up to `rounds` times: (points,
+    faces)."""
     points = points.copy()
     for _ in range(rounds):
-        thin = np.flatnonzero(corner_angles(points, faces).min(1) < least)
+        thin = np.flatnonzero((corner_angles(points, faces).min(1) < least)
+                              | (edge_lengths(points, faces).min(1) < shortest))
         if not len(thin):
             break
         into = np.arange(len(points))

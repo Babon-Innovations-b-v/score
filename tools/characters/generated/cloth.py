@@ -23,6 +23,11 @@ and the jacket shredded; free cloth was stopped for the tether.
 3. `riding_of`: which points of a garment ride the skin (the rest hang as cloth): the jacket's collar and shoulder
    yoke (YOKE_M over its surface from where it meets the neck, hair or scarf) and its elastic cuffs (CUFF_M from the
    hands), the jeans' waistband (WAISTBAND_M from the T-shirt and the jacket), a scarf round the neck (SCARF_NECK_M).
+3a. `skirted` and `garment_made`: a long garment under the hips (a coat, an overshirt) hangs as a skirt, its weights
+   under the hip joints across both thighs and the pelvis (round 5, 2026-11-27: skinned to each thigh, the older
+   woman's coat split with the stride, its middle between the legs grown 4.9 times its length); a jacket's sleeves
+   TRELLIS.2 fused to its sides are cut off them where the faces turn from the arm's to the trunk's, each cut edge
+   closed by a flap turned in (`sleeves_cut`, `flaps_of`: the sides opened into a gap as the arms swung).
 3b. `sim_of`: the garment's sim mesh (`cloth_mesh.py`): the shell's own triangles are no cloth (round 1, 2026-11-26:
    a 2.7e-11 m^2 sliver's point went non-finite in the hang, and the run wrote NaNs on), so an even manifold mesh of
    1.2 cm edges is laid over the body onto the garment's broad shape, its rest shape the generated one (the shape
@@ -47,7 +52,8 @@ and the jacket shredded; free cloth was stopped for the tether.
    the drawn surface's), its largest stretch, its drift off the skin and its jitter, beside the same numbers for
    plain skinning, and the jeans' flap at the passing step (`flap`: the farthest a lower-leg point stands off the
    body; `swing`: the farthest beyond its standoff at rest) and each garment's hem swing off its skinned place
-   (`hem_swing`).
+   (`hem_swing`), a jacket's middle between the legs (`between_legs`), and how deep the hands go into the trunk and
+   legs (`hands_in`).
 
     python -m tools.characters.generated.cloth <body.glb> <clips rig.npz> <out> --height <m> [--tether KIND=M ...]
 
@@ -123,6 +129,22 @@ FPS = 24
 CLOSED_DEGREES = 2.0  # a clip whose last frame turns every joint within this of its first repeats its first
 LOOK_JOINT = "Hips"
 HEM_SWING_M = 0.08  # a garment's hem (`hem_swing`): its loose sim points this near its lowest at rest
+# A long garment below the hips hangs as a skirt (`skirted`; round 5, 2026-11-27: the older woman's coat, skinned to
+# each thigh, split with the stride and its hem swung 1.2 cm): under the hip joints its weights go across both thighs
+# and the pelvis (Hips), each point's thighs shared by where it lies between them, the pelvis taking more lower down
+# and toward the middle, so the front and back panels each span both legs
+SKIRT_BLEND_M = 0.08  # metres under the hip joints over which the garment's own weights give way to the skirt's
+SKIRT_HIPS = (0.3, 0.6)  # the pelvis's share at the hip joints and at the hem
+SKIRT_MIDDLE = 0.2  # and this much more at the middle between the legs
+SKIRT_LEAST_POINTS = 200  # a garment with fewer points under the hip joints is no long garment (the hoodie man's
+# overshirt, 8 cm under them, is one: skinned to the thighs, its front between the legs grew 2.6 times its length)
+BETWEEN_HALF_M = 0.06  # `between_legs`: the drawn garment's edges under the hip joints this near the legs' middle
+EDGE_LEAST_M = 0.002  # and at least this long (a shell sliver's growth reads in hundreds)
+# A sleeve TRELLIS.2 fused to the side (`sleeves_cut`; round 5: the overshirt's and the coat's sides opened into a gap
+# as the arm swung): cut off the side panel where its faces turn from mostly the arm's to mostly the trunk's
+CUT_UNDER_SHOULDER_M = 0.08  # metres under the shoulder (the Arm joint) the cut starts (the sleeve's seam above stays)
+CUT_EASE_M = 0.04  # metres over each piece from the cut over which its weights become its limb's alone
+FLAP_M = 0.02  # each cut edge closed by a flap turned in toward the body this deep (or 0.8 of the way to it)
 
 
 # --- 1. the rigged person -------------------------------------------------------------------------------------------
@@ -460,6 +482,149 @@ def riding_of(person, kinds, kind, used, faces):
     return np.ones(len(used), bool)
 
 
+def skirted(person, kinds, kind="jacket"):
+    """The person's weights with a long garment's points under the hip joints hung as a skirt (module docstring;
+    SKIRT_*): each point's thighs (the Leg joints) shared by where it lies between them across the body, the pelvis
+    (Hips) taking SKIRT_HIPS from the hip joints to the garment's hem and SKIRT_MIDDLE more at the middle; eased in
+    over SKIRT_BLEND_M under the hip joints, never on its sleeves (less by each point's arm weights: a cuff and the
+    hand at it hang under the hip joints; a hand's rim skirted was drawn toward the hips). A garment with under
+    SKIRT_LEAST_POINTS points under them is left."""
+    weights = person["weights"].copy()
+    if not (kinds == KINDS.index(kind)).any():
+        return weights
+    used, _ = garment_of(person, kinds, kind)
+    names, points = person["names"], person["points"][used]
+    left, right = joint_at(person, "LeftLeg"), joint_at(person, "RightLeg")
+    top = (left[1] + right[1]) / 2.0
+    if (points[:, 1] < top).sum() < SKIRT_LEAST_POINTS:
+        return weights
+    hem = points[:, 1].min()
+    across = np.clip((points[:, 0] - right[0]) / (left[0] - right[0]), 0.0, 1.0)
+    down = np.clip((top - points[:, 1]) / max(top - hem, 1e-6), 0.0, 1.0)
+    hips = np.clip(SKIRT_HIPS[0] + (SKIRT_HIPS[1] - SKIRT_HIPS[0]) * down + SKIRT_MIDDLE * (1.0 - np.abs(2 * across - 1)),
+                   0.0, 1.0)
+    skirt = np.zeros((len(used), len(names)))
+    skirt[:, names.index("Hips")] = hips
+    skirt[:, names.index("LeftLeg")] = (1.0 - hips) * across
+    skirt[:, names.index("RightLeg")] = (1.0 - hips) * (1.0 - across)
+    arms = np.concatenate(list(arm_chains(names).values()))
+    share = (np.clip((top - points[:, 1]) / SKIRT_BLEND_M, 0.0, 1.0) * (1.0 - weights[used][:, arms].sum(1)))[:, None]
+    weights[used] = weights[used] * (1.0 - share) + skirt * share
+    return weights
+
+
+def between_legs(drawn, rest, faces, middle_x, top):
+    """The largest growth of the drawn garment's edges (frames x points x 3 against `rest`) under the hip joints
+    (`top`) within BETWEEN_HALF_M of the legs' middle (`middle_x`), at least EDGE_LEAST_M long: (the most, the 99th
+    percentile), less 1; a coat split with the thighs opens there."""
+    edges = np.unique(np.sort(np.concatenate([faces[:, [0, 1]], faces[:, [1, 2]], faces[:, [2, 0]]]), axis=1), axis=0)
+    built = np.linalg.norm(rest[edges[:, 0]] - rest[edges[:, 1]], axis=1)
+    centre = rest[edges].mean(1)
+    edges = edges[(centre[:, 1] < top) & (np.abs(centre[:, 0] - middle_x) < BETWEEN_HALF_M) & (built >= EDGE_LEAST_M)]
+    if not len(edges):
+        return {"between_legs_most": 0.0, "between_legs_99": 0.0}
+    built = np.linalg.norm(rest[edges[:, 0]] - rest[edges[:, 1]], axis=1)
+    growth = np.linalg.norm(drawn[:, edges[:, 0]] - drawn[:, edges[:, 1]], axis=2) / built - 1.0
+    return {"between_legs_most": round(float(growth.max()), 4),
+            "between_legs_99": round(float(np.percentile(growth.max(0), 99)), 4)}
+
+
+def arm_chains(names):
+    """{side: its arm's joint numbers (Arm, ForeArm, Hand)}."""
+    return {side: [names.index(side + part) for part in ("Arm", "ForeArm", "Hand")] for side in ("Left", "Right")}
+
+
+def limb_only(weights, joints, fallback):
+    """Weights (points x joints) kept on `joints` alone, renormalised; a point with none there wholly on `fallback`."""
+    found = np.zeros_like(weights)
+    found[:, joints] = weights[:, joints]
+    total = found.sum(1)
+    found[total < 1e-6, fallback] = 1.0
+    return found / np.maximum(found.sum(1, keepdims=True), 1e-12)
+
+
+def sleeves_cut(person, garment):
+    """A garment (its `points`, `faces`, `weights`, `riding`, `normals`) with each sleeve TRELLIS.2 fused to the side
+    cut off the side panel (module docstring; CUT_*): the edges between a face mostly on an arm (its corners' arm
+    weights over half) and one mostly on the trunk, CUT_UNDER_SHOULDER_M or more under that side's shoulder, are
+    opened (the sleeve's faces take copies of their points), each piece's weights eased onto its own limb alone over
+    CUT_EASE_M (the sleeve its arm's, the side the trunk's), and each cut edge of each piece closed by a flap turned
+    in toward the body (`flaps_of`). Adds `sleeve` (each face's), `cut` (each point's: on a cut, either copy) and
+    `flaps` (the flaps' faces), and `source` holds the point each point was copied from; a garment with no cut is
+    returned with them empty."""
+    names, points, faces, weights = person["names"], garment["points"], garment["faces"], garment["weights"]
+    chains = arm_chains(names)
+    arm_share = {side: weights[:, chain].sum(1) for side, chain in chains.items()}
+    side_of = np.where(arm_share["Left"] >= arm_share["Right"], "Left", "Right")
+    sleeve = np.maximum(arm_share["Left"], arm_share["Right"])[faces].mean(1) > 0.5
+    mesh = trimesh.Trimesh(points, faces, process=False)
+    pairs, shared = mesh.face_adjacency, mesh.face_adjacency_edges
+    across = sleeve[pairs[:, 0]] != sleeve[pairs[:, 1]]
+    shoulder = np.where(side_of == "Left", joint_at(person, "LeftArm")[1],
+                        joint_at(person, "RightArm")[1]) - CUT_UNDER_SHOULDER_M
+    cut_edges = shared[across & (points[shared, 1].max(1) < shoulder[shared[:, 0]])]
+    found = {**garment, "sleeve": sleeve, "cut": np.zeros(len(points), bool), "flaps": np.zeros((0, 3), int)}
+    if not len(cut_edges):
+        return found
+    cut = np.unique(cut_edges)
+    copy_of = np.full(len(points), -1)
+    copy_of[cut] = len(points) + np.arange(len(cut))
+    faces = faces.copy()
+    sleeve_corners = faces[sleeve]
+    faces[sleeve] = np.where(copy_of[sleeve_corners] >= 0, copy_of[sleeve_corners], sleeve_corners)
+    every = np.r_[np.arange(len(points)), cut]
+    found.update({key: garment[key][every] for key in ("points", "weights", "riding", "normals", "source")})
+    found["points"], found["faces"] = points[every], faces
+    found["cut"] = np.zeros(len(every), bool)
+    found["cut"][cut], found["cut"][copy_of[cut]] = True, True
+    side_of = side_of[every]
+    weights = found["weights"]
+    for pieces, starts, own in ((sleeve, copy_of[cut], True), (~sleeve, cut, False)):
+        alone = np.zeros(len(every), bool)
+        alone[faces[pieces].ravel()] = True
+        alone[faces[~pieces].ravel()] = False
+        alone[starts] = True
+        reach = np.clip(1.0 - over_surface(found["points"], faces[pieces], starts) / CUT_EASE_M, 0.0, 1.0)
+        for side, chain in chains.items():
+            mine = alone & (side_of == side) & (reach > 0)
+            if own:
+                limb = limb_only(weights[mine], chain, chain[0])
+            else:
+                trunk = [joint for joint in range(len(names)) if joint not in chain]
+                limb = limb_only(weights[mine], trunk, names.index("Chest"))
+            weights[mine] = weights[mine] * (1.0 - reach[mine, None]) + limb * reach[mine, None]
+    found["weights"] = weights
+    return flaps_of(found, cut_edges, copy_of, person)
+
+
+def flaps_of(garment, cut_edges, copy_of, person):
+    """The garment with each cut edge, on the side panel (its own points) and on the sleeve (the copies), closed by a
+    flap: the edge's points copied FLAP_M in toward the trunk's middle line at their height (the hips' across, the
+    chest's front to back; or 0.8 of the way to it), two faces joining each edge to its copy; a flap point keeps its
+    edge point's weights, riding and normal, and its `source` is its edge point."""
+    points = garment["points"]
+    rims = np.unique(np.r_[cut_edges.ravel(), copy_of[cut_edges].ravel()])
+    middle = np.c_[np.full(len(rims), joint_at(person, "Hips")[0]), points[rims, 1],
+                   np.full(len(rims), joint_at(person, "Chest")[2])]
+    inward = middle - points[rims]
+    inward[:, 1] = 0.0
+    length = np.linalg.norm(inward, axis=1)
+    depth = np.minimum(FLAP_M, 0.8 * length)
+    flap_of = np.full(len(points), -1)
+    flap_of[rims] = len(points) + np.arange(len(rims))
+    moved = points[rims] + inward / np.maximum(length, 1e-12)[:, None] * depth[:, None]
+    found = dict(garment)
+    for key in ("weights", "riding", "normals"):
+        found[key] = np.r_[garment[key], garment[key][rims]]
+    found["source"] = np.r_[garment["source"], rims]
+    found["points"] = np.r_[points, moved]
+    found["cut"] = np.r_[garment["cut"], np.zeros(len(rims), bool)]
+    edges = np.r_[cut_edges, copy_of[cut_edges]]
+    found["flaps"] = np.r_[np.c_[edges[:, 0], edges[:, 1], flap_of[edges[:, 1]]],
+                           np.c_[edges[:, 0], flap_of[edges[:, 1]], flap_of[edges[:, 0]]]]
+    return found
+
+
 # --- 4. the body under ----------------------------------------------------------------------------------------------
 
 def body_under(person, rig, margin=MARGIN_M):
@@ -543,20 +708,22 @@ def skinned_normals(normals, weights, moves):
     return found / np.maximum(np.linalg.norm(found, axis=2, keepdims=True), 1e-12)
 
 
-def sim_of(person, kinds, kind, body, scale, used, faces, riding):
-    """A garment's sim mesh (module docstring step 3b), in metres: {points, faces, weights, riding, binding} (binding:
-    the garment's shell points `used` bound to it)."""
+def sim_of(person, kinds, kind, body, scale, garment):
+    """A garment's sim mesh (module docstring step 3b), in metres: {points, faces, weights, riding, pushed (by the
+    garment's re-weighted points: a skirt's, a cut sleeve's), binding (the garment's points, `garment_made`, bound to
+    it)}."""
     strongest = person["weights"][person["faces"]].sum(1).argmax(1)
     chosen = np.flatnonzero(kinds == KINDS.index(kind))
     laid = cloth_mesh.laid_over((body[0] * scale, body[1]), body[2].argmax(1),
                                 (person["points"] * scale, person["faces"]), chosen, strongest[chosen],
                                 (person["names"], person["parents"]))
     points, sim_faces = cloth_mesh.remeshed(*cloth_mesh.cleaned(*laid))
-    shell = person["points"][used] * scale
-    weights = cloth_mesh.blended(person["weights"][used], shell, faces, points)
+    shell, faces = garment["points"] * scale, garment["faces"]
+    weights = cloth_mesh.blended(garment["weights"], shell, faces, points)
     weights = np.maximum(weights, 0.0) / np.maximum(weights.sum(1, keepdims=True), 1e-12)
-    rides = anchored(sim_faces, cloth_mesh.blended(riding.astype(float), shell, faces, points) > 0.5)
-    return {"points": points, "faces": sim_faces, "weights": weights, "riding": rides,
+    rides = anchored(sim_faces, cloth_mesh.blended(garment["riding"].astype(float), shell, faces, points) > 0.5)
+    pushed = cloth_mesh.blended(garment["reweighted"].astype(float), shell, faces, points) > 0.0
+    return {"points": points, "faces": sim_faces, "weights": weights, "riding": rides, "pushed": pushed & ~rides,
             "binding": cloth_mesh.bound(shell, points, sim_faces)}
 
 
@@ -584,20 +751,40 @@ def timing_of(person, clip, scale):
             "moves": moves, "played": played}
 
 
-def garments_of(person, kinds, body, scale, reach):
-    """{kind: (used, faces, riding, sim)} for the simulated garments the person wears (GARMENT_FACES or more), each
-    sim mesh with its tethers (`reach`: each kind's longest, cloth_tether.TETHER_M's unless given)."""
+def garment_made(person, kinds, kind, rig_weights):
+    """A worn garment's drawn surface: {points (the shell's, at the bind), faces, weights, riding, normals, source,
+    sleeve, cut, flaps, reweighted (each point whose weights differ from the rig's `rig_weights`: a skirt's, a cut
+    sleeve's)}, a jacket's fused sleeves cut off its sides (`sleeves_cut`)."""
+    used, faces = garment_of(person, kinds, kind)
+    garment = {"points": person["points"][used], "faces": faces, "weights": person["weights"][used],
+               "riding": riding_of(person, kinds, kind, used, faces), "normals": person["normals"][used],
+               "source": np.arange(len(used))}
+    if kind == "jacket":
+        garment = sleeves_cut(person, garment)
+    else:
+        garment = {**garment, "sleeve": np.zeros(len(faces), bool), "cut": np.zeros(len(used), bool),
+                   "flaps": np.zeros((0, 3), int)}
+    origin = garment["source"]
+    while not np.array_equal(origin, garment["source"][origin]):
+        origin = garment["source"][origin]
+    garment["reweighted"] = np.abs(garment["weights"] - rig_weights[used][origin]).sum(1) > 1e-6
+    return garment
+
+
+def garments_of(person, kinds, body, scale, reach, rig_weights):
+    """{kind: (garment, sim)} for the simulated garments the person wears (GARMENT_FACES or more; `garment_made`
+    against the rig's own `rig_weights`), each sim mesh with its tethers (`reach`: each kind's longest,
+    cloth_tether.TETHER_M's unless given)."""
     shoes_used, _ = garment_of(person, kinds, "shoes")
     shoes = person["points"][shoes_used] * scale
     garments = {}
     for kind in worn(kinds):
-        used, garment_faces = garment_of(person, kinds, kind)
-        riding = riding_of(person, kinds, kind, used, garment_faces)
-        sim = sim_of(person, kinds, kind, body, scale, used, garment_faces, riding)
+        garment = garment_made(person, kinds, kind, rig_weights)
+        sim = sim_of(person, kinds, kind, body, scale, garment)
         held = cloth_tether.pinned(sim["points"], sim["riding"], shoes)
         sim["tether"] = cloth_tether.tethers(reach[kind], over_surface(sim["points"], sim["faces"],
                                                                          np.flatnonzero(held)))
-        garments[kind] = (used, garment_faces, riding, sim)
+        garments[kind] = (garment, sim)
     return garments
 
 
@@ -607,11 +794,14 @@ def worn(kinds):
 
 
 def moved(sim, kind, timing, body_posed, body_faces):
-    """A garment's sim mesh over the run, tethered to its targets (its skinned places), kept out of the body to half
-    its thickness or as deep as the skinning draws it, after SETTLE_S held on the first frame; (positions (frames,
-    points, 3), seconds)."""
+    """A garment's sim mesh over the run, tethered to its targets (its skinned places; a re-weighted point's pushed
+    out of the body, cloth_tether.pushed_out), kept out of the body to half its thickness or as deep as the skinning
+    draws it, after SETTLE_S held on the first frame; (positions (frames, points, 3), seconds)."""
     started = time.monotonic()
     targets = skinned(sim["points"], sim["weights"], timing["moves"])
+    if sim["pushed"].any():
+        targets = cloth_tether.pushed_out(targets, sim["pushed"], sim["faces"], body_posed, body_faces,
+                                          THICKNESS_M[kind] / 2)
     least = cloth_tether.allowances(targets, body_posed, body_faces, THICKNESS_M[kind] / 2)
     held = int(round(SETTLE_S * timing["rate"]))
 
@@ -707,6 +897,28 @@ def hem_swing(cloth, carried, sim, passing):
     return {"hem_swing_most_m": round(float(off.max()), 4), "hem_swing_passing_m": round(float(off[passing].max()), 4)}
 
 
+def hands_in(person, kinds, body, scale, timing):
+    """How deep the hands go into the trunk and legs over a run (metres): the hands' skin points (their strongest
+    joint a Hand) against the posed body's points on the trunk and legs, inside where all their NEIGHBOURS nearest
+    planes say so (cloth_tether.outside); the deepest and the 99th percentile of each frame's deepest. The body lies
+    MARGIN_M or more under the clothes, so a hand in it is through the coat or the trousers."""
+    names = np.array(person["names"])
+    faces = person["faces"][kinds == KINDS.index("skin")]
+    hand = np.unique(faces[np.isin(names[person["weights"][faces].sum(1).argmax(1)], ("LeftHand", "RightHand"))])
+    if not len(hand):
+        return {"deepest": 0.0, "deepest_99": 0.0}
+    points = skinned(person["points"][hand] * scale, person["weights"][hand], timing["moves"])
+    posed = skinned(body[0] * scale, body[2], timing["moves"])
+    kept = ~np.isin(names[body[2].argmax(1)], [name for name in names if "Arm" in name or "Hand" in name
+                                                or "Shoulder" in name])
+    deepest = []
+    for frame in range(len(points)):
+        normals = cloth_tether.vertex_normals(posed[frame], body[1])[kept]
+        over, _ = cloth_tether.outside(points[frame], posed[frame][kept], normals)
+        deepest.append(max(0.0, float(-over.min())))
+    return {"deepest": round(max(deepest), 4), "deepest_99": round(float(np.percentile(deepest, 99)), 4)}
+
+
 def frames_of(person, timing, clip):
     """{name: run frame} drawn from a clip: the film's start and the stride points of a walk, standing's last."""
     if clip == "standing":
@@ -716,13 +928,16 @@ def frames_of(person, timing, clip):
 
 def made(body_glb, rig_path, out, height, reach=None):
     """The whole make: kinds, garments, body, the walking and standing runs, cloth.npz and cloth.json in `out`; each
-    garment measured as tethered cloth (`garments`) and as plain skinning (`skinned`). `reach`: a garment's longest
-    tether where the person's clothes want other than cloth_tether.TETHER_M (an open overshirt's fronts, a long
-    coat's hem)."""
+    garment measured as tethered cloth (`garments`) and as plain skinning of its own weights (`skinned`), and a
+    long garment's middle between the legs also as the rig's own skinning (`rig_skinned`). `reach`: a garment's
+    longest tether where the person's clothes want other than cloth_tether.TETHER_M (an open overshirt's fronts, a
+    long coat's hem)."""
     reach = {**cloth_tether.TETHER_M, **(reach or {})}
     out.mkdir(parents=True, exist_ok=True)
     person = person_of(body_glb)
     kinds = kinds_of(person)
+    rig_weights = person["weights"]
+    person = {**person, "weights": skirted(person, kinds)}
     body = body_under(person, dict(np.load(rig_path)))
     scale = height / float(np.ptp(person["points"][:, 1]))
     saved = {"scale": scale, "kinds": kinds, "shell_points": person["points"], "shell_faces": person["faces"],
@@ -732,35 +947,50 @@ def made(body_glb, rig_path, out, height, reach=None):
     record = {"body": str(body_glb), "height_m": height, "scale": round(scale, 4),
               "faces": {kind: int((kinds == number).sum()) for number, kind in enumerate(KINDS)},
               "tether_m": {kind: reach[kind] for kind in worn(kinds)}, "runs": {}}
-    garments = garments_of(person, kinds, body, scale, reach)
+    garments = garments_of(person, kinds, body, scale, reach, rig_weights)
+    legs = (joint_at(person, "LeftLeg") + joint_at(person, "RightLeg")) * scale / 2.0
     for clip in ("walking", "standing"):
         timing = timing_of(person, clip, scale)
         frames = frames_of(person, timing, clip)
         body_posed = skinned(body[0] * scale, body[2], timing["moves"])
         run = {"engine": ENGINE, "seconds": 0.0, "rate": timing["rate"], "cycle_frames": timing["length"],
                "frames": frames, "garments": {}, "skinned": {}}
-        for kind, (used, faces, riding, sim) in garments.items():
+        if clip == "walking":
+            run["hands_in_m"] = hands_in(person, kinds, body, scale, timing)
+        for kind, (garment, sim) in garments.items():
             cloth, seconds = moved(sim, kind, timing, body_posed, body[1])
             run["seconds"] = round(run["seconds"] + seconds, 1)
             carried = skinned(sim["points"], sim["weights"], timing["moves"])
-            own = skinned(person["points"][used] * scale, person["weights"][used], timing["moves"])
-            shape = {"points": len(used), "sim_points": len(sim["points"]), "sim_faces": len(sim["faces"]),
-                     "riding_share": round(float(sim["riding"].mean()), 3)}
+            rest = garment["points"] * scale
+            own = skinned(rest, garment["weights"], timing["moves"])
+            shape = {"points": len(rest), "sim_points": len(sim["points"]), "sim_faces": len(sim["faces"]),
+                     "riding_share": round(float(sim["riding"].mean()), 3), "cut_points": int(garment["cut"].sum()),
+                     "pushed_share": round(float(sim["pushed"].mean()), 3)}
             for label, positions in (("garments", cloth), ("skinned", carried)):
                 drawn = own + cloth_mesh.displaced(sim["binding"], positions, carried, sim["faces"])
-                run[label][kind] = {**shape, **measures(positions, sim, carried, drawn, ~riding, body_posed, body[1])}
+                found = measures(positions, sim, carried, drawn, ~garment["riding"], body_posed, body[1])
+                run[label][kind] = {**shape, **found}
                 if clip == "walking":
                     run[label][kind].update(hem_swing(positions, carried, sim, frames["passing"]))
+                    if kind == "jacket":
+                        run[label][kind].update(between_legs(drawn, rest, garment["faces"], legs[0], legs[1]))
                 if kind == "jeans" and clip == "walking":
                     passing = frames["passing"]
                     run[label][kind]["flap_passing_m"] = flap(positions[passing], sim, person["names"],
                                                               body_posed[passing])
                     run[label][kind]["swing_passing_m"] = swing(positions[passing], sim, person["names"],
                                                                 body_posed[passing], body[0] * scale)
+            if clip == "walking" and kind == "jacket":
+                used, faces = garment_of(person, kinds, kind)
+                run.setdefault("rig_skinned", {})[kind] = between_legs(
+                    skinned(person["points"][used] * scale, rig_weights[used], timing["moves"]),
+                    person["points"][used] * scale, faces, legs[0], legs[1])
             drawn = own + cloth_mesh.displaced(sim["binding"], cloth, carried, sim["faces"])
-            normals = skinned_normals(person["normals"][used], person["weights"][used], timing["moves"])
+            normals = skinned_normals(garment["normals"], garment["weights"], timing["moves"])
             del own
-            saved[f"{kind}_used"], saved[f"{kind}_faces"], saved[f"{kind}_riding"] = used, faces, riding
+            for name in ("faces", "riding", "sleeve", "cut", "flaps", "source"):
+                saved[f"{kind}_{name}"] = garment[name]
+            saved[f"{kind}_points"] = garment["points"]
             saved[f"{kind}_sim_points"], saved[f"{kind}_sim_faces"] = sim["points"] / scale, sim["faces"]
             for name, frame in frames.items():
                 count = int(SECONDS * FPS) if name == "film" else 1

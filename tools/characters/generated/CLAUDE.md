@@ -172,6 +172,16 @@ own paint) and brings in only what the generator cannot make, from the repo's ow
   The body under the clothes wears the person's own jacket and trousers (`under_colours`): where a sleeve fused to
   the trunk opens at the side, the gap shows the jacket's colour, not a fixed white (nor a turtleneck's black, which
   read as holes in a camel coat).
+  Round 5 (2026-11-27): a garment reaching under the hip joints hangs as a skirt (`skirted`: its weights there across
+  both thighs and the pelvis, the pelvis more lower down and toward the middle, never on its sleeves), so a coat's
+  hem hangs as one piece instead of splitting with the thighs (the coat's middle between the legs grew 4.9 times its
+  length skinned, `between_legs` in cloth.json); a jacket's sleeves fused to its sides are cut off them where its
+  faces turn from the arm's to the trunk's, 8 cm or more under the shoulder (`sleeves_cut`), each piece's weights
+  eased onto its own limb and each cut edge closed by a flap turned in toward the body (`flaps_of`), so the sleeve
+  swings with the arm and the side stays; blender_cloth splits the drawn garment the same way. A re-weighted point's
+  target (a skirt's, a cut sleeve's) is pushed out of the body before the run (`cloth_tether.pushed_out`: the
+  skirted coat's front lay 12.7 cm inside the lifted thigh, as a thigh pushes a skirt ahead). The hands' depth in
+  the trunk and legs is recorded (`hands_in`); the arms are kept out of the coat in still_rig (`arms_kept_out`).
   **Free cloth is stopped** (coordinator, 2026-11-26): two free runs on Newton's VBD tore (the jeans stretched 90 cm
   down to and between the shoes, 19 cm inside the body; the jacket shredded). The tether makes the result at least as
   stable as plain skinning; cloth.json records every garment's numbers both ways (`garments` tethered, `skinned`).

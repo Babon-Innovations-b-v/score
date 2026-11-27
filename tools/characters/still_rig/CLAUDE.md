@@ -35,7 +35,11 @@ A still picture-made model (a TRELLIS.2 mesh, no skeleton) rigged as a player mo
   thigh points 27 cm over the knee from the shin and spiked 18 cm off the thigh at every stride). A person whose arms
   lie against the trunk all the way down (no slice parts them: the hoodie man in an open overshirt, the older woman in
   a long coat, 2026-11-27) has each arm read as the sleeve at its side's outer edge (`fused_landmarks`): its axis for
-  the turn, its points for the arm-only weight match.
+  the turn, its points for the arm-only weight match. A person's clips never bring an arm in nearer its trunk than
+  the still's own arm hangs at the bind (`arms_kept_out`, a soft floor on the arm's angle out across the trunk,
+  only while it hangs down on its own side; 2026-11-27: the dressed body's walk swung the hands 3 to 6 degrees off
+  the trunk while the older woman's coat and the hoodie man's overshirt hang their sleeves 9 to 20 out, and the hands
+  went into the coat and the thighs). The arm's new local turns are written over the dressed body's keys.
 - **The place clips** (2099 #161: the places' people had only the dressed body's five clips): `place_clips.py` makes
   the prologue's clips (talking, stairs up and down, the rail lean, looking out, waving, swaying) and makes again the
   work bodies' (leaning, pointing, checking, clipboard, cheering, waiting, clapping, shifting) from their own sentences

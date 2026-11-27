@@ -46,7 +46,7 @@ The steps:
    prints stay, and the base colour is graded toward the place's palette tokens as a made prop's paint is
    (score/stages/place_build/maker/grade.py). The parts keep only their joints and their `role`.
 7. The glTF (`written`): the dressed body's skeleton and clips (its corrective morph keys left out: the still has no
-   targets), the still as its `work` node and a far body of FAR_TRIANGLES out of the file's default scene
+   targets; a person's arms never brought in nearer its trunk than the still's own arms hang, `arms_kept_out`), the still as its `work` node and a far body of FAR_TRIANGLES out of the file's default scene
    (people/glb.py levels_apart, #156); `stretch` measures the longest edge's
    growth on every frame of every clip.
 
@@ -122,6 +122,13 @@ SLEEVE_BAND = 0.10  # metres: a slice's outermost points this deep on a side are
 SLEEVE_HALF = 0.06  # metres: a point this near the sleeve's middle line, or beyond it, is the arm's
 ARM_UNDER_SHOULDER = 0.08  # metres: the sleeve is read and labelled this far under the shoulder (the Arm joint) down
 HAND_UNDER_WRIST = 0.10  # metres: and down to this far under the wrist (the Hand joint)
+# A person's clips keep each arm out as far from its trunk as the still's own arm hangs (`arms_kept_out`; 2026-11-27:
+# the dressed body's walk brought the hands 3 to 6 degrees off the trunk, the coat's and overshirt's own sleeves hang
+# 9 to 20 out, so the hands pressed into the coat and the thighs):
+ARM_SOFT_DEGREES = 2.0  # the floor is a soft maximum this wide (no kink where the swing meets it)
+ARM_HANGING = (0.5, 0.8)  # the arm's downward share (cosine) from which the floor starts to hold and holds whole
+ARM_ACROSS_DEGREES = 5.0  # an arm brought across the trunk past straight down by this much is a pose (a hand on the
+# far knee on the bench), never pushed out
 CLIFF_ROUNDS, CLIFF_ALPHA = 200, 0.5  # its rounds (about 3 cm of spread on 3 mm edges), and how far towards its
 # neighbours' mean a point moves each round
 OUTFIT = "work"  # the dressed body's own outfit node, which skel_usd shows (DEFAULT_WORN)
@@ -404,6 +411,49 @@ def arms_turned(bind, names, parents, body, mesh):
             out[joint] = moved @ bind[joint]
         turns[side] = round(float(np.degrees(angle)), 2)
     return out, turns
+
+
+def abduction(worlds, bind, names, side):
+    """Each frame's arm abduction in degrees (worlds: frames x joints x 4 x 4): the hand off its shoulder (the Arm
+    joint) in the chest's frame as it is at the bind, its angle out from straight down across the trunk; and the
+    arm's downward share (cosine)."""
+    chest, arm, hand = (names.index(name) for name in ("Chest", side + "Arm", side + "Hand"))
+    trunk = bind[chest, :3, :3] @ np.linalg.inv(worlds[:, chest, :3, :3])
+    off = np.einsum("fab,fb->fa", trunk, worlds[:, hand, :3, 3] - worlds[:, arm, :3, 3])
+    sign = prop_rig.SIDES[side]
+    return (np.degrees(np.arctan2(sign * off[:, 0], -off[:, 1])),
+            -off[:, 1] / np.maximum(np.linalg.norm(off, axis=1), 1e-12))
+
+
+def arms_kept_out(worlds, bind, names, parents):
+    """A clip's joint worlds (frames x joints x 4 x 4) with each arm turned out across the trunk (about the chest's
+    forward axis, at the shoulder) wherever it comes in nearer than the still's own arm hangs at the bind
+    (`abduction`; a soft maximum ARM_SOFT_DEGREES wide, held only while the arm hangs down, ARM_HANGING, on its own
+    side of the trunk, ARM_ACROSS_DEGREES), every joint
+    under it turned along; and {Arm joint: its new local rotations as glTF quaternions (frames x 4)}. The dressed
+    body's walk swung the hands 3 to 6 degrees off the trunk; the coat's and the overshirt's sleeves hang 9 to 20 out
+    and the hands went into them (2026-11-27)."""
+    from scipy.spatial.transform import Rotation
+    out, locals_ = np.array(worlds, float), {}
+    chest = names.index("Chest")
+    for side, sign in prop_rig.SIDES.items():
+        floor = float(abduction(bind[None], bind, names, side)[0][0])
+        angle, hanging = abduction(out, bind, names, side)
+        raised = floor + ARM_SOFT_DEGREES * np.logaddexp(0.0, (angle - floor) / ARM_SOFT_DEGREES)
+        share = (np.clip((hanging - ARM_HANGING[0]) / (ARM_HANGING[1] - ARM_HANGING[0]), 0.0, 1.0)
+                 * np.clip(1.0 + angle / ARM_ACROSS_DEGREES, 0.0, 1.0))
+        turn = np.radians((raised - angle) * share) * sign
+        forward = np.einsum("fab,b->fa", out[:, chest, :3, :3] @ bind[chest, :3, :3].T, [0.0, 0.0, 1.0])
+        arm = names.index(side + "Arm")
+        moved = np.repeat(np.eye(4)[None], len(out), axis=0)
+        moved[:, :3, :3] = Rotation.from_rotvec(forward * turn[:, None]).as_matrix()
+        pivot = out[:, arm, :3, 3].copy()
+        moved[:, :3, 3] = pivot - np.einsum("fab,fb->fa", moved[:, :3, :3], pivot)
+        for joint in below(arm, parents):
+            out[:, joint] = moved @ out[:, joint]
+        parent = out[:, parents[arm], :3, :3]
+        locals_[arm] = Rotation.from_matrix(np.einsum("fba,fbc->fac", parent, out[:, arm, :3, :3])).as_quat()
+    return out, locals_
 
 
 def landmarks_of(points, bind, names):
@@ -837,8 +887,9 @@ def pieces_of(faces, part_of, *per_point):
     return found
 
 
-def written(out, document, blob, bind, laid, maps):
-    """The glTF: the dressed body's Person node, joints, skin and clips (joint keys only), the still's parts as the
+def written(out, document, blob, bind, laid, maps, turned=None):
+    """The glTF: the dressed body's Person node, joints, skin and clips (joint keys only; `turned`: {clip: {joint:
+    its local rotations}} written over the dressed body's keys, `arms_kept_out`), the still's parts as the
     OUTFIT node and its far body bound at `bind`, every part in the still's own maps. `laid`: the still's welded
     `points`, `faces`, `part_of`, `weights` and `normals`, and its points split along the map's charts (`mapping`,
     each split point's welded one; `split_faces`; `places`)."""
@@ -865,8 +916,13 @@ def written(out, document, blob, bind, laid, maps):
             if channel["target"]["path"] == "weights" or channel["target"]["node"] not in renumber:
                 continue
             sampler = animation["samplers"][channel["sampler"]]
+            joint = joints.index(channel["target"]["node"]) if channel["target"]["node"] in joints else None
+            own = (turned or {}).get(animation["name"], {}).get(joint) if channel["target"]["path"] == "rotation" \
+                else None
+            output = (copied(contents, document, blob, sampler["output"]) if own is None else
+                      contents.reading(np.asarray(own, np.float32).ravel().tolist(), "VEC4", glb.FLOAT))
             samplers.append({"input": copied(contents, document, blob, sampler["input"]),
-                             "output": copied(contents, document, blob, sampler["output"]),
+                             "output": output,
                              "interpolation": sampler.get("interpolation", "LINEAR")})
             channels.append({"sampler": len(samplers) - 1,
                              "target": {"node": renumber[channel["target"]["node"]], "path": channel["target"]["path"]}})
@@ -943,14 +999,17 @@ def rigged(still, dressed, rig_path, palette_path, out, faces=FACES, person=Fals
                            source, tokens)
     laid = {"points": mesh.vertices, "faces": mesh.faces, "part_of": part_of, "weights": weights, "normals": normals,
             "mapping": mapping, "split_faces": split_faces, "places": places}
-    sizes = written(out / "body.glb", document, blob, bind, laid, maps)
     order, kept = strongest(weights)
-    clips = {}
+    clips, turned = {}, {}
     for animation in document["animations"]:
-        moves = clip_worlds(document, blob, animation, names, parents) @ np.linalg.inv(bind)
+        worlds = clip_worlds(document, blob, animation, names, parents)
+        if person:
+            worlds, turned[animation["name"]] = arms_kept_out(worlds, bind, names, parents)
+        moves = worlds @ np.linalg.inv(bind)
         most, high, where = stretch(mesh.vertices, mesh.faces, order, kept, moves)
         clips[animation["name"]] = {"stretch_most": round(max(most), 3), "stretch_999": round(max(high), 3),
                                     "frames": len(most), "where": np.round(where, 3).tolist()}
+    sizes = written(out / "body.glb", document, blob, bind, laid, maps, turned)
     record = {"still": str(still), "dressed": str(dressed), "rig": str(rig_path), "palette": str(palette_path),
               "height_m": round(height, 3), "heights_tried": tried, "arm_turns_degrees": arm_turns,
               "outside_share": round(outside_share(fitted, trunk_skin(body, body_weights, names)), 4),
