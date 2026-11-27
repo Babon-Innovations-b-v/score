@@ -11,8 +11,8 @@ panel, turned up behind the calf with the shin at the passing step, is pulled ba
 trunk does not sag a tether's length. The body keeps it out (`retracted`: a point deeper than half the garment's
 thickness, or than its skinned place where the skinning itself draws it inside, is drawn back toward its target, never
 pushed sideways; a garment's re-weighted points, a skirt's panel or a cut sleeve's edge, have their targets pushed out
-of the body first, `pushed_out`), and the edges keep the target's own lengths that frame, so the cloth is as stable as the skinning
-and only swings and sags inside its tether.
+of the body first, `pushed_out`), and the edges keep the target's own lengths that frame, so the cloth is as stable
+as the skinning and only swings and sags inside its tether.
 
 Position-based (Mueller et al. 2007, "Position based dynamics"; the max distance and backstop of game cloth): numpy
 on the processor, one step SUBSTEPS times a frame, the edges ITERATIONS times a substep, deterministic.

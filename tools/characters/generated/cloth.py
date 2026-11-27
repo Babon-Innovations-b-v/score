@@ -503,8 +503,8 @@ def skirted(person, kinds, kind="jacket"):
     hem = points[:, 1].min()
     across = np.clip((points[:, 0] - right[0]) / (left[0] - right[0]), 0.0, 1.0)
     down = np.clip((top - points[:, 1]) / max(top - hem, 1e-6), 0.0, 1.0)
-    hips = np.clip(SKIRT_HIPS[0] + (SKIRT_HIPS[1] - SKIRT_HIPS[0]) * down + SKIRT_MIDDLE * (1.0 - np.abs(2 * across - 1)),
-                   0.0, 1.0)
+    hips = np.clip(SKIRT_HIPS[0] + (SKIRT_HIPS[1] - SKIRT_HIPS[0]) * down
+                   + SKIRT_MIDDLE * (1.0 - np.abs(2 * across - 1)), 0.0, 1.0)
     skirt = np.zeros((len(used), len(names)))
     skirt[:, names.index("Hips")] = hips
     skirt[:, names.index("LeftLeg")] = (1.0 - hips) * across
@@ -551,9 +551,9 @@ def sleeves_cut(person, garment):
     weights over half) and one mostly on the trunk, CUT_UNDER_SHOULDER_M or more under that side's shoulder, are
     opened (the sleeve's faces take copies of their points), each piece's weights eased onto its own limb alone over
     CUT_EASE_M (the sleeve its arm's, the side the trunk's), the side covered where the sleeve leaves it (`covered`)
-    and each cut edge of each piece closed by a flap turned in toward the body (`flaps_of`). Adds `sleeve` (each face's), `cut` (each point's: on a cut, either copy) and
-    `flaps` (the cover's and the flaps' faces), and `source` holds the point each point was copied from; a garment with no cut is
-    returned with them empty."""
+    and each cut edge of each piece closed by a flap turned in toward the body (`flaps_of`). Adds `sleeve` (each
+    face's), `cut` (each point's: on a cut, either copy) and `flaps` (the cover's and the flaps' faces), and `source`
+    holds the point each point was copied from; a garment with no cut is returned with them empty."""
     names, points, faces, weights = person["names"], garment["points"], garment["faces"], garment["weights"]
     chains = arm_chains(names)
     arm_share = {side: weights[:, chain].sum(1) for side, chain in chains.items()}
@@ -620,7 +620,8 @@ def covered(garment, person, chains):
     copied = np.unique(faces[inner])
     number = np.full(len(points), -1)
     number[copied] = len(points) + np.arange(len(copied))
-    toward = np.c_[middle_x - points[copied, 0], np.zeros(len(copied)), joint_at(person, "Chest")[2] - points[copied, 2]]
+    toward = np.c_[middle_x - points[copied, 0], np.zeros(len(copied)),
+                   joint_at(person, "Chest")[2] - points[copied, 2]]
     toward /= np.maximum(np.linalg.norm(toward, axis=1, keepdims=True), 1e-12)
     arms = np.concatenate(list(chains.values()))
     trunk = [joint for joint in range(len(names)) if joint not in arms]

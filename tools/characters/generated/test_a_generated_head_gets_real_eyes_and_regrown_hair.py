@@ -1261,8 +1261,8 @@ def skirt_person(points, faces, weights):
 
 
 def cloth_skirted():
-    """A coat panel 40 cm wide from 1.1 m down to 0.5 m (1 cm apart), skinned to the hips over the hip joints (0.9 m) and to the
-    thigh on its side under them, its outer lowest corner a cuff (on the left hand): under the hip joints its middle at
+    """A coat panel 40 cm wide from 1.1 m down to 0.5 m (1 cm apart), skinned to the hips over the hip joints (0.9 m)
+    and to the thigh on its side under them, its outer lowest corner a cuff (on the left hand): under the hip joints its middle at
     the hem hangs from both thighs alike and from the pelvis the most (SKIRT_HIPS's hem share and SKIRT_MIDDLE), its
     side at the hem from its own thigh and the pelvis's hem share; over the hip joints and at the cuff the weights are
     their own, every row sums to one; a short jacket (all over 0.9 m) is left."""
@@ -1540,8 +1540,8 @@ def tether_curtain():
 
 def tether_pushed_out():
     """A sheet of targets through a ball (10 cm), its points left of 5 cm chosen: every chosen point ends at least the
-    clearance outside the ball by its planes (to a tenth: the facets), the others stay where they were, and a chosen point outside the ball
-    beside a pushed one is moved too (the push spread)."""
+    clearance outside the ball by its planes (to a tenth: the facets), the others stay where they were, and a chosen
+    point outside the ball beside a pushed one is moved too (the push spread)."""
     ball = trimesh.creation.icosphere(subdivisions=3, radius=0.1)
     x, y = np.meshgrid(np.linspace(-0.15, 0.15, 13), np.linspace(-0.15, 0.15, 13))
     points = np.c_[x.ravel(), y.ravel(), np.full(x.size, 0.05)]

@@ -46,7 +46,8 @@ The steps:
    prints stay, and the base colour is graded toward the place's palette tokens as a made prop's paint is
    (score/stages/place_build/maker/grade.py). The parts keep only their joints and their `role`.
 7. The glTF (`written`): the dressed body's skeleton and clips (its corrective morph keys left out: the still has no
-   targets; a person's arms never brought in nearer its trunk than the still's own arms hang, `arms_kept_out`), the still as its `work` node and a far body of FAR_TRIANGLES out of the file's default scene
+   targets; a person's arms never brought in nearer its trunk than the still's own arms hang, `arms_kept_out`), the
+   still as its `work` node and a far body of FAR_TRIANGLES out of the file's default scene
    (people/glb.py levels_apart, #156); `stretch` measures the longest edge's
    growth on every frame of every clip.
 
