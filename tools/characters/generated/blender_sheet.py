@@ -22,6 +22,7 @@ import numpy as np
 from mathutils import Vector
 
 MODEL, GROOM, LIBRARY, LIFT, SAMPLES, OUT = sys.argv[sys.argv.index("--") + 1:][:6]  # `blender_lids.py` passes more
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1] / "whole"))
 import render  # noqa: E402
 import blender_face  # noqa: E402  (on the path render.py put it)
