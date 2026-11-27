@@ -1,6 +1,7 @@
 """Inside Blender (Cycles on the CPU): a generated person's head drawn twice, the raw model as made and the model with
 its hair regrown as strands (`__main__`'s outputs), the whole route's photo way (`../whole/render.py`: the CC0 park
-sky as world and ground, the incident meter's exposure and balance, 85 mm, its fall-off and grain): front, three
+sky as world and ground, the incident meter's exposure and balance, 85 mm, its fall-off and grain; developed in
+plain sRGB as `blender_eyes.py` develops the face): front, three
 quarters, side, back and a close-up of the forehead's hairline.
 
     blender -b --python blender_sheet.py -- <model.glb> <groom folder> <library> <lift m> <samples> <out folder>
@@ -24,6 +25,7 @@ MODEL, GROOM, LIBRARY, LIFT, SAMPLES, OUT = sys.argv[sys.argv.index("--") + 1:][
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1] / "whole"))
 import render  # noqa: E402
 import blender_face  # noqa: E402  (on the path render.py put it)
+import blender_eyes  # noqa: E402  (reads the same first six arguments; its VIEW: the face developed in plain sRGB)
 
 SETTING = {"sky": "polyhaven_cloudy_vondelpark"}
 VIEWS = {"front": 0.0, "three_quarter": 35.0, "side": 90.0, "back": 180.0}
@@ -195,6 +197,7 @@ def main():
     scene = bpy.context.scene
     exposure = render.place(LIBRARY, Vector((eyes[0], eyes[1], lift)), SETTING)
     render.film(scene, exposure)
+    scene.view_settings.view_transform, scene.view_settings.look = blender_eyes.VIEW
     scene.cycles.device = "CPU"
     scene.cycles.samples = int(SAMPLES)
     scene.render.threads_mode = "FIXED"
