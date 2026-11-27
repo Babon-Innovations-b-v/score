@@ -4,7 +4,8 @@ TRELLIS.2's own, on its author's published cumesh, flex_gemm and o_voxel wheels;
 weights from the node cache (images/meshparts/models.json: `trellis2-4b-make`, TRELLIS-image-large's structure
 decoder, DINOv3), one job for any number of pictures, each in its own process as generate.py asks.
 
-    made(pairs, who) -> {out.glb: its stats} for [(picture.png, out.glb), ...], run on the cluster (SCORE_CLOUD=k8s)
+    made(pairs, who) -> {out.glb: its stats} for [(picture.png, out.glb[, faces]), ...], run on the cluster
+    (SCORE_CLOUD=k8s); a pair's faces (maker.faces_for its size) as the PC's make passes them, else generate.FACES
 
 Each model comes back as generate.py leaves it here: its .json and its decoded mesh beside it (brought_back).
 
@@ -42,18 +43,19 @@ def job_of(pairs):
     """The cluster job making each (picture, out.glb) of `pairs`: the pictures at /work/in/<n>.png, the models at
     /work/out/<n>/model.glb with their stats, each made in a process of its own."""
     lines = list(ENV_LINES)
-    for number, _ in enumerate(pairs):
+    for number, pair in enumerate(pairs):
+        faces = f" {int(pair[2])}" if len(pair) > 2 and pair[2] else ""
         lines.append(f"mkdir -p /work/out/{number} && {PYTHON} -I score/stages/place_build/maker/generate.py {ENV} "
-                     f"/work/in/{number}.png /work/out/{number}/model.glb")
+                     f"/work/in/{number}.png /work/out/{number}/model.glb{faces}")
     return {"command": ["bash", "-c", "set -euo pipefail; " + " && ".join(lines)],
             "code": ["score/stages/place_build/maker/generate.py", "score/stages/place_build/maker/remesh.py",
                      "score/stages/place_build/maker/shim"],
             "models": MODELS,
             "env": {"MALLOC_ARENA_MAX": "2"},
             "inputs": [{"local": str(picture), "path": f"/work/in/{number}.png"}
-                       for number, (picture, _) in enumerate(pairs)],
+                       for number, (picture, *_) in enumerate(pairs)],
             "outputs": [{"path": f"/work/out/{number}", "local": str(pathlib.Path(out).parent / f".cloud-{number}")}
-                        for number, (_, out) in enumerate(pairs)],
+                        for number, (_, out, *_) in enumerate(pairs)],
             "minutes": SETUP_MINUTES + MINUTES_A_PICTURE * len(pairs)}
 
 
@@ -67,7 +69,7 @@ def made(pairs, who):
     if failed:
         raise RuntimeError(f"TRELLIS.2's cloud job failed ({len(pairs)} pictures)")
     stats = {}
-    for output, (picture, out) in zip(job["outputs"], pairs):
+    for output, (picture, out, *_) in zip(job["outputs"], pairs):
         if not (pathlib.Path(output["local"]) / "model.glb").is_file():
             raise RuntimeError(f"{picture}: no model came back")
         stats[str(out)] = brought_back(pathlib.Path(output["local"]), pathlib.Path(out))

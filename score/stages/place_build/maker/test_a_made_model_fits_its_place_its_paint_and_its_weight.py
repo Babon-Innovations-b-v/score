@@ -53,7 +53,8 @@ Breaks that turn this red (each applied once and seen red, then reverted):
   `np.abs(weighted).sum(0)` made the mean's `np.abs(weighted.sum(0))` -> the closed knob faces by noise (seen red
   2026-11-25)
 - cloud.job_of: a model it names missing from the meshparts image's models.json, two pictures made in one process
-  (generate.py drops its flow models after one), or a picture's output not brought back where its out.glb lies;
+  (generate.py drops its flow models after one), a picture's output not brought back where its out.glb lies, or a
+  pair's faces not passed to generate.py (the cloud make at 500k whatever its size);
   cloud.brought_back leaving the decoded mesh behind -> its folder is not removed (rmdir refuses) and no
   trellis-decoded.glb lies beside the model (#209)
 - shim/flash_attn: the padded batch's key mask dropped -> padded keys are attended (checked where torch is, as in
@@ -478,8 +479,9 @@ def test_a_made_model_fits_its_place_its_paint_and_its_weight(tmp_path):
 
     models = cloud.REPO / "tools/cloud/images/meshparts/models.json"
     listed = {model["name"] for model in json.loads(models.read_text())}
-    job = cloud.job_of([("/pictures/a.png", "/made/a/a.glb"), ("/pictures/b.png", "/made/b/b.glb")])
+    job = cloud.job_of([("/pictures/a.png", "/made/a/a.glb", 20000), ("/pictures/b.png", "/made/b/b.glb")])
     assert set(job["models"]) <= listed and job["command"][-1].count("generate.py") == 2
+    assert "/work/out/0/model.glb 20000 &&" in job["command"][-1] and job["command"][-1].endswith("/1/model.glb")
     assert [entry["local"] for entry in job["outputs"]] == ["/made/a/.cloud-0", "/made/b/.cloud-1"]
     for number, decoded in enumerate((True, False)):  # a model back from the cloud with its decoded mesh, and one without
         back, out = tmp_path / f".cloud-{number}", tmp_path / f"cloud{number}" / "trellis.glb"
