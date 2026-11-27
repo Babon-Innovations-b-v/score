@@ -35,6 +35,11 @@ EYES_FRAME_M = 0.09
 EYES_FSTOP = 11.0
 THREE_QUARTER_DEGREES = 35.0
 THREADS = 6
+# The face's close-ups are developed plainly (sRGB), not in the whole route's AgX look (round 3, 2026-11-27: against
+# plain sRGB, AgX's medium high contrast look took a lit cheek's CIELAB chroma from 21 to 12 and raised a shadowed eye
+# socket's from 27 to 33, so every socket read as an orange-brown band round pale skin; the close-up photo's socket
+# over cheek chroma is 1.2, plain sRGB's 1.3, the look's 2.6).
+VIEW = ("Standard", "None")
 MATCH_M = 1e-6  # a removed triangle's centre found on the imported mesh within this (the model's units)
 # Each piece's score_lib surfaces, by its `finish` index (face.py's own lists).
 SURFACES = {"eyes": ["face_sclera", "face_iris_brown", "face_pupil"], "cornea": ["face_cornea", "face_eye_film"],
@@ -172,6 +177,7 @@ def staged(holder, middle):
     """The park's light, the film, the camera and a turntable under the holder; (camera, turntable)."""
     scene = bpy.context.scene
     render.film(scene, render.place(LIBRARY, middle, SETTING))
+    scene.view_settings.view_transform, scene.view_settings.look = VIEW
     scene.cycles.device = "CPU"
     scene.cycles.samples = int(SAMPLES)
     scene.render.threads_mode = "FIXED"

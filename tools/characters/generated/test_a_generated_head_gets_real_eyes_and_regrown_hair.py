@@ -75,6 +75,15 @@ move pulls forward (`lids.layers_kept`). Breaks that turn their rows red (each a
 no slope allowance (`skin.VISIBLE_SLOPE` 0: the steep point is paint); no broad scale (`paint_toned`'s
 `broad_scale` 1: the rust patch and shade band keep their spread); the mask ignored (every texel toned: the hair
 too); nothing hidden (`lids.LAYERS` hidden_m 1: the hidden layer pulled onto the face).
+Round 3 (2026-11-27): a hollow the model's front shuts reads shut and the photo's darker, warmer light in it is
+divided out per channel (`skin.occlusion`, `skin.shading`); the photo's fringe (strands with skin between, from the
+top edge) and lid openings are left out of its face, its brows and a moustache under the pupils kept
+(`skin.face_mask`, `skin.eye_openings`); the model's painted fringe wears no photo, its beard's middle may
+(`skin.model_hair_free`); the share rises over EDGE_FEATHER_M from its outer edge (`skin.grid_share`). Breaks that
+turn their rows red (each applied once, seen red, reverted): the old clip (`skin.SHADING_RANGE` (0.8, 1.25): the
+hollow kept its shade); no occlusion term (`occlusion` all 0); every place hair (`skin.hair_zone` always true: the
+moustache left out); no hair taken out (`hair` none: the fringe kept); no lid openings (`EYE_GROW_M` and the polygon
+dropped); no feather (`EDGE_FEATHER_M` 1e-9: the edge at full share).
 
 The cloth (`cloth.py`), on toys: a grid painted jacket over jeans with a fleck of T-shirt and stray jeans faces in the
 jacket comes out clean after the vote and the islands; a tube's distance over its surface from its top loop is its
@@ -575,7 +584,7 @@ def skin_light_off():
     albedo = np.array([0.5, 0.3, 0.22])
     lit = albedo * (0.9 + 0.1 * tilt)[..., None]
     light, _ = skin.shading(grid, lit, np.ones(tilt.shape))
-    flat = eyes.luminance(lit / light[..., None])
+    flat = eyes.luminance(lit / light)
     glossy = albedo + 0.12
     cleaned, excess = skin.gloss_free(np.array([glossy, albedo]), np.full(2, eyes.luminance(albedo)),
                                       np.tile(albedo / albedo[0], (2, 1)))
@@ -583,6 +592,51 @@ def skin_light_off():
     return [bool(flat.std() / flat.mean() < 0.02),
             bool(left < excess[0] / 2.0 and np.allclose(cleaned[0] / cleaned[0, 0], albedo / albedo[0], atol=0.01)),
             bool(np.abs(cleaned[1] - albedo).max() < 0.005)]
+
+
+def skin_hollow_light_off():
+    """A hollow the model's own front shuts reads shut, and the photo's darker, warmer light in it is divided out to
+    the skin's colour round it (the render makes the hollow's shade again)."""
+    grid = skin_flat_grid(lambda x, y: np.ones(x.shape + (3,)) * 0.5)
+    rows, cols = np.indices(grid["depth"].shape)
+    pit = np.hypot(rows - 100, cols - 100) < 30
+    grid["depth"] = np.where(pit, 0.1 - 0.015, 0.1)
+    shut = skin.occlusion(grid)
+    albedo = np.array([0.5, 0.3, 0.22])
+    lit = albedo * (1.0 - shut[..., None] * np.array([0.6, 0.8, 0.9]))
+    light, _ = skin.shading(grid, lit, np.ones(shut.shape))
+    flat = lit / light
+    inner = np.hypot(rows - 100, cols - 100) < 10
+    return [bool(shut[inner].mean() > shut[~pit].mean() + 0.3),
+            bool(np.abs(flat[inner].mean(axis=0) / flat[~pit].mean(axis=0) - 1.0).max() < 0.08)]
+
+
+def skin_photo_kept_off():
+    """The photo's face leaves out its fringe (strands with skin between, from the top edge) and its lid openings but
+    keeps its brows and a moustache under the pupils; the model's painted fringe wears no photo, its beard's middle
+    may; the share rises over EDGE_FEATHER_M from its outer edge."""
+    rows, cols = np.indices((200, 200))
+    photo = np.ones((200, 200, 3)) * [0.85, 0.65, 0.55]
+    strands = (rows < 70) & ((rows < 40) | (cols % 10 < 6))
+    photo[strands] = 0.7
+    photo[(np.abs(rows - 80) < 3) & (np.abs(cols - 60) < 20)] = [0.2, 0.15, 0.1]
+    photo[(np.abs(rows - 150) < 5) & (np.abs(cols - 100) < 30)] = [0.2, 0.15, 0.1]  # a moustache, by a hair's
+    photo[(rows > 150) & (np.abs(cols - 100) < 4)] = [0.2, 0.15, 0.1]  # line to the picture's edge
+    pupils = np.array([[60.0, 100.0], [140.0, 100.0]])
+    face = skin.face_mask(photo, 2000.0, pupils)
+    marks = {"eyes": [{"upper": [[50, 100], [60, 95], [70, 100]], "lower": [[50, 100], [60, 105], [70, 100]]}]}
+    opening = skin.eye_openings(face.shape, marks, 2000.0)
+    grid = skin_flat_grid(lambda x, y: np.ones(x.shape + (3,)) * [0.85, 0.65, 0.55])
+    grid["colour"][(grid["ys"] > 0.03)[:, None] & np.ones((1, len(grid["xs"])), bool)] = 0.7
+    grid["colour"][(grid["ys"] < -0.03)[:, None] & (np.abs(grid["xs"]) < 0.02)[None, :]] = [0.2, 0.15, 0.1]
+    free = skin.model_hair_free(grid, np.array([[-0.03, 0.0], [0.03, 0.0]]))
+    flat = np.zeros(grid["depth"].shape)
+    flat[20:180, 20:180] = 1.0
+    share = skin.grid_share(grid, flat, np.full(flat.shape, np.inf))
+    return [bool(face[55, 103] < 0.2), bool(face[80, 60] > 0.8), bool(face[150, 100] > 0.8),
+            bool(opening[100, 60] and not opening[120, 60]),
+            bool(free[190, 100] == 0 and free[100, 100] == 1 and free[20, 100] == 1),
+            bool(share[100, 22] < 0.3 and share[100, 40] > 0.95)]
 
 
 def skin_shares():
@@ -1242,6 +1296,10 @@ def tether_inside_read():
     ("the close-up photo is registered onto the model's front from a start off by pixels and scale",
      lambda: skin_registered()[0], True),
     ("the photo's shading and gloss are taken off, plain skin kept", skin_light_off, [True, True, True]),
+    ("a hollow the model shuts reads shut, the photo's darker, warmer light in it divided out", skin_hollow_light_off,
+     [True, True]),
+    ("the photo's fringe and lid openings are kept off, its brows and moustache kept; the model's painted fringe "
+     "wears no photo, its beard's middle may; the share rises from its outer edge", skin_photo_kept_off, [True] * 6),
     ("a point wears the photo only facing forward, on the front, in the photo's face, clear of the eye; the T-zone "
      "holds the nose", skin_shares, [True] * 7),
     ("the photo's iris is unrolled onto the eyeball: its pupil's share read, the catchlight gone, the white outside",

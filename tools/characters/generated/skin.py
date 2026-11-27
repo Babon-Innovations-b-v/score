@@ -12,13 +12,16 @@ Steps:
    paint's detail (each smoothed to the paint's own blur, its broad tone taken off, `detail`) to the photo's, a PATCH_M
    patch round each node of a CONTROL x CONTROL grid (`node_shifts`): an affine plus a smooth displacement.
 3. `face_texture`: the photo resampled onto the box at TEXTURE pixels, its light taken off as far as reasonable: the
-   broad shading fitted to the front's slope (`shading`, first-order in the normal over the skin) divided out, and the
+   broad shading fitted per channel to the front's slope and the model's own `occlusion` (`shading`, first-order in
+   the normal and the occlusion over the skin: the render makes a hollow's shade and its warm bounce again) divided
+   out, and the
    highlights pressed down (`gloss_free`: brightness over the matte skin round them, `matte_skin`, past a pore's own
    scaled down, their colour moved to the matte skin's); then toned towards the model's own paint over BLEND_SIGMA_M
    where it fades into it, so the two meet with no step. Its alpha is the photo's share (`grid_share`): the photo's
-   face (`face_mask`: its skin in one piece, its holes, brows, eyes and lips, filled), how squarely the point faces the
-   camera (FACING) and how far from the eye's opening (EYE_CLEAR_M of the painted eye's floor `eyes.py` pushes back),
-   smoothed so the edge is soft.
+   face (`face_mask`: its skin in one piece, its holes, brows, eyes and lips, filled, its head `hair` and lid openings,
+   `eye_openings`, left out), never the model's painted head hair (`model_hair_free`), how squarely the point faces
+   the camera (FACING) and how far from the eye's opening (EYE_CLEAR_M of the painted eye's floor `eyes.py` pushes
+   back), rising over EDGE_FEATHER_M from its outer edge and smoothed so the edge is soft.
 4. `point_shares` / `visible`: which model points are the front the photo saw (VISIBLE_M); `skin_triangles`: which
    triangles are painted skin (the rest keeps the model's own material); `tzone`: the oily T-zone (the forehead's
    middle, the nose, the chin), for the skin's `sheen` region.
@@ -64,7 +67,15 @@ EYE_CLEAR_M = (0.0008, 0.0025)  # the photo fades in from the first to the secon
 SHARE_SIGMA_M = 0.001  # the share smoothed over this, so its edge is soft
 MASK_ERODE_M = 0.002  # the photo's face mask pulled this far in from hair and background
 SHADING_SIGMA_M = 0.004  # the shading fitted to the photo's brightness smoothed over this
-SHADING_RANGE = (0.8, 1.25)  # a fitted shading outside this is clipped (a crease's shade is the skin's own)
+# a fitted shading outside this is clipped (a crease's shade is the skin's own; down to 0.4 since the model's own
+# occlusion is fitted: the photo's dark sockets are the render's to make, round 3, 2026-11-27)
+SHADING_RANGE = (0.4, 1.25)
+# the model's own occlusion of the sky (`occlusion`): over `directions`, the highest rise within `reach_m` in `samples`
+OCCLUSION = {"reach_m": 0.015, "directions": 12, "samples": 10}
+HAIR_GROW_M = 0.002  # the photo's hair (not skin, reaching the picture's edge) grown this far out of the face mask
+HAIR_SIDE_M = 0.04  # head hair is over the pupils' line or this far beside their middle (a beard's middle is not)
+EYE_GROW_M = 0.0015  # the photo's lid openings (marks.json's margins) grown this far out of the face mask
+EDGE_FEATHER_M = 0.006  # the photo's share rises over this from its outer edge (its holes keep their own edges)
 # the highlights: brighter than the matte skin (the brightness's lower `percentile` within `matte_m`) by more than
 # `kept`, the rest of the excess pressed to `left` of it and its colour moved to the matte skin's over `recolour`
 GLOSS = {"matte_m": 0.006, "percentile": 35, "kept": 0.05, "left": 0.25, "recolour": 0.1}
@@ -297,9 +308,53 @@ def encoded(values):
     return np.where(values <= 0.0031308, values * 12.92, 1.055 * values ** (1.0 / 2.4) - 0.055)
 
 
-def face_mask(photo, pixels_per_m):
+def hair_zone(across, up, side):
+    """Where head hair can be: over the pupils' line (`up` above it) or farther than `side` beside their middle
+    (`across`); a beard's middle and a moustache are not (round 3, 2026-11-27: taken as hair, a bearded man's
+    moustache took the skin beside his nose with it)."""
+    return (up > 0) | (np.abs(across) > side)
+
+
+def hair(skin, zone, grow):
+    """The hair round a skin piece (`skin`) in `zone`: what is not skin and reaches the picture's edge without crossing
+    it, grown `grow` pixels (a fringe's strands with skin between them; round 2, 2026-11-26: closing the skin piece
+    took an older woman's grey fringe and bob into the face, and the photo smeared over the model's hair). The holes
+    the skin closes round (brows, eyes, lips, nostrils) are not hair."""
+    outside, _ = ndimage.label(~skin)
+    edge = np.unique(np.concatenate([outside[0], outside[-1], outside[:, 0], outside[:, -1]]))
+    reaching = np.isin(outside, edge[edge > 0]) & zone
+    return ndimage.binary_dilation(reaching, iterations=max(1, int(grow)))
+
+
+def eye_openings(shape, marks, pixels_per_m):
+    """The photo's lid openings (marks.json's upper and lower margins, MediaPipe's), grown EYE_GROW_M: the photo's
+    iris and white, never laid on the model's lids (round 2, 2026-11-26: an older woman wore a second iris under each
+    lower lid)."""
+    picture = Image.new("L", (shape[1], shape[0]), 0)
+    for eye in marks["eyes"]:
+        ImageDraw.Draw(picture).polygon([tuple(point) for point in eye["upper"] + eye["lower"][::-1]], fill=255)
+    return ndimage.binary_dilation(np.asarray(picture) > 0, iterations=max(1, int(EYE_GROW_M * pixels_per_m)))
+
+
+def model_hair_free(grid, pupils):
+    """Where the model's front is not its painted head hair (0 or 1): the `hair` round its skin-coloured paint's
+    largest piece (`labels.skin_like`) in the `hair_zone` of its painted `pupils` (x, y); the photo is never laid on
+    the model's hair (round 2, 2026-11-26: an older woman's fringe and bob, wider on the model than in the photo, wore
+    the photo's forehead and cheeks)."""
+    skin = grid["seen"] & labels.skin_like(rgb2lab(grid["colour"]).reshape(-1, 3)).reshape(grid["seen"].shape)
+    pieces, count = ndimage.label(skin)
+    if not count:
+        raise ValueError("the model's front shows no skin-coloured paint")
+    largest = np.bincount(pieces.ravel())[1:].argmax() + 1
+    pupils = np.asarray(pupils)
+    across, up = np.meshgrid(grid["xs"] - pupils[:, 0].mean(), grid["ys"] - pupils[:, 1].mean())
+    return (~hair(pieces == largest, hair_zone(across, up, HAIR_SIDE_M), HAIR_GROW_M / STEP_M)).astype(np.float64)
+
+
+def face_mask(photo, pixels_per_m, pupils=None):
     """The photo's face (0 to 1): its skin-coloured pixels (`labels.SKIN_HUE`) in one piece, the holes in it (brows,
-    eyes, lips, nostrils) filled, pulled MASK_ERODE_M in from the hair and the background and softened."""
+    eyes, lips, nostrils) filled and, given its `pupils` (columns, rows), its `hair` in their `hair_zone` taken out
+    (registering matches on the face with it), pulled MASK_ERODE_M in from the hair and the background and softened."""
     lab = rgb2lab(np.stack([ndimage.gaussian_filter(photo[..., channel], 2.0) for channel in range(3)], axis=-1))
     skin = labels.skin_like(lab.reshape(-1, 3)).reshape(lab.shape[:2])
     pieces, count = ndimage.label(skin)
@@ -308,6 +363,11 @@ def face_mask(photo, pixels_per_m):
     largest = np.bincount(pieces.ravel())[1:].argmax() + 1
     face = ndimage.binary_fill_holes(ndimage.binary_closing(pieces == largest, iterations=int(0.003 * pixels_per_m)))
     face = ndimage.binary_fill_holes(face)
+    if pupils is not None:
+        rows, columns = np.indices(skin.shape)
+        pupils = np.asarray(pupils)
+        zone = hair_zone(columns - pupils[:, 0].mean(), pupils[:, 1].mean() - rows, HAIR_SIDE_M * pixels_per_m)
+        face = face & ~hair(pieces == largest, zone, HAIR_GROW_M * pixels_per_m)
     face = ndimage.binary_erosion(face, iterations=max(1, int(MASK_ERODE_M * pixels_per_m)))
     return ndimage.gaussian_filter(face.astype(np.float64), MASK_ERODE_M * pixels_per_m / 2.0)
 
@@ -321,15 +381,35 @@ def smoothed_over(values, weight, sigma):
                      for channel in range(values.shape[-1])], axis=-1)
 
 
+def occlusion(grid):
+    """How much of the sky over each front pixel the model's own front hides (0 open to 1 shut): over OCCLUSION's
+    `directions` across the front, the highest rise within `reach_m` (the depth `samples` steps out over the distance),
+    as the sine of its angle, averaged. Where the photo is dark by this, the render darkens it again."""
+    depth = np.where(grid["seen"], grid["depth"], -np.inf)
+    reach = OCCLUSION["reach_m"] / STEP_M
+    shut = np.zeros(depth.shape)
+    for angle in np.linspace(0.0, 2.0 * np.pi, OCCLUSION["directions"], endpoint=False):
+        rise = np.zeros(depth.shape)
+        for distance in np.linspace(reach / OCCLUSION["samples"], reach, OCCLUSION["samples"]):
+            moved = ndimage.shift(depth, (-distance * np.sin(angle), -distance * np.cos(angle)), order=0,
+                                  mode="constant", cval=-np.inf)
+            rise = np.maximum(rise, (moved - depth) / (distance * STEP_M))
+        shut += rise / np.sqrt(1.0 + rise ** 2)
+    return np.where(grid["seen"], shut / OCCLUSION["directions"], 0.0)
+
+
 def shading(grid, photo_linear, skin):
-    """The photo's broad light over the front grid: its brightness over SHADING_SIGMA_M fitted as first order in the
-    surface normal over the skin, over its mean there; clipped to SHADING_RANGE."""
-    brightness = smoothed_over(eyes.luminance(photo_linear), skin, SHADING_SIGMA_M / STEP_M)
-    normal = np.stack([np.ones_like(grid["facing"]), grid["normal_x"], grid["normal_y"], grid["facing"]], axis=-1)
+    """The photo's broad light over the front grid, per channel (a shut hollow's light is the skin's own colour
+    bounced, so it is warmer as well as darker): each linear channel over SHADING_SIGMA_M fitted as first order in the
+    surface normal and in the model's own `occlusion` (smoothed alike) over the skin, over its mean there; clipped to
+    SHADING_RANGE."""
+    colour = smoothed_over(photo_linear, skin, SHADING_SIGMA_M / STEP_M)
+    shut = smoothed_over(occlusion(grid), skin, SHADING_SIGMA_M / STEP_M)  # smoothed as the photo is, so fitted whole
+    terms = np.stack([np.ones_like(grid["facing"]), grid["normal_x"], grid["normal_y"], grid["facing"], shut], axis=-1)
     held = skin > 0.5
-    fitted, *_ = np.linalg.lstsq(normal[held], brightness[held], rcond=None)
-    light = normal @ fitted
-    return np.clip(light / light[held].mean(), *SHADING_RANGE), fitted
+    fitted, *_ = np.linalg.lstsq(terms[held], colour[held], rcond=None)
+    light = terms @ fitted
+    return np.clip(light / light[held].mean(axis=0), *SHADING_RANGE), fitted
 
 
 def gloss_free(colour, matte, chroma):
@@ -379,9 +459,11 @@ def eye_floor_distance(grid, floor_points):
 
 def grid_share(grid, mask_on_grid, floor_distance):
     """How much of the photo each front pixel wears: the photo's face, how squarely it faces forward (FACING) and how
-    far from the eye's floor (EYE_CLEAR_M), softened over SHARE_SIGMA_M."""
+    far from the eye's floor (EYE_CLEAR_M), rising over EDGE_FEATHER_M from its outer edge (round 2: a hard paint edge
+    at the temples and forehead), softened over SHARE_SIGMA_M."""
     share = mask_on_grid * ramp(grid["facing"], *FACING) * ramp(floor_distance, *EYE_CLEAR_M) * grid["seen"]
-    return ndimage.gaussian_filter(share, SHARE_SIGMA_M / STEP_M)
+    inside = ndimage.distance_transform_edt(ndimage.binary_fill_holes(share > 0.5)) * STEP_M
+    return ndimage.gaussian_filter(share * ramp(inside, 0.0, EDGE_FEATHER_M), SHARE_SIGMA_M / STEP_M)
 
 
 def at_points(grid, values, points):
@@ -430,24 +512,30 @@ def texture_rows(grid, warp, photo_linear, coarse, rows):
         return np.stack([ndimage.map_coordinates(values[..., channel], at, order=1, mode="nearest")
                          for channel in range(values.shape[-1])], axis=-1)
 
-    colour = colour / coarse_at(coarse["shading"])[..., None]
+    colour = colour / coarse_at(coarse["shading"])
     colour, _ = gloss_free(colour, coarse_at(coarse["matte"]), coarse_at(coarse["chroma"]))
     toning = coarse_at(coarse["toning"])
     colour = colour * coarse_at(coarse["tone_ratio"]) ** toning[..., None]
     return colour, np.clip(coarse_at(coarse["share"]), 0.0, 1.0)
 
 
-def coarse_maps(grid, warp, photo):
+def coarse_maps(grid, warp, photo, pupils, marks=None):
     """The front grid's photo (linear), its face mask, shading, the matte skin and the tone moved towards the
-    paint where the photo fades out; with the grid's photo share."""
+    paint where the photo fades out; with the grid's photo share. `pupils`: the model's painted pupils (x, y) and the
+    photo's (columns, rows), for where head hair can be; `marks` (marks.json's), the photo's lid openings."""
     pixels_per_m = float(np.sqrt(abs(np.linalg.det(warp["matrix"][:, :2]))))
     column, row = mapped(warp, grid["xs"], grid["ys"])
     photo_linear = linear(photo)
     seen = sampled(photo_linear, column, row)
-    mask = ndimage.map_coordinates(face_mask(photo, pixels_per_m), [row, column], order=1, mode="constant")
+    model_pupils, photo_pupils = pupils
+    face = face_mask(photo, pixels_per_m, photo_pupils)
+    if marks is not None:
+        face = face * ~eye_openings(face.shape, marks, pixels_per_m)
+    mask = (ndimage.map_coordinates(face, [row, column], order=1, mode="constant")
+            * model_hair_free(grid, model_pupils))
     skin = mask * grid["seen"] * (grid["facing"] > 0.3)
     light, fitted = shading(grid, seen, skin)
-    flat = seen / light[..., None]
+    flat = seen / light
     matte, chroma = matte_skin(flat, skin)
     cleaned, _ = gloss_free(flat, matte, chroma)
     share = grid_share(grid, mask, grid["floor_distance"])
@@ -596,7 +684,7 @@ def written(out, scale, grid, coarse, points, triangles, tip, stats, skin):
     stats.update({"points_with_photo": int((shares > 0.5).sum()), "points": len(points),
                   "shading_range": [round(float(coarse["shading"][coarse["share"] > 0.5].min()), 3),
                                     round(float(coarse["shading"][coarse["share"] > 0.5].max()), 3)],
-                  "light_fit": [round(float(value), 4) for value in coarse["light_fit"]],
+                  "light_fit": np.round(coarse["light_fit"], 4).tolist(),
                   "texture_mm_per_px": round((grid["box"][1] - grid["box"][0]) / TEXTURE * 1000.0, 4)})
     (out / "stats.json").write_text(json.dumps(stats, indent=1))
     share = np.repeat(coarse["share"][..., None], 3, axis=-1)
@@ -614,12 +702,13 @@ def corner_split(points, triangles, corner_uv):
     return points[triangles].reshape(-1, 3), np.arange(3 * count).reshape(count, 3), corner_uv.reshape(-1, 2)
 
 
-def repainted(painted, texture, photo, model_pupils, floor, raw=None):
+def repainted(painted, texture, photo, model_pupils, floor, raw=None, marks=None):
     """The photo registered on one head (`painted` its (points in metres, triangles, uv); `model_pupils` its painted
     pupils' (x, y), `floor` the painted eye's floor points, none when its lids are laid on the photo's): (the front
     grid, its coarse maps, the nose tip, the stats, the warp). Registered on the `raw`
     paint where given (`colour.py`'s toning moves the face's clusters apart and the detail match lost its patches,
-    round 1, 2026-11-26: correlation 0.25 to 0.16); toned towards `texture`."""
+    round 1, 2026-11-26: correlation 0.25 to 0.16); toned towards `texture`. The photo's lid openings (`marks`,
+    marks.json's) are kept off the model where given."""
     view = eyes.front_view(*painted, texture)
     tip = eyes.nose_tip(view)
     _, photo_pupils, _ = eyes.photo_iris(photo)
@@ -635,15 +724,15 @@ def repainted(painted, texture, photo, model_pupils, floor, raw=None):
     stats.update({"photo_pupils_px": photo_pupils.round(1).tolist(),
                   "photo_px_per_m": round(float(np.sqrt(abs(np.linalg.det(warp["matrix"][:, :2])))), 1),
                   "close_photo_px": [round(float(column[0, 0]), 1), round(float(row[0, 0]), 1)]})
-    return grid, coarse_maps(grid, warp, photo), tip, stats, warp
+    return grid, coarse_maps(grid, warp, photo, (model_pupils, photo_pupils), marks), tip, stats, warp
 
 
-def repainted_written(mesh, painted, texture, photo, model_pupils, floor, out, scale, raw=None):
+def repainted_written(mesh, painted, texture, photo, model_pupils, floor, out, scale, raw=None, marks=None):
     """`repainted`, then which of `mesh`'s triangles (its (points in metres, triangles), one for one with `painted`'s)
     are skin, the paint on them toned to the photo's skin (`paint_toned`) and face.png (faded into that paint),
     paint.png (the toned texture, sRGB), skin.npz, stats.json and check.png written under `out` (the model's units,
     `scale` its to metres); (its stats, the toned texture)."""
-    grid, coarse, tip, stats, warp = repainted(painted, texture, photo, model_pupils, floor, raw)
+    grid, coarse, tip, stats, warp = repainted(painted, texture, photo, model_pupils, floor, raw, marks)
     points, triangles = mesh
     likeness = labels.skin_like(labels.face_colours(painted[1], painted[2], texture * 255.0)).astype(np.float64)
     skin = skin_triangles(points, triangles, likeness, point_shares(grid, coarse, points))

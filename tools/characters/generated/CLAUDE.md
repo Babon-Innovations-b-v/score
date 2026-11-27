@@ -113,6 +113,17 @@ own paint) and brings in only what the generator cannot make, from the repo's ow
   down to a tenth facing forward (`skin.FACING`) and a steep point counts as the front (`skin.visible`), and a layer
   hidden under the lid is never pulled through it by the lid's move (`lids.layers_kept`: the hollow sheet's inner
   wall came through as black flecks at the outer corners). Lashes shorten by the photo's lash share itself.
+  Round 3 (2026-11-27), the orange band round the eyes, measured on the 9 cm frame (CIELAB, the socket band and the
+  cheek against the photo's): neither the light under the skin (weight 0: the band's chroma 31 to 30), the paint (the
+  photo's share there is 1) nor the de-lighting (off: 29 to 28) made it. The view did: against plain sRGB, AgX's
+  medium high contrast look took the lit cheek's chroma from 21 to 12 and raised the shadowed band's from 27 to 33
+  (band over cheek 2.6; the photo's 1.2, sRGB's 1.3), so the face's close-ups are developed in plain sRGB
+  (`blender_eyes.VIEW`; the whole route's own renders keep AgX). And the photo's socket shade was laid twice, once in
+  the texture and again by the model's deeper socket: `skin.shading` now fits the model's own `occlusion` too, per
+  channel, so the band's albedo rises from L 55 to 64. The photo is also kept off the model's painted fringe and bob
+  (`model_hair_free`), its own fringe and lid openings are left out of its face (`hair`, `eye_openings`: a second
+  iris under an older woman's lids), and its share rises over 6 mm from its outer edge (the paint's edge at the
+  temples).
   Run: `python -m tools.characters.generated.head <model.glb> <cut-out.png> <close-up> <marks.json> <out> --height
   <m>` (under 2 minutes, 1.6 GB), then `blender -b --python blender_head.py -- <model.glb>
   <out>/eyes/eyes.npz <library> <height> <samples> <renders> <out>` (CPU; before is the raw model), then `python -m

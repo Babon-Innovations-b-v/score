@@ -102,7 +102,7 @@ def made(model, cutout, photo_path, marks_path, out, height, toning=True):
     pupils_at = np.array(eye_result["stats"]["pupils_m"])
     _, _, _, raw = eyes.loaded(model)
     skin_stats, toned = skin.repainted_written(mesh, painted, texture, photo, pupils_at, np.zeros((0, 3)),
-                                               out / "skin", scale, raw)
+                                               out / "skin", scale, raw, marks)
     head_scene((lid_result["points"] / scale, lid_result["triangles"], lid_result["uv"]), toned, eyes_npz,
                iris).export(out / "head.glb")
     return {"eyes": eye_result["stats"], "iris": iris_stats, "lids": lid_result["stats"], "skin": skin_stats}
