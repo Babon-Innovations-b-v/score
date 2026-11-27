@@ -10,7 +10,9 @@ edge. The strands are rooted on that skin at a beard's density (DENSITY: some 60
 cheeks and chin), the style's stubble at the beard's edge rising to its full length inside (`beard_lengths`: the
 model's lumps stand only a millimetre or two, far short of the hairs the close-up shows), leaving the skin out at
 OUT_ANGLE and lying down the jaw (gravity along the skin), curled a little each its own way (CURL), a beard hair's
-thickness (RADIUS). Its colour is read on the beard's darkest triangles (DARKEST)."""
+thickness (RADIUS). Under the chin (NECK_UNDER_NOSE_M under the nose) the roots thin out towards the beard's edge
+over NECK_FADE_M (`neck_kept`), so the beard fades out down the neck instead of ending on a line (round 1, cut at
+THROAT_M, 2026-11-26). Its colour is read on the beard's darkest triangles (DARKEST)."""
 import numpy as np
 from scipy.sparse import coo_matrix
 from scipy.sparse.csgraph import connected_components
@@ -39,6 +41,8 @@ POINTS = 8
 CURL = 0.35  # a strand's tip turned off its way by up to this share of its length
 RADIUS = 0.00005
 SEED = 226
+NECK_UNDER_NOSE_M = 0.06
+NECK_FADE_M = 0.025
 
 
 def beard_room(points, faces, frame):
@@ -176,6 +180,16 @@ def beard_lengths(places, smooth, faces, beard, style):
     return stubble + (full - stubble) * np.clip(inward / FULL_FROM_EDGE_M, 0.0, 1.0)
 
 
+def neck_kept(places, smooth, faces, beard, frame, rng):
+    """Which roots are kept: all over the chin's line, under it fewer towards the beard's edge (none at it)."""
+    edge = smooth[np.unique(faces[~beard])]
+    inward = cKDTree(edge).query(places, workers=-1)[0]
+    share = np.clip(inward / NECK_FADE_M, 0.0, 1.0)
+    share = share * share * (3.0 - 2.0 * share)
+    neck = places[:, 1] < frame["nose"][1] - NECK_UNDER_NOSE_M
+    return rng.random(len(places)) < np.where(neck, share, 1.0)
+
+
 def beard_strands(smooth, faces, beard, normals, frame, style):
     """The beard's strands: (counts, points (n x 3), radius per point)."""
     rng = np.random.default_rng(SEED)
@@ -183,6 +197,8 @@ def beard_strands(smooth, faces, beard, normals, frame, style):
     corners = smooth[triangles]
     area = np.linalg.norm(np.cross(corners[:, 1] - corners[:, 0], corners[:, 2] - corners[:, 0]), axis=1).sum() / 2.0
     places, picked, weights = hair.on_triangles(smooth, triangles, int(area * DENSITY), rng)
+    kept = neck_kept(places, smooth, faces, beard, frame, rng)
+    places, picked, weights = places[kept], picked[kept], weights[kept]
     normal = hair.unit(np.einsum("pc,pcd->pd", weights, normals[triangles[picked]]))
     normal = oriented(normal, places, frame)
     length = beard_lengths(places, smooth, faces, beard, style) * (1.0 + rng.uniform(-LENGTH_SPREAD, LENGTH_SPREAD,

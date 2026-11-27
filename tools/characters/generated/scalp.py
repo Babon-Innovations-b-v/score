@@ -11,7 +11,15 @@ scalp runs TUCK_M under the skin (no gap at the edge, no step over it). Over the
 origin is an ellipsoid fitted to the skin at the seam (the skull's shape) plus the seam's own difference from it spread
 over the hole smoothly (harmonic, so the scalp meets the skin at the skin's own height all round), kept CLEAR_M inside
 the hair's shell; then smoothed SMOOTH times with the seam held. A seam direction whose skin stands more than
-EAR_OUT of the ellipsoid off it (an ear) is not held to its skin.
+EAR_OUT of the ellipsoid off it (an ear) is not held to its skin. Roots grow only on its `rooted` points: under the
+shell's hair, or where nothing was met behind the head's middle (BEHIND: the neck the model never had); a
+direction meeting nothing in front is a bust's open cut under the chin, never scalp.
+
+The model's skin round the hole is then laid onto the scalp (`laid`): its points within LAY_M of the removed hair
+moved along their ray from the head's middle to the scalp's height (LIFT_M over it), all the way at the hole's edge
+and none LAY_M off it, so the skin meets the scalp with no edge standing (round 1's hairline stood as a torn lip of
+the shell's foot over the scalp, its gaps showing the hollow head, 2026-11-26); a point further than LAY_MOST_M off
+the scalp (an ear) stays.
 """
 import numpy as np
 import trimesh
@@ -38,6 +46,11 @@ NECK_TUCK = 0.9  # the tube this share of the neck skin's width, so its sides st
 NECK_AROUND, NECK_UP = 48, 80
 OPEN_NECK = 50
 HEAD_M = 0.25  # only the model's triangles this near the origin are read
+BEHIND = 0.2  # a direction meeting nothing is the neck's back only this far behind level (its z, unit)
+LAY_M = 0.006
+LIFT_M = 0.0003
+LAY_MOST_M = 0.012
+LAY_DEGREES = 1.5  # a point is laid only where the scalp has a direction this near its own
 
 
 def origin(frame):
@@ -146,8 +159,31 @@ def scalp_patch(points, faces, hair, frame):
     seam_points = start + directions[held] * distance[held, None]
     depth = cKDTree(seam_points).query(placed)[0] * hole[corners]
     open_neck = int((nothing & (directions[:, 1] < 0.0)).sum()) > OPEN_NECK
+    rooted = (hair_at < skin_at) | (nothing & (directions[:, 1] >= NECK_LOWEST) & (directions[:, 2] < BEHIND))
     return {"points": placed, "triangles": renumber[kept_faces], "depth": depth, "hole": hole[corners],
-            "open_neck": open_neck}
+            "rooted": rooted[corners], "open_neck": open_neck, "directions": directions[corners],
+            "distance": distance[corners]}
+
+
+def laid(points, faces, removed, patch, frame):
+    """The model's points with its skin round the `removed` hair laid onto the scalp (see the docstring)."""
+    start = origin(frame)
+    edge = points[np.unique(faces[removed])]
+    kept = np.unique(faces[~removed])
+    near = cKDTree(edge).query(points[kept], distance_upper_bound=LAY_M, workers=-1)[0]
+    moving = kept[near < LAY_M]
+    away = points[moving] - start
+    distance = np.linalg.norm(away, axis=1)
+    ways = away / np.maximum(distance, 1e-9)[:, None]
+    apart, nearest = cKDTree(patch["directions"]).query(ways, k=3, workers=-1)
+    weights = 1.0 / np.maximum(apart, 1e-6)
+    scalp_at = (patch["distance"][nearest] * weights).sum(axis=1) / weights.sum(axis=1) + LIFT_M
+    share = 1.0 - near[near < LAY_M] / LAY_M
+    share = share * share * (3.0 - 2.0 * share)
+    usable = (apart[:, 0] < np.radians(LAY_DEGREES)) & (np.abs(distance - scalp_at) < LAY_MOST_M)
+    moved = points.copy()
+    moved[moving] = start + ways * (distance + np.where(usable, share, 0.0) * (scalp_at - distance))[:, None]
+    return moved
 
 
 def neck_back(points, faces, hair, colours_skin_like, frame):

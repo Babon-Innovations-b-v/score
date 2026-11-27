@@ -545,7 +545,8 @@ def grown(guides, rooted, side, inner, style, rng, guide_side, guide_lock, centr
     bare wedges between the locks, round 1), cut up to CUT_SOFT_M
     shorter, the style's wave across it in its lock's phase; a baby hair (`inner` 0) cut to BABY_LENGTH_M and
     wisped (`wisped`); FLYAWAY_SHARE strayed out of their locks and FRIZZ_SHARE on the crown lifted (`strayed`,
-    `frizzed`): strands x POINTS x 3."""
+    `frizzed`; a style may set its own `lock_pull`, `flyaway_share` and `frizz_share`, as a generated head's are
+    read off its photo): strands x POINTS x 3."""
     lengths = lengths_along(guides)[:, -1]
     held = resampled(guides, GUIDE_SAMPLES)
     near = np.zeros((len(rooted), BLEND_GUIDES), np.int64)
@@ -559,7 +560,10 @@ def grown(guides, rooted, side, inner, style, rng, guide_side, guide_lock, centr
     guide = near[:, 0]
     middle = guide_lock[guide]
     reach = np.where(inner > 0.0, style["length_m"], rng.uniform(*BABY_LENGTH_M, len(rooted)))
-    full = np.minimum(reach, lengths[near].min(axis=1))
+    # a generated head's strands run as long as their nearest guide (`length_from` "nearest"): the shortest of three
+    # cut a long head's front locks short of their ends (2026-11-26)
+    nearest_only = style.get("length_from") == "nearest"
+    full = np.minimum(reach, lengths[near[:, 0]] if nearest_only else lengths[near].min(axis=1))
     cut = CUT_SOFT_M * rng.random(len(rooted)) ** CUT_SHAPE
     length = np.maximum(full - cut * (full > 3.0 * CUT_SOFT_M), full * 0.5)
     at = length[:, None] * np.linspace(0.0, 1.0, POINTS)[None] ** POINT_SPACING
@@ -574,7 +578,7 @@ def grown(guides, rooted, side, inner, style, rng, guide_side, guide_lock, centr
     base = rooted[:, None] + sum(weight[:, column, None, None] * shapes[column] for column in range(BLEND_GUIDES))
     towards = read_along(held, lengths, middle, at)
     lock_ids = np.unique(middle, return_inverse=True)[1]
-    pull = rng.uniform(*LOCK_PULL, lock_ids.max() + 1)[lock_ids] * inner
+    pull = rng.uniform(*style.get("lock_pull", LOCK_PULL), lock_ids.max() + 1)[lock_ids] * inner
     hangs = np.clip((centre[1] + HUG_OVER_EYES_M - base[..., 1]) / LOCK_HANG_M, 0.0, 1.0)
     # drawn only to a middle hanging near it: a lock's middle hanging on the head's other side drew a strand across
     # the face (2026-11-26)
@@ -585,7 +589,8 @@ def grown(guides, rooted, side, inner, style, rng, guide_side, guide_lock, centr
     size = 1.0 + rng.uniform(-WAVE_SPREAD, WAVE_SPREAD, lock_ids.max() + 1)[lock_ids]
     strands = waved(strands, style, phase, size)
     strands = wisped(strands, inner, centre, rng)
-    return frizzed(strayed(strands, inner, centre, rng), inner, centre, rng)
+    strands = strayed(strands, inner, centre, rng, style.get("flyaway_share", FLYAWAY_SHARE))
+    return frizzed(strands, inner, centre, rng, style.get("frizz_share", FRIZZ_SHARE))
 
 
 def bent(strands, picked, sizes, centre, rng, outward):
@@ -609,22 +614,22 @@ def wisped(strands, inner, centre, rng):
     return bent(strands, picked, rng.uniform(*BABY_WISP, len(picked)) * length, centre, rng, False)
 
 
-def strayed(strands, inner, centre, rng):
-    """FLYAWAY_SHARE of the full strands, none of whose points is before the face, bent off their locks by FLYAWAY_M
-    at the tip."""
+def strayed(strands, inner, centre, rng, share=FLYAWAY_SHARE):
+    """`share` (FLYAWAY_SHARE) of the full strands, none of whose points is before the face, bent off their locks by
+    FLYAWAY_M at the tip."""
     front = (strands[..., 2] - centre[2] > FACE_FRONT_M).any(axis=1)
     picked = np.flatnonzero((inner >= 1.0) & ~front)
-    picked = picked[rng.random(len(picked)) < FLYAWAY_SHARE]
+    picked = picked[rng.random(len(picked)) < share]
     return bent(strands, picked, rng.uniform(*FLYAWAY_M, len(picked)), centre, rng, False)
 
 
-def frizzed(strands, inner, centre, rng):
-    """FRIZZ_SHARE of the full strands rooted over the crown (FRIZZ_OVER_EYES_M over the eyes), none before the face,
-    cut to FRIZZ_LENGTH_M and lifted out from the head by FRIZZ_LIFT_M at their tips: the short broken hairs that
-    stand off a real head's top (a flat, smooth top read as a helmet, round 1)."""
+def frizzed(strands, inner, centre, rng, share=FRIZZ_SHARE):
+    """`share` (FRIZZ_SHARE) of the full strands rooted over the crown (FRIZZ_OVER_EYES_M over the eyes), none before
+    the face, cut to FRIZZ_LENGTH_M and lifted out from the head by FRIZZ_LIFT_M at their tips: the short broken hairs
+    that stand off a real head's top (a flat, smooth top read as a helmet, round 1)."""
     front = (strands[..., 2] - centre[2] > FACE_FRONT_M).any(axis=1)
     picked = np.flatnonzero((inner >= 1.0) & ~front & (strands[:, 0, 1] > centre[1] + FRIZZ_OVER_EYES_M))
-    picked = picked[rng.random(len(picked)) < FRIZZ_SHARE]
+    picked = picked[rng.random(len(picked)) < share]
     strands = strands.copy()
     keep = rng.uniform(*FRIZZ_LENGTH_M, len(picked))
     strands[picked] = resampled_to(strands[picked], keep)

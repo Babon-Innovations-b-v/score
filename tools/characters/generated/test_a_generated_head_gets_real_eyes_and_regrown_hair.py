@@ -25,6 +25,18 @@ through); the scalp tucked 6 mm under the skin (`scalp.TUCK_M` 0.006: a 5.7 mm s
 let into the hair's volume (`volume.inside_of` and `volume.seen_from` saying nothing is inside the head: 32% of the
 strands into it); the lightness table turned round (`fibre.REFERENCE_L`: the dark colour less melanin than the light).
 
+Round 2 of the hair (2026-11-26): the skin at the hole's edge is laid onto the scalp (`scalp.laid`, over the toy with
+its hair's foot raised 3 mm more into a lip, standing up to 11 mm); the layer runs from the scalp's side to the outer
+surface of a 2 cm spherical shell (`volume.layered`); the grooves of a corrugated plane and the streaks painted 30
+degrees off a plane's u axis are read as its flow (`flow.grooves`, `flow.streaks`); a picture of straight strands
+reads straight and of strands waving 5 mm every 4 cm their wave (`curl.curl_of`); the roots fade into the skin over
+4 mm, none on the chin, and a beard thins out to its edge under the chin (`strands.hairline_fade`, `grows_here`,
+`beard.neck_kept`). Breaks that turn these rows red (each applied once, seen red, reverted): `scalp.laid` returning
+the points unchanged (a 7.7 mm lip); the layer turned round (`volume.layered` giving 1 less it); the normals' tensor's
+axes read largest first (`flow.tensor_axes`: the groove read across the grooves); the strands' way read across them
+(`curl.strand_ways` less a quarter turn: neither picture right); `strands.FADE_M` 2 mm (full at 2 mm);
+`strands.LOWEST_UNDER_EYES_M` 1 m (roots on the chin); `beard.NECK_UNDER_NOSE_M` 1 m (the beard's edge kept whole).
+
 The head swap (`head_swap.py`), on a toy head (a squashed sphere with a nose, an ear and a bun) moved by a known
 similarity (scale 0.3, a turn, a shift): it is found again from its points, exactly by the least-squares similarity
 (which fits a turn, never a mirror, even onto the toy's mirror image) and to a millimetre (under the points' own
@@ -138,8 +150,8 @@ import pytest
 import trimesh
 from scipy.spatial import cKDTree
 
-from tools.characters.generated import (__main__, cloth, cloth_tether, colour, eyes, fibre, head_swap, labels, lids,
-                                        scalp, skin, strands, volume)
+from tools.characters.generated import (__main__, beard, cloth, cloth_tether, colour, curl, eyes, fibre, flow,
+                                        head_swap, labels, lids, scalp, skin, strands, volume)
 from tools.characters.whole import hair
 
 NOSE_Y = 0.06
@@ -437,8 +449,10 @@ def strands_measured():
     style = {"length_m": 0.3, "wave_m": 0.001, "wave_period_m": 0.05, "parting": "none", "fringe_side": "none"}
     skin_like = labels.skin_like(colours)
     hairline = __main__.hairline_of(points, faces, hair_faces, skin_like, frame)
-    counts, strand_points, _ = strands.regrown(space, patch, (points, faces[~hair_faces & skin_like]), hairline, frame,
-                                               style)
+    field = flow.flow_field(points, faces, np.zeros((len(points), 2)), np.zeros((4, 4, 3), np.uint8), hair_faces,
+                            space)
+    counts, strand_points, _ = strands.regrown(space, field, patch, (points, faces[~hair_faces & skin_like]),
+                                               hairline, frame, style)
     each = strand_points.reshape(len(counts), -1, 3)
     roots_off = trimesh.Trimesh(patch["points"], patch["triangles"]).nearest.on_surface(each[:, 0])[1]
     into = np.linalg.norm(each - HEAD, axis=2).min(axis=1) < RADIUS - 0.004
@@ -446,6 +460,95 @@ def strands_measured():
     return (np.percentile(roots_off, 99) < 0.002 and into.mean() < 0.01 and np.median(reach) > 0.02,
             f"roots off {np.percentile(roots_off, 99) * 1000:.2f} mm, into {into.mean():.3f}, "
             f"reach {np.median(reach) * 1000:.1f} mm")
+
+
+def shell_layers():
+    """The layer read across a 2 cm thick spherical shell of hair round a head's middle: at its inner 2 mm and at its
+    outer 2 mm (0 is the scalp's side, 1 the outer surface)."""
+    low = np.full(3, -0.12)
+    shape = (121, 121, 121)
+    middles = low + np.argwhere(np.ones(shape, dtype=bool)) * volume.VOXEL_M
+    distance = np.linalg.norm(middles, axis=1).reshape(shape)
+    filled = (distance > 0.09) & (distance < 0.11)
+    layer, _ = volume.layered(filled, low, np.zeros(3))
+    return (float(layer[filled & (distance < 0.092)].mean()) < 0.2, float(layer[filled & (distance > 0.108)].mean())
+            > 0.8)
+
+
+def skin_laid():
+    """The model's skin at the hole's edge after `scalp.laid`: its largest distance off the scalp (m), over the toy
+    with its hair's foot standing 3 mm more as a lip round the hole (the toy's edge already stands up to 8 mm)."""
+    points, faces, _, _, frame = toy()
+    hair_faces = labelled()
+    patch = scalp.scalp_patch(points, faces, hair_faces, frame)
+    start = scalp.origin(frame)
+    edge = np.unique(faces[hair_faces])
+    lip = np.unique(faces[~hair_faces])
+    lip = lip[np.isin(lip, edge)]
+    lifted = points.copy()
+    lifted[lip] += scalp_way(lifted[lip], start) * 0.003
+    laid = scalp.laid(lifted, faces, hair_faces, patch, frame)
+    return float(trimesh.Trimesh(patch["points"], patch["triangles"]).nearest.on_surface(laid[lip])[1].max())
+
+
+def scalp_way(places, start):
+    """Unit ways from `start` to the places."""
+    away = places - start
+    return away / np.linalg.norm(away, axis=1, keepdims=True)
+
+
+def groove_and_streak():
+    """The cosines of the read groove way and paint streak way with the true ones, on a corrugated plane (grooves
+    along y, 3 mm apart) and on a flat plane painted with streaks running 30 degrees off its u axis."""
+    xs, ys = np.meshgrid(np.linspace(0.0, 0.03, 61), np.linspace(0.0, 0.03, 61))
+    flat = np.column_stack([xs.ravel(), ys.ravel(), np.zeros(xs.size)])
+    corner = (np.arange(60)[:, None] * 61 + np.arange(60)[None, :]).ravel()
+    faces = np.vstack([np.column_stack([corner, corner + 1, corner + 62]),
+                       np.column_stack([corner, corner + 62, corner + 61])])
+    wavy = flat + np.column_stack([np.zeros((xs.size, 2)), 0.0005 * np.sin(2.0 * np.pi * xs.ravel() / 0.003)])
+    middle = np.abs(flat[faces].mean(axis=1)[:, :2] - 0.015).max(axis=1) < 0.01
+    groove, _ = flow.grooves(wavy, faces, middle)
+    rows, columns = np.mgrid[:512, :512]
+    along = np.radians(30.0)
+    texture = (127 + 100 * np.sin(2.0 * np.pi * (-columns * np.sin(along) - rows * np.cos(along)) / 8.0))
+    texture = np.repeat(texture[..., None], 3, axis=2).astype(np.uint8)
+    uv = flat[:, :2] / 0.03
+    streak, _ = flow.streaks(flat, faces, uv, texture, middle)
+    truth = np.array([np.cos(along), np.sin(along), 0.0])
+    return (round(float(np.median(np.abs(groove[:, 1]))), 2) > 0.95,
+            round(float(np.median(np.abs(streak @ truth))), 2) > 0.95)
+
+
+def photo_waves():
+    """The curl read off pictures of strands 1.2 mm apart: straight ones and ones waving 5 mm every 4 cm."""
+    metre = 0.0004
+    rows, columns = np.mgrid[:curl.SIZE, :curl.SIZE] * metre
+    found = []
+    for amplitude in (0.0, 0.005):
+        phase = (columns - amplitude * np.sin(2.0 * np.pi * rows / 0.04)) / 0.0012
+        lab = np.stack([50.0 + 20.0 * np.sin(2.0 * np.pi * phase), np.zeros_like(phase), np.zeros_like(phase)], -1)
+        angle, _, _ = curl.strand_ways(lab, metre)
+        usable = np.zeros(angle.shape, dtype=bool)
+        usable[50:-50, 50:-50] = True
+        found.append(curl.curl_of(curl.lines_of(angle, usable, metre)))
+    straight, waving = found
+    return (straight["wave_m"] == 0.0 and straight["curly"] == 0.0,
+            0.0035 < waving["wave_m"] < 0.0065 and 0.03 < waving["period_m"] < 0.05 and waving["curly"] > 0.5)
+
+
+def roots_and_beard_fade():
+    """The roots' density share at the paint's hairline, 2 and 4 mm over it; whether the chin in front grows
+    scalp hair; the share of beard roots kept at the beard's edge under the chin and NECK_FADE_M in."""
+    fade = strands.hairline_fade(np.array([0.0, 0.002, 0.004]))
+    frame = {"centre": np.zeros(3), "eyes": np.array([[-0.03, 0.0, 0.08], [0.03, 0.0, 0.08]]),
+             "eyes_middle": np.array([0.0, 0.0, 0.08]), "nose": np.array([0.0, -0.035, 0.1])}
+    chin = strands.grows_here(np.array([[0.0, -0.1, 0.06]]), frame)[0]
+    smooth = np.array([[0.0, -0.14, 0.05], [0.0, -0.14 + beard.NECK_FADE_M, 0.05], [1.0, 1.0, 1.0]])
+    places = np.repeat(smooth[:2], 2000, axis=0)
+    faces = np.array([[0, 0, 2], [0, 1, 1]])
+    kept = beard.neck_kept(places, smooth, faces, np.array([False, True]), frame, np.random.default_rng(3))
+    return (round(float(fade[0]), 2) == hair.BABY_DENSITY[1] and 0.6 < fade[1] < 0.8 and fade[2] == 1.0,
+            chin == 0.0, kept[:2000].mean() < 0.05 and kept[2000:].mean() > 0.95)
 
 
 def fibre_follows():
@@ -1284,6 +1387,12 @@ def tether_inside_read():
     ("the scalp closes the hair's hole under its shell, flush with the skin", lambda: bool(scalp_closes()[0]), True),
     ("the strands root on the scalp, stay out of the head and reach into the shell",
      lambda: bool(strands_fill()[0]), True),
+    ("the hair's skin is laid onto the scalp at the hole's edge, no lip standing", lambda: skin_laid() < 0.002, True),
+    ("a strand's layer runs from the scalp's side to the shell's outer surface", shell_layers, (True, True)),
+    ("the shell's grooves and paint streaks are read as its flow", groove_and_streak, (True, True)),
+    ("the photo's straight hair reads straight, its waves their size", photo_waves, (True, True)),
+    ("the roots fade in over the hairline, none on the chin, the beard fades down the neck", roots_and_beard_fade,
+     (True, True, True)),
     ("a darker hair gets more melanin, a grey head white strands", lambda: bool(fibre_follows()[0]), True),
     ("a swapped head's similarity is found exactly, a turn never a mirror",
      lambda: (similarity_found()[0] < 1e-9, similarity_found()[1]), (True, 1.0)),

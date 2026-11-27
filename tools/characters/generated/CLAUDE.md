@@ -40,20 +40,25 @@ own paint) and brings in only what the generator cannot make, from the repo's ow
   tools.characters.generated.skin_sheet <name> <renders> <photo> <out>/stats.json <sheet.jpg>`.
 - **Look at the close-up.** The detail correlation says the photo lies on the paint; only the 6 cm cheek and nose
   frame says whether the skin reads as a photograph or as wax, and the three quarters whether the edge shows.
-- **Hair** (`labels.py` → `scalp.py` → `volume.py` → `strands.py`, `beard.py`, `fibre.py`; run by `__main__.py`, drawn
-  by `blender_sheet.py`, the sheet by `sheet.py`; the steps are in `__init__.py`'s docstring): the hair TRELLIS.2 paints
-  on one solid shell with the head is split off (its triangles labelled by the model's own paint and place), a smooth
-  scalp closes the hole, and the hair is regrown as strands in the shell's own shape; a man's lumpy painted beard the
-  same way, as short facial hair on the beard's skin smoothed. Run: `python -m tools.characters.generated <model.glb>
-  <style.json> <out> --height <m> --closeup <photo>` (about a minute on the CPU, under 2 GB), then `blender -b
+- **Hair** (`labels.py` → `scalp.py` → `volume.py`, `flow.py`, `curl.py` → `strands.py`, `beard.py`, `fibre.py`,
+  `cover.py`; run by `__main__.py`, drawn by `blender_sheet.py`, the sheet by `sheet.py`; the steps are in
+  `__init__.py`'s docstring): the hair TRELLIS.2 paints on one solid shell with the head is split off (its
+  triangles labelled by the model's own paint and place), a smooth scalp closes the hole, and the hair is regrown as
+  strands in the shell's own shape and flow; a man's lumpy painted beard the same way, as short facial hair on the
+  beard's skin smoothed. Run: `python -m tools.characters.generated <model.glb>
+  <style.json> <out> --height <m> --closeup <photo>` (some three minutes on the CPU, under 3 GB), then `blender -b
   --python blender_sheet.py -- <model.glb> <out> <score_lib folder> <lift m> <samples> <renders>` (CPU), then `python
   -m tools.characters.generated.sheet <renders> <out> <photo> <sheet.jpg>`.
 - **Reuse `../whole/hair.py`, never copy it.** Density, baby hairs, the parting and whorl's comb, locks, the cut,
   wave, flyaways and frizz are its functions and constants; the hair here only adds what a generated model needs (the
   labels, the scalp, the volume the guides are grown through, the beard).
-- **The hair's shape is the model's.** Guides end where they would leave the hair's volume, never at a length that
-  overrides the shell (the style's `length_m` only caps it). The hairline is the paint's edge (`labels.HAIR_SHARE`);
-  behind the temples never under hair.py's HAIRLINE table (the paint there is hair hanging over the neck).
+- **The hair's shape and flow are the model's.** Guides run along the shell's own grooves and paint streaks
+  (`flow.py`), each in its layer from the scalp to the shell's outer surface, and end where they head out of the
+  hair's volume, never at a length that overrides the shell (the style's `length_m` only caps it). Its curl, locks and
+  frizz are read off the close-up (`curl.py`), never typed into the style. `stats.json`'s `coverage.outer` (the
+  shell's outer surface within 3 mm of a strand) is 0.95 or more on a kept head. The hairline is the paint's edge
+  (`labels.HAIR_SHARE`); behind the temples never under hair.py's HAIRLINE table (the paint there is hair hanging over
+  the neck); never under the chin.
 - **A generated model is a thin two-sided sheet** (its head hollow, open through the eyes or a bust's cut, triangles
   wound either way): the hair's volume is what its surface and the new scalp close off from the air, or what lies under
   the outermost hair seen from the head's middle (`volume.py`), never a normal's side or ray parity alone.
@@ -61,7 +66,7 @@ own paint) and brings in only what the generator cannot make, from the repo's ow
   melanin and redness fitted to the close-up's hair colour (`fibre.py`; its lightness-to-pigment table is an estimate,
   checked by eye on the sheet); the scalp and the skin under the beard wear the model's own skin colour.
 - **Styles**: `data/people/hair/gen_<look>.json`, read off the close-up: `length_m` (the strands' cap), `reach_m`
-  (how far under the top hair is labelled), `wave_m`, `wave_period_m`, `parting` side/none/back, `parting_m`,
+  (how far under the top hair is labelled), `parting` side/none/back, `parting_m`,
   `parting_side`, `fringe_side` none/left/right/down, `beard` and its `beard_length_m`, `beard_stubble_m`.
 - **Look at the sheet.** The labels picture says the split follows the paint; only the photographs say whether the
   hair reads as hair, the hairline as skin and the beard as a beard.

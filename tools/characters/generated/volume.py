@@ -7,8 +7,12 @@ eyes or a bust's cut, so the scalp walls the hair off from the head's inside), o
 the head's middle (`seen_from`), never inside the head's skin as seen from there; inside the head's skin and scalp by the side of their
 nearest sample (SAMPLE_M apart), each sample's normal turned outward by the model's own inside (`outward_by`: the
 place ORIENT_M off it along its normal must lie outside). Its depth (the distance to the volume's edge, the outer
-shell or the scalp, smoothed over DEPTH_SMOOTH voxels) gives the strands their layer and its gradient the surface
-they flow along; its half thickness is the deepest depth within THICK_REACH_M (the middle of the shell there)."""
+shell or the scalp, smoothed over DEPTH_SMOOTH voxels) and its gradient say where the volume's edge is (a strand
+leaving it slides along it, `../generated/strands.py`). Its layer (`layered`) runs from 0 on the scalp's side to 1
+on its outer surface, read along rays from the head's middle (LAYER_DIRECTIONS): the hair's span along each ray is the
+volume's thickness there, and the layer's gradient the way across the shell (round 1 held each strand at a share of
+the depth from the nearer edge, so no strand ever lay in the shell's outer half: the regrown hair sat inside the
+shell, short of its outline and its ends, 2026-11-26)."""
 import numpy as np
 from scipy import ndimage
 from scipy.spatial import cKDTree
@@ -17,9 +21,13 @@ VOXEL_M = 0.002
 MARGIN_M = 0.01
 SAMPLE_M = 0.0008
 DEPTH_SMOOTH = 1.0
-THICK_REACH_M = 0.03
+LAYER_DIRECTIONS = 6  # the icosphere's subdivisions the layer is read along (some 1.2 degrees apart)
+LAYER_SMOOTH = 1.5  # voxels the layer is smoothed over within the volume
 ORIENT_M = 0.003
 SEAL_VOXELS = 1
+SHELL_VOXELS = 1
+RADIAL_COS = 0.5
+SKIN_NEAR_M = 0.012
 DIRECTIONS = 6  # the icosphere's subdivisions the outermost hair is read along
 FLOOR_M = 0.004 + MARGIN_M  # the grid's bottom this far over the model's lowest: inside a bust's open cut, so the air
 # under it cannot run up through the neck into the head (a bust read hollow, its hair a 2 mm skin, 2026-11-26)
@@ -67,12 +75,31 @@ def solid_inside(samples, low, shape):
     return ~outside
 
 
+def radially(places, normals, start):
+    """The normals that face `start` or away from it (RADIAL_COS) turned away from it; the rest kept."""
+    away = places - start
+    away /= np.maximum(np.linalg.norm(away, axis=1, keepdims=True), 1e-9)
+    facing = np.einsum("pi,pi->p", normals, away)
+    return np.where((np.abs(facing) > RADIAL_COS)[:, None], normals * np.sign(facing)[:, None], normals)
+
+
 def outward_by(places, normals, inside, low):
     """The normals turned so the place ORIENT_M along each lies outside (`inside`, a voxel grid from `low`)."""
     probe = np.round((places + normals * ORIENT_M - low) / VOXEL_M).astype(int)
     probe = np.clip(probe, 0, np.asarray(inside.shape) - 1)
     flip = inside[probe[:, 0], probe[:, 1], probe[:, 2]]
     return np.where(flip[:, None], -normals, normals)
+
+
+def shell_voxels(samples, low, shape):
+    """The voxels the hair's own surface passes through, grown by SHELL_VOXELS: a bob's hanging ends and a lock's thin
+    sheet, open to the air or beside the neck where no ray from the head's middle meets skin, are hair too (round 2's
+    first volume left a bob's lowest 4 cm out, its outer surface 40% covered, 2026-11-26)."""
+    shell = np.zeros(shape, dtype=bool)
+    at = np.round((samples - low) / VOXEL_M).astype(int)
+    at = at[((at >= 0) & (at < np.asarray(shape))).all(axis=1)]
+    shell[at[:, 0], at[:, 1], at[:, 2]] = True
+    return ndimage.binary_dilation(shell, iterations=SHELL_VOXELS)
 
 
 def grid_of(low, high):
@@ -115,10 +142,13 @@ def seen_from(middles, hair_mesh, body_mesh, start):
 
 
 def hair_volume(model, hair, body, rng, start):
-    """The hair's volume: {low, shape, filled, depth (m), gradient (unit, into the volume), half (m)}. `model` is
-    (points, triangles) and `body` (points, triangles, normals) whose triangles `the first body[3]` of them are the
-    model's own (their normals turned outward here); `hair` labels the model's triangles; `start` is the head's
-    middle the hair is seen from (`scalp.origin`)."""
+    """The hair's volume: {low, shape, filled, depth (m), gradient (unit, into the volume), layer (0 inner to 1
+    outer), across (unit, outward through the layers), thick (m), under (m: the distance to the air outside the hair,
+    never the head), outward (unit: towards that air)}. `model` is (points, triangles) and
+    `body` (points, triangles, normals, n, rays) whose first n triangles are the model's own (their normals turned
+    outward here) and whose `rays` triangles (skin, scalp and neck, never clothes: a coat further along a ray put a
+    bob's hanging ends inside the head) the head is read along; `hair` labels the model's triangles; `start` is the
+    head's middle the hair is seen from (`scalp.origin`)."""
     points, faces = model
     hair_places = points[faces[hair]].reshape(-1, 3)
     floor = hair_places.min(axis=0)
@@ -130,20 +160,68 @@ def hair_volume(model, hair, body, rng, start):
     _, nearest = cKDTree(model_samples).query(middles, workers=-1)
     body_normals = body[2][body_on]
     from_model = body_on < body[3]
-    body_normals[from_model] = outward_by(body_samples[from_model], body_normals[from_model], inside_model, low)
-    inside_body, _ = inside_of(middles, body_samples, body_normals)
-    under, in_head = seen_from(middles, (points, faces[hair]), body[:2], start)
-    filled = (inside_model | under.reshape(shape)) & (hair[model_on[nearest]] & ~inside_body & ~in_head).reshape(shape)
+    near_hair = hair[model_on[nearest]].reshape(shape)
+    # a skin normal is turned away from the model's inside less its hair (a bob lying on the jaw put the jaw's
+    # normals into the head and the bob's ends inside it, 2026-11-26), and one facing the head's middle or away from
+    # it (RADIAL_COS) simply away from it: the air a bob closes off beside the cheeks turned the cheeks' normals in
+    body_normals[from_model] = radially(body_samples[from_model], outward_by(
+        body_samples[from_model], body_normals[from_model], inside_model & ~near_hair, low), start)
+    skin = body[4][body_on]
+    inside_body, nearest_skin = inside_of(middles, body_samples[skin], body_normals[skin])
+    # only near the skin: further in, the rays from the head's middle say what is inside (`seen_from`); further out a
+    # far ear's or collar's normal put a bob's outer side inside the head (2026-11-26)
+    inside_body &= np.linalg.norm(middles - body_samples[skin][nearest_skin], axis=1) < SKIN_NEAR_M
+    under, in_head = seen_from(middles, (points, faces[hair]), (body[0], body[1][body[4]]), start)
+    outside_head = (~inside_body & ~in_head).reshape(shape)
+    filled = (inside_model | under.reshape(shape)) & near_hair & outside_head
+    filled |= shell_voxels(model_samples[hair[model_on]], low, shape) & outside_head
     pieces, count = ndimage.label(filled)
     sizes = ndimage.sum(filled, pieces, index=np.arange(1, count + 1))
     filled = np.isin(pieces, 1 + np.flatnonzero(sizes >= FEWEST_VOXELS))
     depth = ndimage.gaussian_filter(ndimage.distance_transform_edt(filled) * VOXEL_M, DEPTH_SMOOTH)
     gradient = np.stack(np.gradient(depth, VOXEL_M), axis=-1)
     gradient /= np.maximum(np.linalg.norm(gradient, axis=-1, keepdims=True), 1e-9)
-    reach = 2 * int(THICK_REACH_M / VOXEL_M) + 1
-    half = ndimage.maximum_filter(depth, size=reach)
+    layer, thick = layered(filled, low, start)
+    under = ndimage.gaussian_filter(ndimage.distance_transform_edt(filled | ~outside_head) * VOXEL_M, DEPTH_SMOOTH)
+    outward = -np.stack(np.gradient(under, VOXEL_M), axis=-1)
+    outward /= np.maximum(np.linalg.norm(outward, axis=-1, keepdims=True), 1e-9)
+    across = np.stack(np.gradient(layer, VOXEL_M), axis=-1)
+    across /= np.maximum(np.linalg.norm(across, axis=-1, keepdims=True), 1e-9)
     return {"low": low, "shape": shape, "filled": filled.astype(np.float32), "depth": depth.astype(np.float32),
-            "gradient": gradient.astype(np.float32), "half": half.astype(np.float32)}
+            "gradient": gradient.astype(np.float32), "layer": layer.astype(np.float32),
+            "across": across.astype(np.float32), "thick": thick.astype(np.float32), "under": under.astype(np.float32),
+            "outward": outward.astype(np.float32)}
+
+
+def layered(filled, low, start):
+    """Each voxel's layer in the hair (0 on its inner side, 1 on its outer surface, along the ray from `start`) and
+    the hair's thickness along that ray (m), both smoothed over LAYER_SMOOTH voxels within the volume and carried
+    a few voxels out of it (a strand a step outside still reads them)."""
+    import trimesh  # noqa: PLC0415
+    inside = np.argwhere(filled)
+    away = low + inside * VOXEL_M - start
+    distance = np.linalg.norm(away, axis=1)
+    directions = np.asarray(trimesh.creation.icosphere(subdivisions=LAYER_DIRECTIONS).vertices)
+    ray = cKDTree(directions).query(away / np.maximum(distance, 1e-9)[:, None], workers=-1)[1]
+    nearest, farthest = np.full(len(directions), np.inf), np.zeros(len(directions))
+    np.minimum.at(nearest, ray, distance)
+    np.maximum.at(farthest, ray, distance)
+    span = np.maximum(farthest[ray] - nearest[ray], VOXEL_M)
+    fields = []
+    for values in ((distance - nearest[ray]) / span, span):
+        grid = np.zeros(filled.shape)
+        grid[tuple(inside.T)] = values
+        fields.append(spread_in(grid, filled))
+    return fields
+
+
+def spread_in(grid, filled):
+    """A field held on the volume's voxels smoothed over LAYER_SMOOTH voxels within it (normalised, so the edge does
+    not fade) and carried out of it to the nearest voxel's value."""
+    weight = ndimage.gaussian_filter(filled.astype(float), LAYER_SMOOTH)
+    smooth = ndimage.gaussian_filter(grid * filled, LAYER_SMOOTH) / np.maximum(weight, 1e-6)
+    nearest = ndimage.distance_transform_edt(~filled.astype(bool), return_distances=False, return_indices=True)
+    return np.where(filled > 0, smooth, smooth[tuple(nearest)])
 
 
 def read(volume, name, places):

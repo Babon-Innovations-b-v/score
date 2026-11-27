@@ -16,7 +16,7 @@ import trimesh
 from scipy.spatial import cKDTree
 from skimage.color import lab2rgb
 
-from tools.characters.generated import beard, fibre, labels, pictures, scalp, strands, volume
+from tools.characters.generated import beard, cover, curl, fibre, flow, labels, pictures, scalp, strands, volume
 from tools.characters.whole import hair
 
 SCALP_DARK = 0.45  # the scalp painted this share towards the hair's colour where the roots are full
@@ -25,6 +25,8 @@ HAIRLINE_TABLE_SLACK_M = 0.02  # a hair edge this far under hair.py's HAIRLINE t
 # hanging by the jaw)
 HAIRLINE_NEAR_M = 0.003  # a hair triangle with skin this near is on the hairline
 VOLUME_REACH_M = 0.08  # the model's triangles this far round the hair are read for its volume
+HEAD_UNDER_EYES_M = 0.08  # skin under this, further than NECK_RADIUS_M off the head's upright, is not the head's or
+NECK_RADIUS_M = 0.07  # the neck's (a camel coat reads as skin; a ray meeting it put a bob's ends inside the head)
 
 
 def arguments():
@@ -62,12 +64,17 @@ def scalp_colours(patch, skin_srgb, hair_srgb, frame):
     return skin_srgb * (1.0 - share[:, None]) + hair_srgb * share[:, None]
 
 
-def body_of(points, faces, labelled, patch, neck, frame):
-    """The head's skin and the new scalp and neck as one surface: (points, triangles, normals, how many of the first
-    triangles are the model's own skin). The scalp's and neck's normals face out of the head; the skin's are as wound
-    (`volume.hair_volume` turns them outward)."""
+def body_of(points, faces, labelled, patch, neck, frame, skin_like=None):
+    """The head's skin (and clothes) and the new scalp and neck as one surface: (points, triangles, normals, how many
+    of the first triangles are the model's own, which triangles are the head's skin, scalp or neck: those `skin_like`
+    marks (all without it) on the head or the neck). The scalp's and neck's normals face out of the head; the skin's
+    are as wound (`volume.hair_volume` turns them outward)."""
     near = np.linalg.norm(points[faces].mean(axis=1) - frame["centre"], axis=1) < scalp.HEAD_M
     skin_faces = faces[near & ~labelled]
+    middles = points[skin_faces].mean(axis=1)
+    off_axis = np.linalg.norm((middles - frame["centre"])[:, [0, 2]], axis=1)
+    head_or_neck = (middles[:, 1] > frame["eyes_middle"][1] - HEAD_UNDER_EYES_M) | (off_axis < NECK_RADIUS_M)
+    skin = head_or_neck & (True if skin_like is None else skin_like[near & ~labelled])
     start = scalp.origin(frame)
     pieces = [(points, skin_faces, volume.face_normals(points, skin_faces)),
               (patch["points"], patch["triangles"], outward(patch["points"], patch["triangles"], start, False))]
@@ -79,7 +86,8 @@ def body_of(points, faces, labelled, patch, neck, frame):
         all_faces.append(piece_faces + offset)
         all_normals.append(piece_normals)
         offset += len(piece_points)
-    return np.vstack(all_points), np.vstack(all_faces), np.vstack(all_normals), len(skin_faces)
+    rays = np.concatenate([skin, np.ones(sum(len(item) for item in all_faces[1:]), dtype=bool)])
+    return np.vstack(all_points), np.vstack(all_faces), np.vstack(all_normals), len(skin_faces), rays
 
 
 def model_near_hair(points, faces, labelled):
@@ -91,18 +99,22 @@ def model_near_hair(points, faces, labelled):
     return (points, faces[near]), labelled[near]
 
 
-def scalp_hair(points, faces, colours, frame, labelled, style):
-    """The scalp, the neck's back, the hair's volume and its strands: {patch, neck, space, counts, points, radius}."""
+def scalp_hair(points, faces, paint, frame, labelled, style):
+    """The scalp, the model's points with its skin laid onto it, the neck's back, the hair's volume and its strands:
+    {patch, laid, neck, space, counts, points, radius}. `paint` is (colours per triangle, uv, texture)."""
+    colours, uv, texture = paint
     skin_like = labels.skin_like(colours)
     patch = scalp.scalp_patch(points, faces, labelled, frame)
+    points = scalp.laid(points, faces, labelled, patch, frame)
     neck = scalp.neck_back(points, faces, labelled, skin_like, frame) if patch["open_neck"] else None
-    body = body_of(points, faces, labelled, patch, neck, frame)
+    body = body_of(points, faces, labelled, patch, neck, frame, skin_like)
     model, model_labels = model_near_hair(points, faces, labelled)
     space = volume.hair_volume(model, model_labels, body, np.random.default_rng(strands.SEED), scalp.origin(frame))
+    field = flow.flow_field(points, faces, uv, texture, labelled, space)
     hairline = hairline_of(points, faces, labelled, skin_like, frame)
-    counts, strand_points, radius = strands.regrown(space, patch, (points, faces[~labelled & skin_like]), hairline,
-                                                    frame, style)
-    return {"patch": patch, "neck": neck, "space": space, "counts": counts, "points": strand_points,
+    counts, strand_points, radius = strands.regrown(space, field, patch, (points, faces[~labelled & skin_like]),
+                                                    hairline, frame, style)
+    return {"patch": patch, "laid": points, "neck": neck, "space": space, "counts": counts, "points": strand_points,
             "radius": radius}
 
 
@@ -140,7 +152,7 @@ def kept_written(path, points, faces, uv, removed, out):
 
 
 def stats_of(points, faces, frame, labelled, models, grown, finish, bearded):
-    """The run's numbers for stats.json."""
+    """The run's numbers for stats.json (`grown` with its `coverage` and `curl`)."""
     head = np.linalg.norm(points[faces].mean(axis=1) - frame["centre"], axis=1) < scalp.HEAD_M
     stats = {"hair_triangles": int(labelled.sum()), "triangles": int(len(faces)),
              "hair_share_of_head": round(float(labelled[head].mean()), 4),
@@ -149,7 +161,8 @@ def stats_of(points, faces, frame, labelled, models, grown, finish, bearded):
              "scalp_points": int(len(grown["patch"]["points"])), "open_neck": bool(grown["patch"]["open_neck"]),
              "strands": int(len(grown["counts"])),
              "hair_volume_l": round(float(grown["space"]["filled"].sum()) * volume.VOXEL_M ** 3 * 1000.0, 3),
-             "fibre": {key: finish["hair"][key] for key in ("melanin", "redness", "white_share")}}
+             "fibre": {key: finish["hair"][key] for key in ("melanin", "redness", "white_share")},
+             "coverage": grown["coverage"], "curl": grown["curl"]}
     if bearded is not None:
         stats.update({"beard_triangles": int(bearded["labels"].sum()),
                       "beard_share_of_head": round(float(bearded["labels"][head].mean()), 4),
@@ -167,17 +180,23 @@ def main():
     colours = labels.face_colours(faces, uv, texture)
     frame = labels.head_frame(points, faces, colours)
     labelled, models = labels.hair_labels(points, faces, colours, frame, bool(style.get("beard")), style["reach_m"])
+    read_curl = curl.photo_curl(args.closeup)
+    style = curl.styled(style, read_curl)
     skin_srgb = lab2rgb(models["skin"][0][None, None])[0, 0]
     hair_srgb = lab2rgb(models["hair"][0][None, None])[0, 0]
     bearded = facial_hair(points, faces, colours, frame, labelled, skin_srgb, style) if style.get("beard") else None
     shown = labelled | (bearded["labels"] if bearded is not None else False)
     pictures.label_picture(points, faces, colours, shown, frame, out / "labels.png")
-    grown = scalp_hair(points, faces, colours, frame, labelled, style)
+    grown = scalp_hair(points, faces, (colours, uv, texture), frame, labelled, style)
+    grown["curl"] = read_curl
+    grown["coverage"] = cover.coverage(grown["points"].reshape(len(grown["counts"]), -1, 3), points, faces,
+                                       labelled, grown["space"], scalp.origin(frame),
+                                       np.random.default_rng(strands.SEED))
     closeup_srgb, closeup_lab = labels.closeup_hair(args.closeup)
     finish = {"hair": fibre.fibre_of(closeup_srgb, closeup_lab)}
     if bearded is not None:
         finish["beard"] = fibre.fibre_of(bearded["srgb"], bearded["lab"])
-    kept_written(args.model, points, faces, uv, shown, out)
+    kept_written(args.model, grown["laid"], faces, uv, shown, out)
     patch, neck = grown["patch"], grown["neck"]
     np.savez_compressed(
         out / "groom.npz", scalp_points=patch["points"], scalp_triangles=patch["triangles"],
@@ -191,7 +210,8 @@ def main():
     stats = stats_of(points, faces, frame, labelled, models, grown, finish, bearded)
     (out / "stats.json").write_text(json.dumps(stats, indent=1))
     print(f"generated hair: {stats['strands']} strands, hair {stats['hair_share_of_head']:.1%} of the head's "
-          f"triangles, beard strands {stats.get('beard_strands', 0)} -> {out}", flush=True)
+          f"triangles, beard strands {stats.get('beard_strands', 0)}, outer surface covered "
+          f"{stats['coverage']['outer']:.1%}, curl {read_curl['swing_deg']} deg -> {out}", flush=True)
 
 
 if __name__ == "__main__":

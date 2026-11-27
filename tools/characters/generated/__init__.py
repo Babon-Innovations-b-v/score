@@ -7,12 +7,15 @@ turn into strands like original"); a man's lumpy painted beard the same way, as 
    clothes', settled by neighbours, joined to the head's top) and place (never the face in front). `pictures.py` draws
    them.
 2. `scalp.py`: the hair's triangles removed, a smooth skull-shaped scalp closes the hole, tucked under the skin at its
-   edge; where the hair hung over a neck the model never had, the neck's back.
+   edge, the skin round it laid onto it (no lip); where the hair hung over a neck the model never had, the neck's back.
 3. `volume.py`: the hair's shape as a volume (inside the model, near its hair, outside the skin and scalp) with its
-   depth, the strands' layers.
-4. `strands.py`: roots on the scalp at a head's density, guides grown through the volume along the comb of
-   `../whole/hair.py` (its parting, whorl, density, baby hairs, locks, cut, wave, flyaways and frizz, reused), ending
-   where the shell ends. `beard.py`: the beard's triangles smoothed into skin and short strands grown on it.
+   depth and its layer (0 on the scalp's side, 1 on the shell's outer surface). `flow.py`: the shell's own flow (its
+   grooves and paint streaks) through that volume. `curl.py`: how curly the close-up's hair is.
+4. `strands.py`: roots on the scalp at a head's density fading into the skin, guides grown through the volume along
+   the shell's flow (the comb of `../whole/hair.py` where it does not point clearly), each in its layer, ending where
+   the shell ends; the strands grown from them by hair.py's `grown` with the photo's wave, locks and frizz.
+   `cover.py` measures how much of the shell's outer surface they cover. `beard.py`: the beard's triangles smoothed
+   into skin and short strands grown on it, thinning out down the neck.
 5. `fibre.py`: the library's strand finish with its melanin fitted to the close-up's hair colour.
 6. `blender_sheet.py` (Blender, CPU): the raw model and the regrown one drawn the photo way, side by side.
 """
