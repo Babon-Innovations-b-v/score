@@ -47,8 +47,10 @@ DRESSED_LIBRARY = pathlib.Path(os.environ.get("SCORE_DRESSED_LIBRARY",
 CLIPS = pathlib.Path(os.environ.get("SCORE_PEOPLE_CLIPS",
                                     HOME / ".farm-factory-motion/candidates/prop-people/woman_stair/rig.npz"))
 # Each person's measures: her height (m), the head model's height as drawn (m), the swap's cut under the crown (body
-# heights) and the dressed body whose skeleton and clips she plays.
-PEOPLE = {"a_stairwell_woman": {"height_m": 1.68, "head_m": 0.42, "cut_depth": 0.17,
+# heights), the depth under the crown from which down the body keeps its own collar round the neck (`head_swap`'s
+# hood: just under the chin; the head model's own collar, kept to the cut, stood in shards against the jacket's) and
+# the dressed body whose skeleton and clips she plays.
+PEOPLE = {"a_stairwell_woman": {"height_m": 1.68, "head_m": 0.42, "cut_depth": 0.17, "collar_depth": 0.15,
                                 "dressed": "character/dress_woman_stair_made/1/body.glb"}}
 STEPS = ("head", "hair", "swap", "rig", "cloth", "pieces", "render", "sheet")
 FILM_SECONDS = 4.0  # the walking film (cloth.SECONDS is the cloth sheet's 3 s)
@@ -111,7 +113,7 @@ def swap_step(given, out, person, name):
     colour.toned(given["body"], given["body_cutout"], folder / "body_toned.glb", folder / "colour.json")
     head_alone(out / "head/head.glb", folder / "head.glb")
     blender("head_swap.py", [folder / "body_toned.glb", folder / "head.glb", person["cut_depth"],
-                             folder / f"{name}.glb", folder / f"{name}.json"], out / "swap.log")
+                             folder / f"{name}.glb", folder / f"{name}.json", person["collar_depth"]], out / "swap.log")
 
 
 def rig_step(out, person, name):

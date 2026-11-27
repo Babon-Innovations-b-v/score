@@ -231,7 +231,13 @@ own paint) and brings in only what the generator cannot make, from the repo's ow
   so `blender_head.py`'s face texture, library skin, eyes, iris and lashes and the hair step's scalp and strands lay
   on it as on head.glb, every piece reaching the rig through `pieces.npz`'s head_to_rig (the swap's matrix after the
   body-to-rig similarity `person.framed` finds, 2.5 mm rms). The head mesh copies the rig's nearest weights at the
-  cut and rides the Head alone from `RIGID_OVER_CUT` up; the eyes, lashes, scalp and strands ride the Head joint.
+  cut (read off the whole shell before its faces under the head go: read after, the neck took the jacket collar's and
+  flew into it in shards) and rides the Head alone from its chin up (`head_swap.chin_over_cut`, the lowest slice of
+  the face's middle column 2.5 cm forward of the throat; eased from 3 to 6 cm over the cut, the lips and chin rode
+  half the neck and the lower lip tore off as she stood and walked, 2026-11-27); the eyes, lashes, scalp and strands
+  ride the Head joint. The swap keeps the body's own collar round the neck from just under the chin down
+  (`collar_depth`, head_swap's hood) and the rig's cut never takes a cloth garment's faces: the head model's collar,
+  kept to the cut, stood in shards against the jacket's.
   Run: `python -m tools.characters.generated.person <name> <sources> <out> [--from <step> | --only <step>]` (head
   2 min, hair 5, swap 1.5, rig 3.5, cloth 5 to 10 at nice 19; the render some hours: 13 sheet frames and the 96-frame
   film with 240k strands, 5.7 GB).

@@ -47,6 +47,13 @@ FRONT_HALF_ANGLE = 40.0  # with a hood kept: the front (chin, throat) within thi
 NECK_FALLBACK = 0.048  # the neck's reach (8 cm) where a hood lies against it with no empty ring between
 HOOD_GAP = 0.003  # an empty ring at least this wide (5 mm) parts them; narrower, nothing is round the neck there
 TEXEL_SLACK = 0.02  # barycentric slack so a triangle's edge texels are painted too (no unblended rim)
+# The chin over the cut (`chin_over_cut`), in body heights: read on slices 4 mm high of the face's middle column (2.7 cm
+# wide), up to 13 cm over the cut; the chin is the lowest slice standing 2.5 cm forward of the throat (the woman of
+# 2026-11-27: throat 0.015, chin 0.051, 3 cm over the cut)
+CHIN_SLICE = 0.0025
+CHIN_COLUMN = 0.008
+CHIN_REACH = 0.08
+CHIN_STEP = 0.015
 
 
 def similarity(source, target, scale=None):
@@ -106,6 +113,25 @@ def lowest(scales, misses):
         return float(scales[best])
     curve = np.polyfit(scales[best - 1:best + 2], misses[best - 1:best + 2], 2)
     return float(-curve[1] / (2 * curve[0])) if curve[0] > 0 else float(scales[best])
+
+
+def chin_over_cut(heights, forward, across):
+    """The chin's height over the cut (body heights): of the face's middle column (within CHIN_COLUMN either side), the
+    lowest CHIN_SLICE whose front stands CHIN_STEP forward of the throat's (the column's lowest slice over the cut).
+    `heights` over the cut and `forward`, `across` in body heights per point (forward toward the face). Refused when
+    no slice stands out (no face over the cut)."""
+    heights, forward = np.asarray(heights, float), np.asarray(forward, float)
+    column = (np.abs(np.asarray(across, float)) < CHIN_COLUMN) & (heights >= 0.0) & (heights < CHIN_REACH)
+    slices = np.floor(heights[column] / CHIN_SLICE).astype(int)
+    if not len(slices):
+        raise ValueError("no head points over the cut in the face's middle column")
+    fronts = np.full(slices.max() + 1, -np.inf)
+    np.maximum.at(fronts, slices, forward[column])
+    throat = fronts[slices.min()]
+    standing = np.flatnonzero(fronts > throat + CHIN_STEP)
+    if not len(standing):
+        raise ValueError("no chin stands forward of the throat over the cut")
+    return float(standing[0] * CHIN_SLICE)
 
 
 def eased(height, band):

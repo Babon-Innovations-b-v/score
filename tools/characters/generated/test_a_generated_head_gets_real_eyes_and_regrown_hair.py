@@ -163,6 +163,10 @@ their rows red (each applied once, seen red, reverted, 2026-11-27): the kept fac
 (`removed_faces` keying kept by its corners reversed: every face removed); the fit's scale held (`framed` with
 `free_scale` False: the scale stays 5% off). And head.glb wears the skin step's paint as written (`head.paint_picture`;
 break: encoded again by `head.picture`, 0.5 written as 188, the washed paint the whole person's first render showed).
+The chin over the cut (`head_swap.chin_over_cut`, from which up the whole face rides the Head rigidly) is the lowest
+slice of the face's middle column standing 2.5 cm forward of the throat; a column with no chin is refused. Breaks
+(each applied once, seen red, reverted, 2026-11-27): the column's width left out (the shoulder read as the chin, 0.005);
+the throat read as the column's highest slice (no chin found, the row's refusal raised).
 """
 import functools
 
@@ -1647,6 +1651,22 @@ def person_hair_removed():
     return np.flatnonzero(person.removed_faces(faces, faces[~taken])).tolist()
 
 
+def chin_read():
+    """A face's middle column over the cut: the throat 1 cm forward up to 2 cm, the chin and face 5 cm forward above,
+    a shoulder 9 cm forward off the column (`head_swap.chin_over_cut`): (the chin's height, a column with no chin
+    refused)."""
+    heights = np.linspace(0.0, 0.07, 141)
+    forward = np.where(heights < 0.02, 0.01, 0.05)
+    shoulder = (np.full(20, 0.005), np.full(20, 0.09), np.full(20, 0.05))
+    chin = head_swap.chin_over_cut(np.r_[heights, shoulder[0]], np.r_[forward, shoulder[1]],
+                                   np.r_[np.zeros(141), shoulder[2]])
+    try:
+        head_swap.chin_over_cut(heights, np.full(141, 0.01), np.zeros(141))
+    except ValueError:
+        return [round(chin, 4), "refused"]
+    return [round(chin, 4), "read"]
+
+
 def person_framed():
     """A body (a box with a nose) thinned to a third, moved by a known similarity (scale 1.7, a 6 degree turn, a shift) and given half a
     millimetre of noise, framed again from a start 5% off in scale and 3 cm off in place (`person.framed`): (scale
@@ -1786,6 +1806,8 @@ def tether_inside_read():
      lambda: np.asarray(head.paint_picture(np.full((2, 2, 3), 0.5)))[0, 0].tolist(), [128, 128, 128]),
     ("a body thinned and stood by a turn, a scale and a shift is framed again onto the rig", person_framed,
      [True, True]),
+    ("the chin is the lowest slice standing forward of the throat, a shoulder off the face's column never",
+     chin_read, [0.02, "refused"]),
 ])
 def test_a_generated_head_gets_real_eyes_and_regrown_hair(case, made_value, wanted):
     assert made_value() == wanted, case

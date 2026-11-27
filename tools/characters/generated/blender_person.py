@@ -10,9 +10,9 @@ primitive: the mended head, cut and eased onto the neck, its paint blended into 
 copy: above the cut the rig's faces it covers are taken off and the head drawn as `blender_head.py` draws it (the face
 texture on its planar UV and score_lib's skin, the eyeballs in the photo's iris, the cornea and wet line, the
 lashes), with the hair step's painted hair taken off, its skin laid onto the scalp, and the scalp and strands laid
-(`blender_sheet.py`'s). The head mesh is skinned by the rig's nearest weights, so its neck bends as the rig's does;
-the eyes, lashes, scalp and strands ride the Head joint. Every piece made on the head model reaches the rig through
-one matrix (pieces.npz's head_to_rig).
+(`blender_sheet.py`'s). The head mesh is skinned by the rig's nearest weights under its chin, so its neck bends as
+the rig's does; from the chin up it rides the Head joint rigidly, as the eyes, lashes, scalp and strands do. Every
+piece made on the head model reaches the rig through one matrix (pieces.npz's head_to_rig).
 
 Writes <renders>/standing_<view>.png (front, three_quarter, side, back), close_front.png and close_three_quarter.png
 (the head, FACE_FRAME_M tall), walk_<view>_<point>.png (side and three quarters at left ahead, passing, right ahead),
@@ -68,6 +68,7 @@ blender_head = loaded_with([HEAD_DIR / "head.glb", HEAD_DIR / "eyes/eyes.npz", L
 import blender_eyes  # noqa: E402  (loaded above with the head's arguments)
 import blender_sheet  # noqa: E402
 import blender_skin  # noqa: E402
+import head_swap  # noqa: E402
 import render  # noqa: E402
 from blender_eyes import blender_face  # noqa: E402
 
@@ -77,9 +78,6 @@ STANDING = {"front": 180.0, "three_quarter": 215.0, "side": 270.0, "back": 0.0} 
 FACE_FRAME_M = render.FACE_FRAME_M  # the close-ups: the head and the neck's top
 FACE_UNDER_EYES_M = 0.07  # the close-up aimed this far under the eyes
 CLOSE = {"front": 180.0, "three_quarter": 215.0}
-# Body heights over the cut over which the head is eased from the rig's weights onto the Head alone: from 5 cm (the
-# collar the head model wears, which rode the Head out of the jacket at 0 to 6 cm) to 10 cm (the lips; the chin half)
-RIGID_OVER_CUT = (0.03, 0.06)
 
 
 def matrix_of(array):
@@ -145,13 +143,33 @@ def rest_matrix(shell, pieces):
     return shell.matrix_world @ TO_BLENDER @ matrix_of(pieces["head_to_rig"]) @ TO_BLENDER.inverted()
 
 
-def over_cut(local, pieces):
-    """How high head-model points (Blender's frame, the model's units) lie over the swap's cut, in the body's units
-    (its heights)."""
+def in_body(local):
+    """Head-model points (Blender's frame, the model's units) in the swapped body's glTF frame, in its heights (y up,
+    facing +z)."""
     model = np.stack([local[:, 0], local[:, 2], -local[:, 1]], 1)  # back to glTF
     record = json.loads(swap_record().read_text())
     body = model @ np.asarray(record["head_to_body_gltf"])[:3, :3].T + np.asarray(record["head_to_body_gltf"])[:3, 3]
-    return (body[:, 1] - float(pieces["level"])) / float(record["body_height_units"])
+    return body / float(record["body_height_units"])
+
+
+def over_cut(local, pieces):
+    """How high head-model points (Blender's frame, the model's units) lie over the swap's cut, in the body's units
+    (its heights)."""
+    record = json.loads(swap_record().read_text())
+    return in_body(local)[:, 1] - float(pieces["level"]) / float(record["body_height_units"])
+
+
+def rigid_share(local, pieces):
+    """Each head point's share riding the Head alone: 0 at the cut, rising to 1 at the chin (`head_swap.chin_over_cut`
+    on the head itself) and 1 above, so the whole face, lips and chin ride the Head rigidly and only the neck under
+    the chin bends with the rig's (eased from 3 to 6 cm over the cut, the lips and chin rode half the neck's weights
+    and the lower lip tore off the upper while she stood and walked, 2026-11-27); (shares, the chin's height)."""
+    heights = over_cut(local, pieces)
+    body = in_body(local)
+    face = body[heights > 0.06]
+    across = body[:, 0] - np.median(face[:, 0])
+    chin = head_swap.chin_over_cut(heights, body[:, 2], across)
+    return np.clip(heights / chin, 0.0, 1.0), chin
 
 
 def above_cut(local, pieces):
@@ -159,12 +177,13 @@ def above_cut(local, pieces):
     return over_cut(local, pieces) > 0.0
 
 
-def shell_cut(shell, head, pieces):
-    """The rig's faces above the cut that the swap's head covers taken off the shell; how many."""
+def shell_cut(shell, head, pieces, garment):
+    """The rig's faces above the cut that the swap's head covers taken off the shell, never a cloth garment's
+    (`garment`, per polygon: the jacket's collar round the neck is the body's, drawn by the cloth); how many."""
     to_head = (head.matrix_world.inverted() @ shell.matrix_world)
     tree = tree_of([head.matrix_world @ vertex.co for vertex in head.data.vertices])
     centres = np.array([to_head @ polygon.center for polygon in shell.data.polygons])
-    above = above_cut(centres, pieces)
+    above = above_cut(centres, pieces) & ~garment
     doomed = set()
     for index in np.flatnonzero(above):
         world = shell.matrix_world @ shell.data.polygons[int(index)].center
@@ -217,16 +236,24 @@ def hair_taken_off(head, pieces):
     return len(doomed), moved
 
 
-def weights_copied(item, shell, armature, rigid):
-    """`item` skinned by the shell's weights at its nearest point (both at the bind), every joint under the Head read
-    as the Head, and eased to the Head alone by `rigid` (0 to 1 per point): the face rides the Head as its eyes,
-    lashes and hair do (copied all the way up, the rig's thinned head's weights pulled the lips and chin off the
-    face, 2026-11-27), the neck at the cut bends as the rig's below it."""
+def weights_held(shell, armature):
+    """The shell's skin weights at the bind, read before any of its faces are taken off: (a tree of its points in the
+    scene, each point's (group, weight) pairs, each group's joint, every joint under the Head read as the Head)."""
     under_head = {bone.name for bone in armature.data.bones["Head"].children_recursive}
+    print(f"head joints: {sorted(under_head)} read as the Head", flush=True)
     names = ["Head" if group.name in under_head else group.name for group in shell.vertex_groups]
-    shell_points = [shell.matrix_world @ vertex.co for vertex in shell.data.vertices]
-    tree = tree_of(shell_points)
+    tree = tree_of([shell.matrix_world @ vertex.co for vertex in shell.data.vertices])
     held = [[(group.group, group.weight) for group in vertex.groups] for vertex in shell.data.vertices]
+    return tree, held, names
+
+
+def weights_copied(item, weights, armature, rigid):
+    """`item` skinned by the shell's `weights` (`weights_held`) at its nearest point (both at the bind), eased to the
+    Head alone by `rigid` (0 to 1 per point): the face rides the Head as its eyes, lashes and hair do (copied all the
+    way up, the rig's thinned head's weights pulled the lips and chin off the face, 2026-11-27), the neck at the cut
+    bends as the rig's below it. The shell is read whole: read after its faces under the head were taken off, the
+    neck's nearest points were the jacket collar's and the neck flew into the jacket in shards (2026-11-27)."""
+    tree, held, names = weights
     groups = {name: item.vertex_groups.new(name=name) for name in dict.fromkeys(names)}
     for vertex in item.data.vertices:
         share = float(rigid[vertex.index])
@@ -235,7 +262,6 @@ def weights_copied(item, shell, armature, rigid):
             summed[names[group]] = summed.get(names[group], 0.0) + weight * (1.0 - share)
         for name, weight in summed.items():
             groups[name].add([vertex.index], weight, "REPLACE")
-    print(f"head joints: {sorted(under_head)} read as the Head", flush=True)
     modifier = item.modifiers.new("skin", "ARMATURE")
     modifier.object = armature
 
@@ -283,7 +309,7 @@ def groomed(frame, pieces):
     return items
 
 
-def head_dressed(armature, shell, pieces):
+def head_dressed(armature, shell, pieces, data):
     """The swap's head on the rig with its face, eyes, lashes and hair; (head, the Head joint's frame)."""
     eyes = dict(np.load(HEAD_DIR / "eyes/eyes.npz", allow_pickle=False))
     lids = dict(np.load(HEAD_DIR / "lids/lids.npz", allow_pickle=False))
@@ -293,7 +319,10 @@ def head_dressed(armature, shell, pieces):
     matrix = rest_matrix(shell, pieces)
     head.matrix_world = matrix
     bpy.context.view_layer.update()
-    print(f"rig faces under the head taken off: {shell_cut(shell, head, pieces)}", flush=True)
+    weights = weights_held(shell, armature)
+    simulated = [cloth.kinds_of(data).index(kind) for kind in cloth.simulated_of(data)]
+    garment = np.isin(cloth.face_kinds(shell, data), simulated)
+    print(f"rig faces under the head taken off: {shell_cut(shell, head, pieces, garment)}", flush=True)
     blender_skin.attributes(head, skin)
     blender_skin.face_uv(head, skin["box"])
     print(f"painted skin faces: {skin_marked(head, lids, skin)}", flush=True)
@@ -307,9 +336,9 @@ def head_dressed(armature, shell, pieces):
     space.parent = frame
     blender_skin.skin_material(head, LIBRARY, folder, space)
     print(f"hair faces taken off, skin points laid: {hair_taken_off(head, pieces)}", flush=True)
-    low, high = RIGID_OVER_CUT
-    rigid = np.clip((over_cut(coordinates(head.data), pieces) - low) / (high - low), 0.0, 1.0)
-    weights_copied(head, shell, armature, rigid)
+    rigid, chin = rigid_share(coordinates(head.data), pieces)
+    print(f"the head rides the Head alone from its chin, {chin:.4f} body heights over the cut", flush=True)
+    weights_copied(head, weights, armature, rigid)
     eyes.update({"wet.points": lids["wet.points"], "wet.triangles": lids["wet.triangles"]})
     laid = blender_eyes.laid(head, eyes)
     for item in laid.values():
@@ -360,7 +389,7 @@ def main():
             bpy.data.objects.remove(item)
     armature.data.pose_position = "REST"
     bpy.context.view_layer.update()
-    head, frame, space, eyes = head_dressed(armature, shell, pieces)
+    head, frame, space, eyes = head_dressed(armature, shell, pieces, data)
     garments = cloth.garments_made(shell, data)
     cloth.body_made(armature, shell, data)
     armature.data.pose_position = "POSE"
