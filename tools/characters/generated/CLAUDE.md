@@ -63,8 +63,20 @@ own paint) and brings in only what the generator cannot make, from the repo's ow
   wound either way): the hair's volume is what its surface and the new scalp close off from the air, or what lies under
   the outermost hair seen from the head's middle (`volume.py`), never a normal's side or ray parity alone.
 - **The strands' finish** is the library's strand finish (`../hair/finish.py`, `hair_strands_ash_brown`) with only
-  melanin and redness fitted to the close-up's hair colour (`fibre.py`; its lightness-to-pigment table is an estimate,
-  checked by eye on the sheet); the scalp and the skin under the beard wear the model's own skin colour.
+  melanin, redness and a grey head's white share fitted to the close-up's hair colour (`fibre.py`), read over the
+  photo's whole hair (`labels.photo_hair`: off a backdrop found as smooth, not by colour, joined to the crown, down to
+  under the pupils). The fit is drawn, not estimated: `data/people/hair/melanin_swatch.json` holds a strand swatch per
+  melanin, redness and white share (`blender_swatch.py`, drawn as the sheet draws a head, at the photos' scale; run
+  `blender -b -t 8 --python blender_swatch.py -- none none <library> 0 96 <out>`, about 107 pictures of 20 s, then
+  `python -m tools.characters.generated.fibre <out> data/people/hair/melanin_swatch.json`; redraw it when the library
+  strand finish or the sheet's light changes). A grey head's share and melanin are the swatch's matching its median
+  lightness and its spread: mixed by lightness (round 2), an older woman's silver-white bob drew dark grey. The sheet prints
+  the photo's hair colour against the drawn one's (`sheet.colours`, <groom>/colour.json). The scalp and the skin
+  under the beard wear the model's own skin colour.
+- **A hair-white bit is hair.** A fringe's white bits the clothes' colours claim (a cream scarf) are still strays
+  above any collar (`labels.over_clothes`), and only paint darker than the skin is brows; the forehead never roots
+  under hair.py's table less 2 cm (`strands.FOREHEAD`): a painted fringe lies on skin (round 3, 2026-11-27: a white
+  shell bit and a clump of forehead-rooted strands on an older woman's brow).
 - **Styles**: `data/people/hair/gen_<look>.json`, read off the close-up: `length_m` (the strands' cap), `reach_m`
   (how far under the top hair is labelled), `parting` side/none/back, `parting_m`,
   `parting_side`, `fringe_side` none/left/right/down, `beard` and its `beard_length_m`, `beard_stubble_m`.

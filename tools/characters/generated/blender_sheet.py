@@ -19,6 +19,7 @@ import sys
 
 import bpy
 import numpy as np
+from bpy_extras.object_utils import world_to_camera_view
 from mathutils import Vector
 
 MODEL, GROOM, LIBRARY, LIFT, SAMPLES, OUT = sys.argv[sys.argv.index("--") + 1:][:6]  # `blender_lids.py` passes more
@@ -37,6 +38,7 @@ HAIRLINE = {"frame_m": 0.17, "over_eyes_m": 0.06, "behind_front_m": 0.04, "rise_
 SKIN_ROUGHNESS = 0.45
 WHITE_MELANIN = 0.02  # a white strand's melanin: a little, a hair is never clear glass
 SEED = 223
+MASK_SAMPLES = 16
 
 
 def imported(path, holder):
@@ -161,14 +163,20 @@ def head_aims(groom):
     return aim, focus, hairline
 
 
-def drawn_all(scene, camera, turntable, groom, lift, prefix):
-    """The four sides and the hairline close-up, each to <out>/<prefix>-<view>.png."""
+def head_framed(camera, groom, lift):
+    """The camera framing the head for the four sides; the hairline close-up's aim."""
     aim, focus, hairline = head_aims(groom)
     aim, focus, hairline = (vector + Vector((0.0, 0.0, lift)) for vector in (aim, focus, hairline))
     frame_m = float(groom["top"]) + HEAD_FRAME["over_top_m"] - (blender_face.z_up(
         np.asarray(groom["eyes"]).mean(axis=0)[None])[0][2] - HEAD_FRAME["under_eyes_m"])
     distance = frame_m / 2.0 / math.tan(camera.data.angle_y / 2.0)
     render.aimed(camera, aim + Vector((0.0, -distance, 0.0)), aim, render.STOPS["face"], focus)
+    return hairline
+
+
+def drawn_all(scene, camera, turntable, groom, lift, prefix):
+    """The four sides and the hairline close-up, each to <out>/<prefix>-<view>.png."""
+    hairline = head_framed(camera, groom, lift)
     for view, degrees in VIEWS.items():
         render.drawn(scene, turntable, degrees, OUT, f"{prefix}-{view}")
     distance = HAIRLINE["frame_m"] / 2.0 / math.tan(camera.data.angle_y / 2.0)
@@ -213,7 +221,28 @@ def main():
     shown(groom_items, True)
     shown(raw_items, False)
     drawn_all(scene, camera, turntable, groom, lift, "hair")
+    hair_mask(scene, camera, turntable, groom, (lift, holder), groom_items)
     print("SHEET RENDER DONE", flush=True)
+
+
+def hair_mask(scene, camera, turntable, groom, placed, items):
+    """The head hair's own pixels in the front view, <out>/hair-front-mask.png (its alpha: everything else a holdout,
+    the world not drawn), and the pupils' pixels there, <out>/hair-front.json: `sheet.py` reads the drawn hair's
+    colour over them as `labels.photo_hair` reads the photo's."""
+    lift, holder = placed
+    head_framed(camera, groom, lift)
+    turntable.rotation_euler = (0.0, 0.0, 0.0)
+    for item in [*items, bpy.data.objects["ground"]]:
+        item.is_holdout = not item.name.startswith("hair")
+    scene.render.film_transparent = True
+    scene.cycles.samples, scene.cycles.use_denoising = MASK_SAMPLES, False
+    scene.render.filepath = str(pathlib.Path(OUT) / "hair-front-mask.png")
+    bpy.ops.render.render(write_still=True)
+    bpy.context.view_layer.update()
+    places = [holder.matrix_world @ Vector(tuple(eye)) for eye in blender_face.z_up(np.asarray(groom["eyes"]))]
+    pupils = [[view.x * scene.render.resolution_x, (1.0 - view.y) * scene.render.resolution_y]
+              for view in (world_to_camera_view(scene, camera, place) for place in places)]
+    (pathlib.Path(OUT) / "hair-front.json").write_text(json.dumps({"pupils": pupils}))
 
 
 if __name__ == "__main__":  # imported by `blender_lids.py`

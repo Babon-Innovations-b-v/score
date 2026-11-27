@@ -192,8 +192,8 @@ def main():
     grown["coverage"] = cover.coverage(grown["points"].reshape(len(grown["counts"]), -1, 3), points, faces,
                                        labelled, grown["space"], scalp.origin(frame),
                                        np.random.default_rng(strands.SEED))
-    closeup_srgb, closeup_lab = labels.closeup_hair(args.closeup)
-    finish = {"hair": fibre.fibre_of(closeup_srgb, closeup_lab)}
+    closeup = labels.closeup_hair(args.closeup)
+    finish = {"hair": fibre.fibre_of(closeup["srgb"], closeup["lab"], closeup["spread"])}
     if bearded is not None:
         finish["beard"] = fibre.fibre_of(bearded["srgb"], bearded["lab"])
     kept_written(args.model, grown["laid"], faces, uv, shown, out)

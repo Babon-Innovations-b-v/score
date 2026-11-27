@@ -56,6 +56,10 @@ SMOOTH_STEPS = 2.5  # a guide's path smoothed along itself over this many steps 
 FADE_M = 0.004  # the roots' density fades from full into the skin over this from the paint's hairline
 SIDE_DEG = 100.0
 LOWEST_UNDER_EYES_M = 0.04
+# the forehead (this far round from the face) never roots more than `under_table_m` under hair.py's HAIRLINE table: a
+# fringe painted onto the forehead is hair lying on skin, and rooted there it grew a clump down onto the brows
+# (round 3, 2026-11-27: an older woman's fringe, roots 1.6 to 4.6 cm over the eyes)
+FOREHEAD = {"deg": 25.0, "under_table_m": 0.02}
 SEED = 223
 BEHIND_BLEND_M = 0.03
 CANDIDATES = 400000  # places on the scalp a root is drawn from
@@ -96,12 +100,14 @@ def full_density(over):
 
 
 def grows_here(places, frame):
-    """1 where hair grows: in front of FRONT_DEG round from the face wherever the paint says, behind it only over
-    hair.py's HAIRLINE table (less its baby band); in front of SIDE_DEG never LOWEST_UNDER_EYES_M under the eyes."""
+    """1 where hair grows: in front of FRONT_DEG round from the face wherever the paint says (on the forehead never
+    FOREHEAD's under hair.py's HAIRLINE table), behind it only over the table (less its baby band); in front of
+    SIDE_DEG never LOWEST_UNDER_EYES_M under the eyes."""
     angle, _ = hair.around(places, frame["centre"])
     over = hair.over_hairline(places, frame["eyes"], frame["centre"])
     chin = (angle < SIDE_DEG) & (places[:, 1] < frame["eyes_middle"][1] - LOWEST_UNDER_EYES_M)
-    return (((angle < FRONT_DEG) | (over > -hair.BABY_BAND_M)) & ~chin).astype(float)
+    forehead = (angle < FOREHEAD["deg"]) & (over < -FOREHEAD["under_table_m"])
+    return (((angle < FRONT_DEG) | (over > -hair.BABY_BAND_M)) & ~chin & ~forehead).astype(float)
 
 
 def baby_band(skin, hairline, rng, per_m2):

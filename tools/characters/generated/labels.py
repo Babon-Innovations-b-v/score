@@ -13,10 +13,14 @@ and, for a style with a beard, never in front of the ears under the eyes (the be
 import numpy as np
 import trimesh
 from PIL import Image
+from scipy import ndimage
 from scipy.sparse import coo_matrix
 from scipy.sparse.csgraph import connected_components
 from scipy.spatial import cKDTree
 from skimage.color import rgb2lab
+
+from tools.characters.generated import eyes
+from tools.characters.generated import fibre
 
 TOP_M = 0.015  # the hair's colour is read on the triangles this far under the head's top
 NOSE_BAND_M = (0.08, 0.26)  # the nose is the frontmost point this far under the top
@@ -35,7 +39,15 @@ READS = 4  # the hair's colour read again on what was labelled hair this many ti
 SEED = 223
 STRAY_M = 0.02
 BROWS_OVER_EYES_M = 0.05
-CLOSEUP = {"size": 512, "delta": 10.0, "columns": (0.4, 0.6), "filled": 0.5, "rows": (0.015, 0.08)}
+BROWS_DARKER = 15.0  # brows' paint is at least this much darker (CIELAB L) than the skin's
+# a collar or scarf never reaches higher than this under the eyes: over it a hair-white stray the clothes' colours
+# claim is still hair (round 3, 2026-11-27: white bits of an older woman's painted fringe, read as her cream scarf, stood
+# on her forehead and beside her cheek)
+CLOTHES_HIGHEST_UNDER_EYES_M = 0.08
+CLOSEUP = {"size": 512, "columns": (0.4, 0.6), "filled": 0.5, "rows": (0.015, 0.08), "chin": 0.4,
+           "cheek": (0.35, 0.75, 0.2), "hair_delta": 25.0, "smooth": 0.8, "smooth_px": 5,
+           "backdrop_delta": 25.0}
+# (the cheeks: under each pupil, (from, to, half width) shares of the pupils' distance)
 HAIR_SHARE = 0.65  # a triangle is hair when this share of its neighbourhood reads as hair (the paint's soft edge
 # read at a half crept a few mm onto the face)
 SKIN_REACH_M = 0.12  # the skin's colour read again on the skin this near the nose (its shaded sides too)
@@ -191,12 +203,21 @@ def hair_labels(points, faces, colours, frame, beard, reach_m):
         labels = connected_to(candidate, found["hair"], neighbours)
         hair_examples = colours[labels]
         skin_examples = colours[face & (kind == 1) & ~labels]
-    labels |= strays_of(points, faces, (kind == 0) & room & ~labels & ~brows(points, faces, frame), labels)
-    return labels, {"hair": colour_model(colours[labels]), "skin": colour_model(colours[found["skin"]])}
+    skin = colour_model(colours[found["skin"]])
+    hair_like = (kind == 0) | ((kind == 2) & over_clothes(points, faces, frame))
+    dark_brows = brows(points, faces, frame) & (colours[:, 0] < skin[0][0] - BROWS_DARKER)
+    labels |= strays_of(points, faces, hair_like & room & ~labels & ~dark_brows, labels)
+    return labels, {"hair": colour_model(colours[labels]), "skin": skin}
+
+
+def over_clothes(points, faces, frame):
+    """The triangles higher than any collar or scarf reaches (CLOTHES_HIGHEST_UNDER_EYES_M under the eyes)."""
+    return points[faces].mean(axis=1)[:, 1] > frame["eyes_middle"][1] - CLOTHES_HIGHEST_UNDER_EYES_M
 
 
 def brows(points, faces, frame):
-    """The face's front from the cheeks to BROWS_OVER_EYES_M over the eyes: dark paint there is brows, never a stray."""
+    """The face's front from the cheeks to BROWS_OVER_EYES_M over the eyes: paint there BROWS_DARKER than the skin is
+    brows, never a stray."""
     middles = points[faces].mean(axis=1)
     return ((np.abs(middles[:, 0] - frame["middle_x"]) < FACE_BOX["half_m"])
             & (middles[:, 1] < frame["eyes_middle"][1] + BROWS_OVER_EYES_M)
@@ -225,20 +246,57 @@ def connected_to(candidate, top, neighbours):
 
 
 def closeup_hair(path):
-    """The hair's colour in the close-up photograph the model was made from: (sRGB 0..1, CIELAB), read under the
-    head's top: the first rows of the picture's middle (CLOSEUP["columns"]) that differ from the plain backdrop (its
-    top corners' colour) by more than CLOSEUP["delta"], then CLOSEUP["rows"] of the picture's height under them."""
+    """The hair's colour in the close-up photograph the model was made from (`fibre.measured`: sRGB and CIELAB
+    medians, the lightness's spread), read over the photo's whole hair (`photo_hair`)."""
     picture = Image.open(path).convert("RGB")
     picture = np.asarray(picture.resize((CLOSEUP["size"], CLOSEUP["size"]))) / 255.0
-    lab = rgb2lab(picture)
-    corner = CLOSEUP["size"] // 16
+    return fibre.measured(picture[photo_hair(picture)])
+
+
+def backdrop_of(lab):
+    """The photo's plain backdrop: the pixels joined to the picture's edge that are smooth (the lightness's local
+    spread under CLOSEUP["smooth"]) and within CLOSEUP["backdrop_delta"] of its top corners' colour (a studio
+    backdrop lightens toward its middle). A silver bob is the
+    backdrop's light grey (round 3, 2026-11-27: L 74 to 82 against 81), but never smooth: its strands' spread is 3 to
+    7, the backdrop's 0.15."""
+    size = len(lab)
+    corner = size // 16
     backdrop = np.median(np.concatenate([lab[:corner, :corner].reshape(-1, 3), lab[:corner, -corner:].reshape(-1, 3)]),
                          axis=0)
-    differs = np.linalg.norm(lab - backdrop, axis=-1) > CLOSEUP["delta"]
-    left, right = (int(share * CLOSEUP["size"]) for share in CLOSEUP["columns"])
+    mean = ndimage.uniform_filter(lab[..., 0], CLOSEUP["smooth_px"])
+    spread = np.sqrt(np.maximum(ndimage.uniform_filter(lab[..., 0] ** 2, CLOSEUP["smooth_px"]) - mean ** 2, 0.0))
+    plain = (spread < CLOSEUP["smooth"]) & (np.linalg.norm(lab - backdrop, axis=-1) < CLOSEUP["backdrop_delta"])
+    pieces, _ = ndimage.label(plain)
+    edge = np.unique(np.concatenate([pieces[0], pieces[-1], pieces[:, 0], pieces[:, -1]]))
+    return np.isin(pieces, edge[edge > 0])
+
+
+def photo_hair(picture):
+    """The photo's hair (sRGB 0..1, a plain backdrop): its colour read first under the head's top (the first rows of
+    the picture's middle, CLOSEUP["columns"], off the backdrop, `backdrop_of`, then CLOSEUP["rows"] of the picture
+    under them); then every pixel off the backdrop down to CLOSEUP["chin"] of the pupils' distance under them (a
+    scarf's cream is a silver bob's colour, a beard the hair's) that lies nearer that colour than the cheeks' and
+    within CLOSEUP["hair_delta"] of it, joined to the top.
+    Round 3 (2026-11-27): read under the top alone, a wavy head's lighter lengths were left out."""
+    size = len(picture)
+    lab = rgb2lab(picture)
+    differs = ~backdrop_of(lab)
+    left, right = (int(share * size) for share in CLOSEUP["columns"])
     rows = np.flatnonzero(differs[:, left:right].mean(axis=1) > CLOSEUP["filled"])
     first = int(rows[0])
-    low, high = (first + int(share * CLOSEUP["size"]) for share in CLOSEUP["rows"])
-    region = differs[low:high, left:right]
-    return (np.median(picture[low:high, left:right][region], axis=0),
-            np.median(lab[low:high, left:right][region], axis=0))
+    low, high = (first + int(share * size) for share in CLOSEUP["rows"])
+    top = np.zeros(differs.shape, dtype=bool)
+    top[low:high, left:right] = differs[low:high, left:right]
+    hair = np.median(lab[top], axis=0)
+    pupils = eyes.photo_pupils(picture)
+    gap = float(np.linalg.norm(pupils[1] - pupils[0]))
+    cheeks = np.zeros(differs.shape, dtype=bool)
+    for column, row in pupils:
+        cheeks[int(row + CLOSEUP["cheek"][0] * gap):int(row + CLOSEUP["cheek"][1] * gap),
+               int(column - CLOSEUP["cheek"][2] * gap):int(column + CLOSEUP["cheek"][2] * gap)] = True
+    skin = np.median(lab[cheeks], axis=0)
+    to_hair, to_skin = np.linalg.norm(lab - hair, axis=-1), np.linalg.norm(lab - skin, axis=-1)
+    candidate = differs & (to_hair < to_skin) & (to_hair < CLOSEUP["hair_delta"])
+    candidate[int(pupils[:, 1].mean() + CLOSEUP["chin"] * gap):] = False
+    pieces, _ = ndimage.label(candidate | top)
+    return np.isin(pieces, np.unique(pieces[top])) & (candidate | top)

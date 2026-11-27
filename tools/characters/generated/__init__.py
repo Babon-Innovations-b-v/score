@@ -16,6 +16,7 @@ turn into strands like original"); a man's lumpy painted beard the same way, as 
    the shell ends; the strands grown from them by hair.py's `grown` with the photo's wave, locks and frizz.
    `cover.py` measures how much of the shell's outer surface they cover. `beard.py`: the beard's triangles smoothed
    into skin and short strands grown on it, thinning out down the neck.
-5. `fibre.py`: the library's strand finish with its melanin fitted to the close-up's hair colour.
+5. `fibre.py`: the library's strand finish with its melanin, redness and white share fitted to the close-up's hair
+   colour on the drawn strand swatch's table (`blender_swatch.py`).
 6. `blender_sheet.py` (Blender, CPU): the raw model and the regrown one drawn the photo way, side by side.
 """
