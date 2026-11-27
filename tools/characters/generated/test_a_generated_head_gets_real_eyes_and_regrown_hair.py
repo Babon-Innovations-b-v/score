@@ -186,7 +186,11 @@ The cut's level is read off the swapped head (`head_swap.chin_under_crown`: the 
 column 2.5 cm behind the nose's front), the hood keeps the chin the head's (`kept_region`'s `chin`) and a cut that
 took the chin is refused (`chin_whole`). Breaks (each applied once, seen red, reverted, 2026-11-27): the chin read as
 the first 1.5 cm drop from one slice to the next (the nose's underside read as the chin); the hood's chin clause left out
-(the chin under the hood's depth given to the neck's reach and dropped: the stairwell woman's torn lower lip).
+(the chin under the hood's depth given to the neck's reach and dropped: the stairwell woman's torn lower lip). The
+face's middle column runs through the nose's tip (`head_swap.face_column`), never the body's axis, and the hood keeps
+the chin within the column's reach from the chin's bottom to the hood (`face_reach`). Break (applied once, seen red,
+reverted, 2026-11-28): the column on the body's axis (a face 3.4 cm off it read on the chin's side, its front 0.045,
+the chin dropped: the stairwell woman's torn chin under her lower lip).
 A scarf rides from where it meets anything over the chest (`cloth.riding_of`, `cloth.borders` reading each face pair
 both ways). Breaks (each applied once, seen red, reverted, 2026-11-27): the scarf's border read off the head and
 skin alone, and `borders` reading each pair one way (the turtleneck's collar met at no point: the scarf rode whole).
@@ -2019,8 +2023,9 @@ def chin_profile(chin_depth):
 
 def chin_cut():
     """The cut read off the swapped head (`head_swap.chin_under_crown`, `chin_whole`): [the chin's bottom under the
-    crown, its front; a cut there kept, the hood's chin kept the head's, the hood's collar front the body's; a column
-    with no chin refused; a cut that took the chin refused]."""
+    crown, its front; a cut there kept, the hood's chin kept the head's, the hood's collar front the body's; a face 2 cm
+    off the body's axis: its chin's front read on its own column through the nose, its chin under the hood kept the
+    head's; a column with no chin refused; a cut that took the chin refused]."""
     points = chin_profile(0.142)
     chin = head_swap.chin_of(points, (0.0, 0.0), 1.0, 1.0)
     level = 1.0 - chin[0] - head_swap.CUT_UNDER_CHIN
@@ -2031,6 +2036,14 @@ def chin_cut():
     held = [kept(point(x=0.0, y=-0.06, z=0.87), point(x=0.0, y=-1.0, z=0.0)),
             kept(point(x=0.05, y=-0.087, z=0.86), point(x=0.0, y=-1.0, z=0.0))]
     found = [round(chin[0], 4), round(chin[1], 3), round(whole[0], 4), *held]
+    side = chin_profile(0.142)  # a face 2 cm off the axis, the chin's side 4.5 cm forward on the axis
+    side[:, 1] = np.where(side[:, 2] > 1.0 - 0.142, -0.045, -0.015)
+    off = np.r_[chin_profile(0.142) + [0.02, 0.0, 0.0], side]
+    off_chin = head_swap.chin_of(off, (0.0, 0.0), 1.0, 1.0)
+    reach = head_swap.face_reach(off, (0.0, 0.0), 1.0, 1.0, (0.125, off_chin[0]))
+    off_kept = head_swap.kept_region(level, 1.0, 1.0, (0.0, 0.0), 0.125, np.zeros((0, 3)),
+                                     chin=(1.0 - off_chin[0], reach))
+    found += [round(off_chin[1], 3), off_kept(point(x=0.02, y=-0.06, z=0.87), point(x=0.0, y=-1.0, z=0.0))]
     for cut in (lambda: head_swap.chin_of(chin_profile(0.3), (0.0, 0.0), 1.0, 1.0),
                 lambda: head_swap.chin_whole(points[points[:, 2] < 0.87], (0.0, 0.0), 1.0, 1.0, chin, level)):
         try:
@@ -2205,7 +2218,7 @@ def tether_inside_read():
     ("the chin is the lowest slice standing forward of the throat, a shoulder off the face's column never",
      chin_read, [0.02, "refused"]),
     ("the cut lies under the chin read off the swapped head, never through it", chin_cut,
-     [0.1425, 0.06, 0.1425, True, False, "refused", "refused"]),
+     [0.1425, 0.06, 0.1425, True, False, 0.06, True, "refused", "refused"]),
     ("a head path that doubles back is laid along the body path in order, on the path", seam_order, [False, True, 0.0]),
     ("a ragged two-walled band is laid onto the body's cut edge with no fold", seam_band, [0, True, True]),
     ("a head loop under the jaw is laid all round the body's closed loop", seam_loop, [1.0, True, True]),

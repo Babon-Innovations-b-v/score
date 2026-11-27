@@ -313,6 +313,13 @@ under his beard's underside). There the two cut edges are one closed loop each: 
   it met the head and skin at 64 points, so no sim point rode, it rode whole and the measures had no loose point; a
   scarf now rides from where it meets anything over the chest (a turtleneck's collar, a coat's fronts), and
   `cloth.borders` reads each face pair both ways (trimesh gives each once: half of every border was missed).
+  Round 10 (2026-11-28), ray cast off the close-ups: the hole under her lower lip was the groom's neck tube and the
+  rig's inside seen through a chin both sides had dropped. Her face stands 0.02 (3.4 cm) to her left of her body's
+  head axis, so the axis' middle column ran down the chin's side: its front read 0.064 (the chin's 0.072 to 0.076) and
+  the hood's CHIN_HELD reach dropped 701 front faces between the chin's bottom and the hood, and `chin_whole`, reading
+  the same side column, passed. The middle column now runs through the nose's tip (`head_swap.face_column`), the hood
+  holds the chin within the column's reach from the chin's bottom to the hood (`face_reach`), and `chin_whole` refuses
+  a cut that leaves the chin's front more than CHIN_HELD back. The older woman's face is centred: her cut is unchanged.
   Run: `python -m tools.characters.generated.person <name> <sources> <out> [--from <step> | --only <step>]` (head
   2 min, hair 5, swap 1.5, rig 3.5, cloth 5 to 10 at nice 19; the render some hours: 13 sheet frames and the 96-frame
   film with 240k strands, 5.7 GB).

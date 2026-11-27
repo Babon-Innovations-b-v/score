@@ -93,11 +93,18 @@ CHIN_STEP = 0.015
 # depth typed per person (0.145, read off the head model's own profile) lay on the stairwell woman's chin bottom with no
 # margin, and her hood (0.125) dropped the chin above it: her lower lip and chin torn off in every view (2026-11-27).
 NOSE_DEPTHS = (0.05, 0.11)
+# The middle column is the face's own, through the nose's tip (its most forward point within NOSE_DEPTHS and NOSE_REACH
+# of the axis), never the body's axis: the stairwell woman's face stands 0.02 (3.4 cm) to her left of her body's head
+# axis, so the axis' column ran down her chin's side, read its front at 0.064 (the chin's own 0.072 to 0.076) and the
+# hood's CHIN_HELD reach dropped the chin's front from its bottom to the hood (701 faces): a torn hole under her lower
+# lip in every view, though `chin_whole`, reading the same side column, passed (whole person round 9, 2026-11-28).
+NOSE_REACH = 0.04
 CHIN_DEPTHS = 0.25  # the column is scanned no deeper than this under the crown
 CHIN_BACK = 0.025
 CHIN_WINDOW = 0.0075
 CUT_UNDER_CHIN = 0.005  # 8 mm
-CHIN_HELD = 0.006  # with a hood: the front's faces from the chin's bottom up stay the head's this far past its front
+CHIN_HELD = 0.006  # with a hood: the front's faces from the chin's bottom up stay the head's this far past the reach
+# of the face's middle column from the axis between the chin's bottom and the hood's depth (`face_reach`)
 
 
 def similarity(source, target, scale=None):
@@ -178,16 +185,26 @@ def chin_over_cut(heights, forward, across):
     return float(standing[0] * CHIN_SLICE)
 
 
+def face_column(depths, forward, across):
+    """Which points lie on the face's middle column: within CHIN_COLUMN either side of the nose's tip (the most forward
+    point within NOSE_DEPTHS under the crown and NOSE_REACH of the axis), down to CHIN_DEPTHS. Refused when no point
+    lies where the nose is looked for."""
+    depths, forward, across = (np.asarray(values, float) for values in (depths, forward, across))
+    nose = (depths >= NOSE_DEPTHS[0]) & (depths < NOSE_DEPTHS[1]) & (np.abs(across) < NOSE_REACH)
+    if not nose.any():
+        raise ValueError("no nose on the face's middle column")
+    middle = across[nose][np.argmax(forward[nose])]
+    return (np.abs(across - middle) < CHIN_COLUMN) & (depths >= 0.0) & (depths < CHIN_DEPTHS)
+
+
 def chin_under_crown(depths, forward, across):
     """The chin's bottom (depth under the crown, body heights) and its front (forward of the axis) on the face's middle
-    column (within CHIN_COLUMN either side): from the nose down, the first CHIN_SLICE standing CHIN_BACK behind the
+    column (`face_column`): from the nose down, the first CHIN_SLICE standing CHIN_BACK behind the
     nose's front; the chin's bottom is that slice's top, its front the most forward slice CHIN_WINDOW above it. `depths` under the crown, `forward` (toward the face) and
     `across` in body heights per point. Refused when no slice there drops back (no chin on the column)."""
     depths, forward = np.asarray(depths, float), np.asarray(forward, float)
-    column = (np.abs(np.asarray(across, float)) < CHIN_COLUMN) & (depths >= 0.0) & (depths < CHIN_DEPTHS)
+    column = face_column(depths, forward, across)
     slices = np.floor(depths[column] / CHIN_SLICE).astype(int)
-    if not len(slices):
-        raise ValueError("no points on the face's middle column")
     fronts = np.full(slices.max() + 1, -np.inf)
     np.maximum.at(fronts, slices, forward[column])
     upper = np.arange(int(NOSE_DEPTHS[0] / CHIN_SLICE), min(int(NOSE_DEPTHS[1] / CHIN_SLICE), len(fronts)))
@@ -207,18 +224,30 @@ def chin_of(points, axis, crown, height):
                             (points[:, 0] - axis[0]) / height)
 
 
+def face_reach(points, axis, crown, height, depths):
+    """The farthest the face's middle column (`face_column`) reaches from the axis between `depths` (under the crown,
+    body heights, the shallower first), in the points' units; points in Blender's frame (z up, the face toward -y)."""
+    depth = (crown - points[:, 2]) / height
+    across = points[:, :2] - np.asarray(axis)
+    column = face_column(depth, -across[:, 1] / height, across[:, 0] / height)
+    column &= (depth >= depths[0]) & (depth <= depths[1])
+    if not column.any():
+        raise ValueError("no face on the middle column between the chin and the hood")
+    return float(np.hypot(across[column, 0], across[column, 1]).max())
+
+
 def chin_whole(points, axis, crown, height, chin, level):
     """Refuses (SystemExit) a cut that takes the chin: the head as cut (`points`) must still show the chin found
-    before the cut (`chin`, its depth and front) within a CHIN_WINDOW, and the cut (`level`) must lie at least half
-    CUT_UNDER_CHIN under it."""
+    before the cut (`chin`, its depth and front) within a CHIN_WINDOW, its front no more than CHIN_HELD back, and the
+    cut (`level`) must lie at least half CUT_UNDER_CHIN under it."""
     try:
         found = chin_of(points, axis, crown, height)
     except ValueError as missing:
         raise SystemExit(f"the cut took the chin: {missing}") from missing
     depth = (crown - level) / height
-    if abs(found[0] - chin[0]) > CHIN_WINDOW or depth < chin[0] + CUT_UNDER_CHIN / 2:
-        raise SystemExit(f"the cut takes the chin: its bottom {chin[0]:.4f} under the crown, after the cut "
-                         f"{found[0]:.4f}, the cut at {depth:.4f}")
+    if abs(found[0] - chin[0]) > CHIN_WINDOW or chin[1] - found[1] > CHIN_HELD or depth < chin[0] + CUT_UNDER_CHIN / 2:
+        raise SystemExit(f"the cut takes the chin: its bottom {chin[0]:.4f} under the crown and front {chin[1]:.4f}, "
+                         f"after the cut {found[0]:.4f} and {found[1]:.4f}, the cut at {depth:.4f}")
     return found
 
 
@@ -899,8 +928,8 @@ def kept_region(level, crown, height, axis, hood, body_points, open_front=False,
     under his hood's 0.11, past NECK_FALLBACK: given to the body, his body model's own longer beard stood under the
     head's face as a dark lump, 2026-11-27). The front stays FRONT_HALF_ANGLE wide: opened to 55 to 90 degrees, the
     hood's own front folds beside the jaw were cut and torn (Workbench close-ups, 2026-11-27).
-    `chin` (its bottom's z, its front's radius): the front from the chin's bottom up within CHIN_HELD past its front
-    stays the head's whatever the hood (the chin is face, never neck)."""
+    `chin` (its bottom's z, the face's reach from the axis over it, `face_reach`): the front from the chin's bottom up
+    within CHIN_HELD past that reach stays the head's whatever the hood (the chin is face, never neck)."""
     top = crown - hood * height if hood is not None else None
     gaps = neck_gaps(body_points, axis, level, height) if hood is not None else None
 
@@ -949,8 +978,9 @@ def main():
     level = float(crown - cut_depth * height)
     print(f"CHIN head {chin[0]:.4f} (front {chin[1]:.4f}), body {body_chin[0]:.4f} under the crown; cut at "
           f"{cut_depth:.4f}", flush=True)
-    kept = kept_region(level, crown, height, axis, hood, points, open_front,
-                       (crown - chin[0] * height, chin[1] * height))
+    held = None if hood is None else (crown - chin[0] * height,
+                                      face_reach(vertices_of(head), axis, crown, height, (min(hood, chin[0]), chin[0])))
+    kept = kept_region(level, crown, height, axis, hood, points, open_front, held)
     body_surface = Surface(body)
     body_images = {role: image_array(image) for role, image in textures_of(body).items()}
     dropped(split_at(body, level), body, lambda centre, normal: not kept(centre))
