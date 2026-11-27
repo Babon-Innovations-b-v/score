@@ -95,12 +95,13 @@ own paint) and brings in only what the generator cannot make, from the repo's ow
 - **Head swap** (`head_swap.py`, inside Blender, CPU): the detailed head-and-shoulders model (made from a head
   close-up) put on the whole body. Its scale is scanned (a free-scale ICP slides along a long valley), at each scale a
   rigid two-way trimmed ICP of the head above the body's chin onto the body's head, hair and all; one level cut just
-  under the chin and the jaw (a face and scalp cut, some 5 mm under the head model's chin; at the back it runs under
-  the hair), the head's cut edge laid onto the body's (`seam_shifts`, below), its paint blended into the body's (read
+  under the chin and the jaw (a face and scalp cut, `CUT_UNDER_CHIN` under the lower of the placed head model's chin
+  and the body's, read off the face's middle column: `chin_under_crown`, never above a person's `cut_depth`; at the
+  back it runs under the hair; a cut that would take the chin is refused, `chin_whole`), the head's cut edge laid onto the body's (`seam_shifts`, below), its paint blended into the body's (read
   along each texel's normal) over a band of 2.5 cm, the shading normals averaged across. The body below the cut (its
   neck, collar, scarf) is never changed; a collar rising above the cut can be kept (the `<hood>` depth). Its JSON
   holds the head-to-body matrix in the glTF frame: strand hair and eyes made on the head model follow onto the body
-  with it. Run: `blender -b --python head_swap.py -- <body.glb> <head.glb> <cut depth> <out.glb> <out.json> [<hood>]`
+  with it. Run: `blender -b --python head_swap.py -- <body.glb> <head.glb> <least depth> <out.glb> <out.json> [<hood>]`
   (about a minute, under 2 GB); look at the seam close up, front and back, before keeping a cut depth.
 - **Lids, lashes and brows** (`lids.py`, after the eyes; the photo's landmarks by `marks.py`, drawn by
   `blender_lids.py`, the sheet by `lids_sheet.py`): each lid opening reshaped to the photo's (MediaPipe Face
@@ -290,8 +291,8 @@ own paint) and brings in only what the generator cannot make, from the repo's ow
   throat 1.5 cm off the head's, so 23% is laid there and the head's edge stands up to 8 mm off the body's.
   Round 8 (2026-11-27): three rounds of collar fixes under a cut low on the neck (0.17, 0.18 under the crown) each
   fought the collar, the old hair resting on it and the seam at once (dark gaps in the collar, a dark line across the
-  neck). The cut now lies just under the chin (`person.PEOPLE`'s `cut_depth`, read off the head model's side profile:
-  0.145 and 0.14), so the body's own neck, collar and scarf stay as the body model made them and only the face,
+  neck). The cut now lies just under the chin (read off the head model's side profile then, 0.145 and 0.14; read by
+  the swap itself since round 9), so the body's own neck, collar and scarf stay as the body model made them and only the face,
   scalp, ears and hair come from the head; `collar_depth` only where a collar rises above that cut (the stairwell
   woman's puffer, to 0.13; a hoodie's hood open under the chin, `hood_open_front`, keeps the head's whole front
 within FRONT_HALF_ANGLE down to the cut: the hoodie man's chin and beard stand past NECK_FALLBACK under his hood's
@@ -303,6 +304,15 @@ under his beard's underside). There the two cut edges are one closed loop each: 
   cut (UNDER_NECK). A released face outside still_rig's head part keeps its place's kinds (`cloth.kinds_of`): the
   skin's anywhere made the older woman's cream scarf over her shoulders skin (3173 faces), drawn in the skin's finish
   as brown blotches.
+  Round 9 (2026-11-27): the stairwell woman's lower lip and chin were torn off in every view. Not the cut's depth
+  (0.145 lay at her chin's bottom, 0.1425): her hood (collar_depth 0.125) gave everything between it and the cut to the
+  neck's reach (NECK_FALLBACK, 4.8 cm), and her chin stands 6 cm out, so it was dropped from the head and the body
+  alike. The hood now keeps the front from the chin's bottom up within CHIN_HELD of its front the head's, the cut's
+  depth is read off the swapped result (a person's `cut_depth` only a least depth: the hoodie man's beard), and the
+  swap refuses a cut that took the chin. The older woman's cloth stopped on her scarf: kept whole under the high cut
+  it met the head and skin at 64 points, so no sim point rode, it rode whole and the measures had no loose point; a
+  scarf now rides from where it meets anything over the chest (a turtleneck's collar, a coat's fronts), and
+  `cloth.borders` reads each face pair both ways (trimesh gives each once: half of every border was missed).
   Run: `python -m tools.characters.generated.person <name> <sources> <out> [--from <step> | --only <step>]` (head
   2 min, hair 5, swap 1.5, rig 3.5, cloth 5 to 10 at nice 19; the render some hours: 13 sheet frames and the 96-frame
   film with 240k strands, 5.7 GB).

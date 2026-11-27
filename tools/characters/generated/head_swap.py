@@ -5,10 +5,12 @@ into the body's across a narrow band above the cut. Everything of the body below
 stays as the body model made it; the head model gives only the face, scalp, ears and hair.
 
 Inside Blender (CPU):
-    blender -b --python head_swap.py -- <body.glb> <head.glb> <cut depth> <out.glb> <out transform.json> [<hood> [open]]
+    blender -b --python head_swap.py -- <body.glb> <head.glb> <least depth> <out.glb> <out transform.json> [<hood> [open]]
 
-<cut depth>: the cut's depth under the body's crown, in the body's heights (a head, crown to chin, is about 0.13; the
-cut lies some 5 mm under the head model's chin, 0.14 to 0.145, where the jaw's shade and the hair hide it). Cut low on
+The cut's depth under the body's crown (body heights) is read off the swapped result (`chin_under_crown`:
+CUT_UNDER_CHIN under the lower of the placed head model's chin and the body's, where the jaw's shade and the hair hide
+it), never less than <least depth> (0 for none; a beard's underside can lie under the chin read), and a cut that would
+take the chin is refused (`chin_whole`). Cut low on
 the neck or inside the collar (0.15 to 0.18, whole person rounds 1 to 7, 2026-11-27), every fix fought the collar, the
 old hair lying on it and the seam at once: dark gaps in the collar and a dark line across the neck. <hood>: when the
 body's own hood or high collar rises round the neck above the cut, the depth under the crown (body heights) from which
@@ -83,6 +85,19 @@ CHIN_SLICE = 0.0025
 CHIN_COLUMN = 0.008
 CHIN_REACH = 0.08
 CHIN_STEP = 0.015
+# The cut's level is read off the swapped result (`chin_under_crown`): scanned down the face's middle column from the
+# nose (the column's most forward slice within NOSE_DEPTHS under the crown), the chin's bottom is the first slice
+# standing CHIN_BACK behind the nose's front (the throat: the chin stands 1.3 to 1.9 cm behind it, the lips less, the
+# throat 3.2 to 4.8 cm; the stairwell and older women's head models and bodies), its front the most forward slice
+# within CHIN_WINDOW above it (1.2 cm), read on the head model as placed and on the body, and the cut lies CUT_UNDER_CHIN under the lower of the two. A
+# depth typed per person (0.145, read off the head model's own profile) lay on the stairwell woman's chin bottom with no
+# margin, and her hood (0.125) dropped the chin above it: her lower lip and chin torn off in every view (2026-11-27).
+NOSE_DEPTHS = (0.05, 0.11)
+CHIN_DEPTHS = 0.25  # the column is scanned no deeper than this under the crown
+CHIN_BACK = 0.025
+CHIN_WINDOW = 0.0075
+CUT_UNDER_CHIN = 0.005  # 8 mm
+CHIN_HELD = 0.006  # with a hood: the front's faces from the chin's bottom up stay the head's this far past its front
 
 
 def similarity(source, target, scale=None):
@@ -161,6 +176,50 @@ def chin_over_cut(heights, forward, across):
     if not len(standing):
         raise ValueError("no chin stands forward of the throat over the cut")
     return float(standing[0] * CHIN_SLICE)
+
+
+def chin_under_crown(depths, forward, across):
+    """The chin's bottom (depth under the crown, body heights) and its front (forward of the axis) on the face's middle
+    column (within CHIN_COLUMN either side): from the nose down, the first CHIN_SLICE standing CHIN_BACK behind the
+    nose's front; the chin's bottom is that slice's top, its front the most forward slice CHIN_WINDOW above it. `depths` under the crown, `forward` (toward the face) and
+    `across` in body heights per point. Refused when no slice there drops back (no chin on the column)."""
+    depths, forward = np.asarray(depths, float), np.asarray(forward, float)
+    column = (np.abs(np.asarray(across, float)) < CHIN_COLUMN) & (depths >= 0.0) & (depths < CHIN_DEPTHS)
+    slices = np.floor(depths[column] / CHIN_SLICE).astype(int)
+    if not len(slices):
+        raise ValueError("no points on the face's middle column")
+    fronts = np.full(slices.max() + 1, -np.inf)
+    np.maximum.at(fronts, slices, forward[column])
+    upper = np.arange(int(NOSE_DEPTHS[0] / CHIN_SLICE), min(int(NOSE_DEPTHS[1] / CHIN_SLICE), len(fronts)))
+    if not len(upper) or not np.isfinite(fronts[upper]).any():
+        raise ValueError("no nose on the face's middle column")
+    nose = int(upper[np.argmax(fronts[upper])])
+    window = int(round(CHIN_WINDOW / CHIN_SLICE))
+    for number in range(nose + 1, len(fronts)):
+        if np.isfinite(fronts[number]) and fronts[number] < fronts[nose] - CHIN_BACK:
+            return float(number * CHIN_SLICE), float(fronts[max(nose, number - window):number].max())
+    raise ValueError("no chin drops back to the throat on the face's middle column")
+
+
+def chin_of(points, axis, crown, height):
+    """`chin_under_crown` on points in Blender's frame (z up, the face toward -y): (depth, front) in body heights."""
+    return chin_under_crown((crown - points[:, 2]) / height, -(points[:, 1] - axis[1]) / height,
+                            (points[:, 0] - axis[0]) / height)
+
+
+def chin_whole(points, axis, crown, height, chin, level):
+    """Refuses (SystemExit) a cut that takes the chin: the head as cut (`points`) must still show the chin found
+    before the cut (`chin`, its depth and front) within a CHIN_WINDOW, and the cut (`level`) must lie at least half
+    CUT_UNDER_CHIN under it."""
+    try:
+        found = chin_of(points, axis, crown, height)
+    except ValueError as missing:
+        raise SystemExit(f"the cut took the chin: {missing}") from missing
+    depth = (crown - level) / height
+    if abs(found[0] - chin[0]) > CHIN_WINDOW or depth < chin[0] + CUT_UNDER_CHIN / 2:
+        raise SystemExit(f"the cut takes the chin: its bottom {chin[0]:.4f} under the crown, after the cut "
+                         f"{found[0]:.4f}, the cut at {depth:.4f}")
+    return found
 
 
 def eased(height, band):
@@ -829,7 +888,7 @@ def direction_bin(across):
     return np.clip(((angle + 180.0) / 360.0 * HOOD_ANGLES).astype(int), 0, HOOD_ANGLES - 1)
 
 
-def kept_region(level, crown, height, axis, hood, body_points, open_front=False):
+def kept_region(level, crown, height, axis, hood, body_points, open_front=False, chin=None):
     """The test (face centre, normal -> bool) of what the head model gives above the cut: within KEEP_RADIUS of the
     head's axis; with `hood` (a depth under the crown, body heights), under that depth only what lies inside the empty
     ring parting the neck from the body's hood or high collar (`neck_gaps`) and within the neck's reach
@@ -839,7 +898,9 @@ def kept_region(level, crown, height, axis, hood, body_points, open_front=False)
     sides and back: in the front the head keeps all down to the cut (the hoodie man's chin and beard stand 0.085 out
     under his hood's 0.11, past NECK_FALLBACK: given to the body, his body model's own longer beard stood under the
     head's face as a dark lump, 2026-11-27). The front stays FRONT_HALF_ANGLE wide: opened to 55 to 90 degrees, the
-    hood's own front folds beside the jaw were cut and torn (Workbench close-ups, 2026-11-27)."""
+    hood's own front folds beside the jaw were cut and torn (Workbench close-ups, 2026-11-27).
+    `chin` (its bottom's z, its front's radius): the front from the chin's bottom up within CHIN_HELD past its front
+    stays the head's whatever the hood (the chin is face, never neck)."""
     top = crown - hood * height if hood is not None else None
     gaps = neck_gaps(body_points, axis, level, height) if hood is not None else None
 
@@ -853,6 +914,8 @@ def kept_region(level, crown, height, axis, hood, body_points, open_front=False)
         front = abs(math.degrees(math.atan2(across[0], -across[1]))) < FRONT_HALF_ANGLE
         if open_front and front:
             return True
+        if chin is not None and front and centre.z >= chin[0] and radius <= chin[1] + CHIN_HELD * height:
+            return True
         if radius > min(gaps[direction_bin(across)], NECK_FALLBACK * height):
             return False
         return front or normal is None or normal.x * across[0] + normal.y * across[1] > 0
@@ -863,7 +926,7 @@ def main():
     import bpy
     from mathutils import Matrix
     arguments = sys.argv[sys.argv.index("--") + 1:]
-    body_path, head_path, cut_depth, out_glb, out_json = arguments[:5]
+    body_path, head_path, least_depth, out_glb, out_json = arguments[:5]
     hood = float(arguments[5]) if len(arguments) > 5 else None
     open_front = len(arguments) > 6 and arguments[6] == "open"
     name = pathlib.Path(out_glb).stem
@@ -876,16 +939,23 @@ def main():
     matrix[:3, 3] = fit[2]
     head.data.transform(Matrix(matrix.tolist()))
     head.data.update()
-    level = float(crown - float(cut_depth) * height)
     band = BAND * height
     points = vertices_of(body)
     head_part = points[points[:, 2] > crown - TARGET_SPAN * height]
     axis = (middle_x, float(np.median(head_part[:, 1])))
-    kept = kept_region(level, crown, height, axis, hood, points, open_front)
+    chin = chin_of(vertices_of(head), axis, crown, height)
+    body_chin = chin_of(points, axis, crown, height)
+    cut_depth = max(float(least_depth), max(chin[0], body_chin[0]) + CUT_UNDER_CHIN)
+    level = float(crown - cut_depth * height)
+    print(f"CHIN head {chin[0]:.4f} (front {chin[1]:.4f}), body {body_chin[0]:.4f} under the crown; cut at "
+          f"{cut_depth:.4f}", flush=True)
+    kept = kept_region(level, crown, height, axis, hood, points, open_front,
+                       (crown - chin[0] * height, chin[1] * height))
     body_surface = Surface(body)
     body_images = {role: image_array(image) for role, image in textures_of(body).items()}
     dropped(split_at(body, level), body, lambda centre, normal: not kept(centre))
     dropped(split_at(head, level), head, kept)
+    chin_whole(vertices_of(head), axis, crown, height, chin, level)
     laid = seam_closed(head, body, level, SNAP_REACH * height, band, axis)
     texels = paint_blended(head, body_surface, body_images, level, PAINT_BAND * height, SNAP_REACH * height,
                            pathlib.Path(out_glb).parent, name)
@@ -899,7 +969,8 @@ def main():
     shaded_across(body, level, NORMAL_REACH * height)
     bpy.ops.export_scene.gltf(filepath=str(out_glb), export_format="GLB", use_selection=True, export_yup=True)
     record = transform_record(fit, level, band, laid, texels)
-    record.update({"body": str(body_path), "head": str(head_path), "cut_depth_under_crown": float(cut_depth),
+    record.update({"body": str(body_path), "head": str(head_path), "cut_depth_under_crown": round(cut_depth, 5),
+                   "chin_under_crown": {"head": round(chin[0], 5), "body": round(body_chin[0], 5)},
                    "hood_depth_under_crown": hood, "body_height_units": round(height, 6)})
     pathlib.Path(out_json).write_text(json.dumps(record, indent=1))
     print("HEAD SWAP DONE", out_glb, flush=True)

@@ -182,6 +182,14 @@ The chin over the cut (`head_swap.chin_over_cut`, from which up the whole face r
 slice of the face's middle column standing 2.5 cm forward of the throat; a column with no chin is refused. Breaks
 (each applied once, seen red, reverted, 2026-11-27): the column's width left out (the shoulder read as the chin, 0.005);
 the throat read as the column's highest slice (no chin found, the row's refusal raised).
+The cut's level is read off the swapped head (`head_swap.chin_under_crown`: the first slice of the face's middle
+column 2.5 cm behind the nose's front), the hood keeps the chin the head's (`kept_region`'s `chin`) and a cut that
+took the chin is refused (`chin_whole`). Breaks (each applied once, seen red, reverted, 2026-11-27): the chin read as
+the first 1.5 cm drop from one slice to the next (the nose's underside read as the chin); the hood's chin clause left out
+(the chin under the hood's depth given to the neck's reach and dropped: the stairwell woman's torn lower lip).
+A scarf rides from where it meets anything over the chest (`cloth.riding_of`, `cloth.borders` reading each face pair
+both ways). Breaks (each applied once, seen red, reverted, 2026-11-27): the scarf's border read off the head and
+skin alone, and `borders` reading each pair one way (the turtleneck's collar met at no point: the scarf rode whole).
 Under the hood's depth the head model keeps only its neck (`head_swap.kept_region`): its throat in front kept, a chin's
 underside turned down kept, its own collar standing 10 cm out in front and at the side given to the body, a face
 inside a neck ring turned in refused. Break (applied once, seen red, reverted, 2026-11-27): the front kept whole
@@ -1464,6 +1472,23 @@ def cloth_scarf_split():
             none == {}]
 
 
+def cloth_scarf_rides_round_neck():
+    """A scarf hanging 37 cm down the chest from a turtleneck's collar (the shirt, its top 3 cm, over the chest joint),
+    meeting no head or skin (a cut just under the chin keeps the body's own neck): [its top rides, its foot hangs]
+    (read off the head and skin alone it rode nowhere, rode whole and the measures had no loose point)."""
+    points, faces = cloth_grid(40, 10)
+    points[:, 1] += 1.11
+    names = ["Spine1", "Chest", "Neck1"]
+    bind = np.repeat(np.eye(4)[None], len(names), axis=0)
+    bind[:, 1, 3] = [1.05, 1.2, 1.45]
+    kinds = np.where(points[faces].mean(1)[:, 1] > 1.47, cloth.KINDS.index("shirt"), cloth.KINDS.index("scarf"))
+    person = {"points": points, "faces": faces, "names": names, "bind": bind}
+    used, scarf_faces = cloth.garment_of(person, kinds, "scarf")
+    riding = cloth.riding_of(person, kinds, "scarf", used, scarf_faces)
+    heights = points[used, 1]
+    return [bool(riding[heights > 1.45].all()), bool(~riding[heights < 1.3].any())]
+
+
 def cloth_under_coloured():
     """A person painted a mid grey jacket (L 53.4: sRGB 0.5), a camel shirt (CIELAB 58, 13, 24) and black trousers:
     the body under them [the trunk the jacket's grey in linear RGB (0.214), the legs near black], and with no jacket
@@ -1970,6 +1995,38 @@ def chin_read():
     return [round(chin, 4), "read"]
 
 
+def chin_profile(chin_depth):
+    """A face's middle column in Blender's frame (z up, the face toward -y), body 1 high with its crown at 1: the nose
+    8 cm forward at 0.07 under the crown, the face 6 cm forward down to `chin_depth`, the throat 3 cm forward under it."""
+    depths = np.linspace(0.0, 0.24, 481)
+    forward = np.where(depths < chin_depth, np.where(np.abs(depths - 0.07) < 0.01, 0.08, 0.06), 0.03)
+    return np.c_[np.zeros(len(depths)), -forward, 1.0 - depths]
+
+
+def chin_cut():
+    """The cut read off the swapped head (`head_swap.chin_under_crown`, `chin_whole`): [the chin's bottom under the
+    crown, its front; a cut there kept, the hood's chin kept the head's, the hood's collar front the body's; a column
+    with no chin refused; a cut that took the chin refused]."""
+    points = chin_profile(0.142)
+    chin = head_swap.chin_of(points, (0.0, 0.0), 1.0, 1.0)
+    level = 1.0 - chin[0] - head_swap.CUT_UNDER_CHIN
+    whole = head_swap.chin_whole(points[points[:, 2] > level], (0.0, 0.0), 1.0, 1.0, chin, level)
+    kept = head_swap.kept_region(level, 1.0, 1.0, (0.0, 0.0), 0.125, np.zeros((0, 3)),
+                                   chin=(1.0 - chin[0], chin[1]))
+    point = types.SimpleNamespace
+    held = [kept(point(x=0.0, y=-0.06, z=0.87), point(x=0.0, y=-1.0, z=0.0)),
+            kept(point(x=0.05, y=-0.087, z=0.86), point(x=0.0, y=-1.0, z=0.0))]
+    found = [round(chin[0], 4), round(chin[1], 3), round(whole[0], 4), *held]
+    for cut in (lambda: head_swap.chin_of(chin_profile(0.3), (0.0, 0.0), 1.0, 1.0),
+                lambda: head_swap.chin_whole(points[points[:, 2] < 0.87], (0.0, 0.0), 1.0, 1.0, chin, level)):
+        try:
+            cut()
+            found.append("read")
+        except (ValueError, SystemExit):
+            found.append("refused")
+    return found
+
+
 def person_framed():
     """A body (a box with a nose) thinned to a third, moved by a known similarity (scale 1.7, a 6 degree turn, a shift) and given half a
     millimetre of noise, framed again from a start 5% off in scale and 3 cm off in place (`person.framed`): (scale
@@ -2131,9 +2188,13 @@ def tether_inside_read():
      [True, True]),
     ("the chin is the lowest slice standing forward of the throat, a shoulder off the face's column never",
      chin_read, [0.02, "refused"]),
+    ("the cut lies under the chin read off the swapped head, never through it", chin_cut,
+     [0.1425, 0.06, 0.1425, True, False, "refused", "refused"]),
     ("a head path that doubles back is laid along the body path in order, on the path", seam_order, [False, True, 0.0]),
     ("a ragged two-walled band is laid onto the body's cut edge with no fold", seam_band, [0, True, True]),
     ("a head loop under the jaw is laid all round the body's closed loop", seam_loop, [1.0, True, True]),
+    ("a scarf rides from where it meets anything over the chest, a turtleneck's collar too",
+     cloth_scarf_rides_round_neck, [True, True]),
 ])
 def test_a_generated_head_gets_real_eyes_and_regrown_hair(case, made_value, wanted):
     assert made_value() == wanted, case

@@ -117,7 +117,11 @@ TUCKED_M = 0.12  # the T-shirt reaches this far under the Hips joint (tucked in)
 YOKE_M = 0.16  # the jacket rides the skin this far over its surface from the neck and hair
 CUFF_M = 0.04  # and this far from the hands (a puffer's elastic cuffs)
 WAISTBAND_M = 0.08  # the jeans ride the skin this far from their top
-SCARF_NECK_M = 0.10  # a scarf rides the skin this far from where it meets the neck, the head and the hair
+# A scarf rides the skin this far from where it meets anything over the chest joint: the neck, the head, a collar, a
+# coat's fronts. Read off the head and skin alone, under a cut just under the chin (the body's own neck kept, the
+# scarf over the shoulders its own) the older woman's scarf met them at 64 points, rode at none of its sim points,
+# rode whole and left the measures no loose point (2026-11-27)
+SCARF_NECK_M = 0.10
 # A jacket's hem (`jacket_hem`): a long coat or an overshirt hangs past the hips over the trousers; read down in bands
 HEM_BAND_M = 0.02  # this tall from TUCKED_M under the hips, while
 HEM_SHARE = 0.5  # of its HEM_SECTORS round the band's middle, this share has its outermost clothes face (not the
@@ -428,7 +432,7 @@ def scarf_split(person, middles, strongest, seeded):
 
 
 def face_neighbours(faces):
-    """Pairs of faces sharing an edge (both ways round)."""
+    """Pairs of faces sharing an edge (each pair once)."""
     return trimesh.Trimesh(np.zeros((faces.max() + 1, 3)), faces, process=False).face_adjacency
 
 
@@ -491,6 +495,7 @@ def garment_of(person, kinds, kind):
 def borders(person, kinds, kind, others):
     """The shell points where a face of `kind` meets a face of any of `others`."""
     pairs = face_neighbours(person["faces"])
+    pairs = np.vstack([pairs, pairs[:, ::-1]])  # each pair is given once: a border is either face's
     ours = kinds[pairs[:, 0]] == KINDS.index(kind)
     theirs = np.isin(kinds[pairs[:, 1]], [KINDS.index(other) for other in others])
     meeting = pairs[ours & theirs]
@@ -527,7 +532,8 @@ def riding_of(person, kinds, kind, used, faces):
         return ((from_border(("head", "skin", "scarf"), high=chest) < YOKE_M)
                 | (from_border(("skin",), low=chest) < CUFF_M))
     if kind == "scarf":
-        return from_border(("head", "skin"), high=joint_at(person, "Chest")[1]) < SCARF_NECK_M
+        others = [other for other in KINDS if other != "scarf"]
+        return from_border(others, high=joint_at(person, "Chest")[1]) < SCARF_NECK_M
     if kind == "jeans":
         return from_border(("shirt", "jacket", "skin")) < WAISTBAND_M
     return np.ones(len(used), bool)
