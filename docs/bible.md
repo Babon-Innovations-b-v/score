@@ -738,7 +738,7 @@ A brain dump goes to `brain-dump`; an effort too big and fogged for one session 
 - **Overlays** (`<area>/CLAUDE.md`): one directory's rules, loaded when a file in it is touched.
 - **Hooks** (`.claude/settings.json`): what must fire on a harness event. The grill protocol and worktree reaping on
   `SessionStart`; the soul rules on every prompt; `issue_guard`, `md_guard`, `wait_guard` and `accept_guard` on
-  `PreToolUse`; `output_cap` on `PostToolUse`; `completion_guard` (no "done" claim for a scene its completion gate
+  `PreToolUse`, with `rm_guard` rewriting a delete path's bare variables to `"${NAME:?}"` there; `output_cap` on `PostToolUse`; `completion_guard` (no "done" claim for a scene its completion gate
   fails) and the memory commit on `Stop`. A hook that crashes lets the call through, so test a hook change by running
   its real command from `settings.json` on a sample event.
 - **GitHub issues**: the durable backlog.

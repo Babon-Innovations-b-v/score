@@ -53,6 +53,10 @@ The break that turns each test red (applied once each, seen red, reverted):
     returns None at once; or `long_timeout` returns None at once. Drop the `_MESSAGE.sub` in `blocked`; or drop
     `seconds > LONGEST_SLEEP and` in `long_timeout`; or `_TAIL_FOLLOW`'s flag group made `\\S+` (a tail -n blocked). Its
     sub-agent row: `main` drops the `_HAND_BACK` choice (a sub-agent is told to end its turn on its own work).
+  - its rm_guard rows: `delete_paths` returns [] at once (nothing is guarded); or `guarded` puts no quotes around a
+    run (the path is no longer the documented "${NAME:?}" form); or a glob put inside the quotes (`"${D:?}/*.png"`
+    deletes no png); or `simple_commands` skips no here-document (its body's rm is rewritten); or `delete_paths` drops
+    its command-word check (`git rm $x`, `echo` rewritten).
   - its push-gate rows (.claude/hooks/local/pre-push, in a scratch clone): `gate`'s `if rule.returncode != 0` block
     dropped (a grown debt file pushes); `run_tests` returns True at once, or `touched_tests` returns ([], []) (a
     failing touched test pushes); `touched_tests`'s `gpu` made [] (a GPU module is run, not left to a run by hand);
@@ -1170,13 +1174,29 @@ SHORT_OR_BACKGROUND = [
 ]
 
 
+# rm_guard: an rm's or rmdir's path arguments get every unguarded variable as a quoted ${NAME:?}; nothing else moves.
+
+RM_GUARDED = [  # (command as sent, command as it runs)
+    ("rm -rf $O/$n/renders", 'rm -rf "${O:?}/${n:?}/renders"'),
+    ("for f in $L; do rm -f $f.png; done", 'for f in $L; do rm -f "${f:?}.png"; done'),
+    ("cd $W && rm -rf ${W}/out", 'cd $W && rm -rf "${W:?}/out"'),
+    ("rm -rf $HOME/.cache/x", 'rm -rf "${HOME:?}/.cache/x"'),
+    ('rm -- "$x"', 'rm -- "${x:?}"'),
+    ('rm -rf "$D"/*.png', 'rm -rf "${D:?}"/*.png'),  # the glob stays outside the quotes, so it still expands
+    ("X=1 sudo rm -rf $X/y 2>/dev/null | head -3", 'X=1 sudo rm -rf "${X:?}/y" 2>/dev/null | head -3'),
+    ("cat <<EOF > f\nrm -rf $x\nEOF\nrmdir $y", 'cat <<EOF > f\nrm -rf $x\nEOF\nrmdir "${y:?}"'),
+]
+RM_UNTOUCHED = ['rm -rf "${O:?}/${n:?}/renders"', "rm -rf /tmp/x", "echo $O/$n; ls $HOME", "git rm $x",
+                "rm -rf '$x'", "rm -rf ${x:-/tmp/y}", "rm -rf $(pwd)/x", 'echo "rm -rf $x"', 'rm -rf "$x']
+
+
 # every hook: a payload it cannot read never wedges a tool call (never exit 2; md_guard exits 1 on a tool_input that
 # is not an object, which the harness also lets through). Shared hooks run as a copy in a scratch folder that is no
 # repository, so none of them reads or moves the real checkout.
 
 SHARED_HOOKS = ["issue_guard.py", "md_guard.py", "output_cap.py", "wait_guard.py", "commit_guard.py",
                 "torn_commit_guard.py", "leftover_guard.py", "checkout_current.py", "soul_guard.py",
-                "call_efficiency.py", "disk_keep.py", "agent_close.py"]
+                "call_efficiency.py", "disk_keep.py", "agent_close.py", "rm_guard.py"]
 
 
 GARBAGE = ["not json at all {{{", {"tool_name": "Bash"}, {"tool_name": "Bash", "tool_input": "text"},
@@ -1230,6 +1250,7 @@ WORLDS = {
     "commit-unlocked": live_world(locked=False),
     "commit-live": live_world(locked=True),
     "wait": lambda world: (hook_copy(world, "wait_guard.py", WAIT_CONFIG), None, None),
+    "rm": lambda world: (hook_copy(world, "rm_guard.py"), None, None),
     **{f"open-{name}": open_world(name) for name in SHARED_HOOKS + ["accept_guard.py", "completion_guard.py"]},
     "spill-blocked": spill_blocked_world,
     **{f"completion-listed-{event}": listed_completion(event) for event in ("Stop", "SubagentStop")},
@@ -1293,6 +1314,10 @@ ROWS = [
     # a sub-agent's way out is a detached run handed back, never "end your turn" on its own background work
     ("wait", dict(bash("sleep 400; tail -n 5 copy.log"), agent_id="a1"), "block", ("sleep of 400 s", "detached"),
      {"lacks": ("the completion notice wakes you",)}),
+    *(("rm", bash(sent), "said", ("rm_guard",),
+       {"fields": {("hookSpecificOutput", "updatedInput"): {"command": runs, "run_in_background": False}}})
+      for sent, runs in RM_GUARDED),
+    *(("rm", bash(command), "quiet", ()) for command in RM_UNTOUCHED),
     # never exit 2 and say nothing on what a hook cannot read; md_guard exits 1 on a tool_input that is no object
     *((f"open-{name}", payload, "open", ())
       for name in SHARED_HOOKS + ["accept_guard.py", "completion_guard.py"] for payload in GARBAGE),
