@@ -1348,8 +1348,8 @@ def skirt_person(points, faces, weights):
 def cloth_skirted():
     """A coat panel 40 cm wide from 1.1 m down to 0.5 m (1 cm apart), skinned to the hips over the hip joints (0.9 m)
     and to the thigh on its side under them, its outer lowest corner a cuff (on the left hand): under the hip joints its middle at
-    the hem hangs from both thighs alike and from the pelvis the most (SKIRT_HIPS's hem share and SKIRT_MIDDLE), its
-    side at the hem from its own thigh and the pelvis's hem share; over the hip joints and at the cuff the weights are
+    the hem hangs from both thighs alike and from the pelvis (SKIRT_HIPS's hem share), its side (beyond its thigh)
+    from its own thigh alone; over the hip joints and at the cuff the weights are
     their own, every row sums to one; a short jacket (all over 0.9 m) is left."""
     x, y = np.meshgrid(np.linspace(-0.2, 0.2, 41), np.linspace(0.5, 1.1, 61))
     points = np.round(np.c_[x.ravel(), y.ravel(), np.full(x.size, 0.1)], 6)
@@ -1732,7 +1732,7 @@ def tether_inside_read():
     ("a scarf standing forward of the shirt in the open front is its own garment; one depth is no scarf",
      cloth_scarf_split, [True, True, True]),
     ("a long coat under the hip joints hangs from both thighs and the pelvis as a skirt; its cuff, its top and a "
-     "short jacket keep their own", cloth_skirted, [0.45, True, [0.3, 0.0, 0.7], True, True, True, True]),
+     "short jacket keep their own", cloth_skirted, [0.6, True, [0.0, 0.0, 1.0], True, True, True, True]),
     ("a sleeve fused to the side is cut off it under the shoulder, each piece eased onto its own limb, every cut "
      "edge closed by a flap, the side covered", cloth_sleeve_cut,
      [True, 0, True, True, True, True, True, True, True, [True, True, True, True]]),

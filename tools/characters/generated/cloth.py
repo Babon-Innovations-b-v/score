@@ -131,12 +131,12 @@ LOOK_JOINT = "Hips"
 HEM_SWING_M = 0.08  # a garment's hem (`hem_swing`): its loose sim points this near its lowest at rest
 # A long garment below the hips hangs as a skirt (`skirted`; round 5, 2026-11-27: the older woman's coat, skinned to
 # each thigh, split with the stride and its hem swung 1.2 cm): under the hip joints its weights go across both thighs
-# and the pelvis (Hips), each point's thighs shared by where it lies between them, the pelvis taking more lower down
-# and toward the middle, so the front and back panels each span both legs
+# and the pelvis (Hips), each point's thighs shared by where it lies between them, the pelvis taking a share only
+# toward the middle between the legs, more lower down, so the front and back panels each span both legs while the
+# cloth over each thigh swings with it (a pelvis share over the thighs too, 0.15 to 0.3 or more, let the lifted
+# thigh 11 to 12.7 cm through the coat's front)
 SKIRT_BLEND_M = 0.08  # metres under the hip joints over which the garment's own weights give way to the skirt's
-SKIRT_HIPS = (0.15, 0.3)  # the pelvis's share at the hip joints and at the hem (0.3 to 0.6 and 0.2 more in the
-# middle let the lifted thigh through the coat's front 12.7 cm: the panel kept too little of the thigh's swing)
-SKIRT_MIDDLE = 0.15  # and this much more at the middle between the legs
+SKIRT_HIPS = (0.3, 0.6)  # the pelvis's share in the middle between the legs at the hip joints and at the hem
 SKIRT_LEAST_POINTS = 200  # a garment with fewer points under the hip joints is no long garment (the hoodie man's
 # overshirt, 8 cm under them, is one: skinned to the thighs, its front between the legs grew 2.6 times its length)
 BETWEEN_HALF_M = 0.06  # `between_legs`: the drawn garment's edges under the hip joints this near the legs' middle
@@ -488,10 +488,10 @@ def riding_of(person, kinds, kind, used, faces):
 def skirted(person, kinds, kind="jacket"):
     """The person's weights with a long garment's points under the hip joints hung as a skirt (module docstring;
     SKIRT_*): each point's thighs (the Leg joints) shared by where it lies between them across the body, the pelvis
-    (Hips) taking SKIRT_HIPS from the hip joints to the garment's hem and SKIRT_MIDDLE more at the middle; eased in
-    over SKIRT_BLEND_M under the hip joints, never on its sleeves (less by each point's arm weights: a cuff and the
-    hand at it hang under the hip joints; a hand's rim skirted was drawn toward the hips). A garment with under
-    SKIRT_LEAST_POINTS points under them is left."""
+    (Hips) taking SKIRT_HIPS from the hip joints to the garment's hem at the middle between them, none over a thigh;
+    eased in over SKIRT_BLEND_M under the hip joints, never on its sleeves (less by each point's arm weights: a cuff
+    and the hand at it hang under the hip joints; a hand's rim skirted was drawn toward the hips). A garment with
+    under SKIRT_LEAST_POINTS points under them is left."""
     weights = person["weights"].copy()
     if not (kinds == KINDS.index(kind)).any():
         return weights
@@ -504,8 +504,7 @@ def skirted(person, kinds, kind="jacket"):
     hem = points[:, 1].min()
     across = np.clip((points[:, 0] - right[0]) / (left[0] - right[0]), 0.0, 1.0)
     down = np.clip((top - points[:, 1]) / max(top - hem, 1e-6), 0.0, 1.0)
-    hips = np.clip(SKIRT_HIPS[0] + (SKIRT_HIPS[1] - SKIRT_HIPS[0]) * down
-                   + SKIRT_MIDDLE * (1.0 - np.abs(2 * across - 1)), 0.0, 1.0)
+    hips = (SKIRT_HIPS[0] + (SKIRT_HIPS[1] - SKIRT_HIPS[0]) * down) * (1.0 - np.abs(2 * across - 1))
     skirt = np.zeros((len(used), len(names)))
     skirt[:, names.index("Hips")] = hips
     skirt[:, names.index("LeftLeg")] = (1.0 - hips) * across
