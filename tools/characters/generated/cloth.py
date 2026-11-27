@@ -11,16 +11,18 @@ and the jacket shredded; free cloth was stopped for the tether.
    places, CIELAB) and each point's skin weights.
 2. `kinds_of`: each face's kind (KINDS). still_rig's head part (face, hair, neck) stays the head; every other face is
    the kind whose colour, read off the person where only that kind can be (`seeds`: the upper sleeves the jacket, the
-   shins the jeans, the soles' height the shoes, the chest's middle in front the T-shirt, the fingers the skin), lies
+   shins the jeans, the soles' height the shoes, the chest's middle in front the T-shirt, the fingers the skin; a
+   scarf and the shirt under it where the open front shows two colours, one standing forward: `scarf_split`), lies
    nearest its own in that kind's spread, among the kinds its place allows (`allowed`: shoes only under the ankles,
    jeans never on the arms nor over the waist, the T-shirt only on the trunk, the jacket never on a face hanging from
    a leg: 47 such faces by the hands, bound to the jacket's sim mesh, hung 30 cm off their place as blue shards at
-   the hem; round 4, 2026-11-27). Settled by its neighbours (SETTLE
+   the hem; round 4, 2026-11-27; unless a long coat's, above its hem read from the outside: `jacket_hem`), nor on a
+   hand under its wrist. Settled by its neighbours (SETTLE
    rounds of votes over the faces' edges, so a cut runs along the paint's edge) and a piece under ISLAND_FACES of a
    kind given to the kinds round it.
 3. `riding_of`: which points of a garment ride the skin (the rest hang as cloth): the jacket's collar and shoulder
-   yoke (YOKE_M over its surface from where it meets the neck and hair) and its elastic cuffs (CUFF_M from the hands),
-   the jeans' waistband (WAISTBAND_M from the T-shirt and the jacket).
+   yoke (YOKE_M over its surface from where it meets the neck, hair or scarf) and its elastic cuffs (CUFF_M from the
+   hands), the jeans' waistband (WAISTBAND_M from the T-shirt and the jacket), a scarf round the neck (SCARF_NECK_M).
 3b. `sim_of`: the garment's sim mesh (`cloth_mesh.py`): the shell's own triangles are no cloth (round 1, 2026-11-26:
    a 2.7e-11 m^2 sliver's point went non-finite in the hang, and the run wrote NaNs on), so an even manifold mesh of
    1.2 cm edges is laid over the body onto the garment's broad shape, its rest shape the generated one (the shape
@@ -30,8 +32,9 @@ and the jacket shredded; free cloth was stopped for the tether.
 4. `body_under`: the collision body, the mean SOMA surface on the bind (still_rig.soma_on: the body the shell was
    fitted to), each point pushed in under the shell by MARGIN_M where it lies nearer than that (a slim woman over the
    SOMA mean: most of its skin outside her), the push smoothed over the body.
-5. `garments_of`, `timing_of` and `moved`: each garment's tethers (none riding and at a hem near the shoes, rising
-   over the loose cloth), the clip tiled over
+5. `garments_of`, `timing_of` and `moved`: each worn garment's tethers (none riding and at a hem near the shoes,
+   rising over the loose cloth to the garment's longest: cloth_tether.TETHER_M's or `--tether KIND=M`, an open
+   overshirt's fronts and a long coat's hem swinging further), the clip tiled over
    WARM_CYCLES and the clip's seconds (`tiled`: a walk's travel carried on from cycle to cycle), the whole person
    scaled to her own height (`--height`: the person's measured height, not the template body's), and the cloth run
    on its targets after SETTLE_S held on the first frame.
@@ -43,9 +46,10 @@ and the jacket shredded; free cloth was stopped for the tether.
    as the skinned person is); `measures`: each garment's deepest loose point inside the body (the sim mesh's and
    the drawn surface's), its largest stretch, its drift off the skin and its jitter, beside the same numbers for
    plain skinning, and the jeans' flap at the passing step (`flap`: the farthest a lower-leg point stands off the
-   body; `swing`: the farthest beyond its standoff at rest).
+   body; `swing`: the farthest beyond its standoff at rest) and each garment's hem swing off its skinned place
+   (`hem_swing`).
 
-    python -m tools.characters.generated.cloth <body.glb> <clips rig.npz> <out> --height <m>
+    python -m tools.characters.generated.cloth <body.glb> <clips rig.npz> <out> --height <m> [--tether KIND=M ...]
 
 writes <out>/cloth.npz (what blender_cloth.py draws) and <out>/cloth.json (the kinds' faces, the garments' points and
 riding share, the run's engine and seconds, the measures). `blender_cloth.py` draws it beside the skinned person.
@@ -72,9 +76,10 @@ import skel_usd  # noqa: E402
 sys.path.insert(0, str(REPO))
 from tools.characters.generated import cloth_mesh, cloth_tether  # noqa: E402
 
-KINDS = ("head", "skin", "jacket", "shirt", "jeans", "shoes")
-SIMULATED = ("jacket", "jeans")
-THICKNESS_M = {"jacket": 0.006, "jeans": 0.003}  # the cloth's thickness; half of it its clearance off the body
+KINDS = ("head", "skin", "jacket", "shirt", "jeans", "shoes", "scarf")
+SIMULATED = ("jacket", "jeans", "scarf")  # each moved as cloth where the person wears it (GARMENT_FACES or more)
+GARMENT_FACES = 300
+THICKNESS_M = {"jacket": 0.006, "jeans": 0.003, "scarf": 0.008}  # the cloth's thickness; half of it its clearance off the body
 SETTLE_S = 1.0  # the cloth hangs this long on the first frame before the run
 ENGINE = (f"tethered position-based cloth (cloth_tether, numpy on the processor, {cloth_tether.SUBSTEPS} substeps "
           f"a frame, {cloth_tether.ITERATIONS} iterations, deterministic)")
@@ -98,6 +103,17 @@ TUCKED_M = 0.12  # the T-shirt reaches this far under the Hips joint (tucked in)
 YOKE_M = 0.16  # the jacket rides the skin this far over its surface from the neck and hair
 CUFF_M = 0.04  # and this far from the hands (a puffer's elastic cuffs)
 WAISTBAND_M = 0.08  # the jeans ride the skin this far from their top
+SCARF_NECK_M = 0.10  # a scarf rides the skin this far from where it meets the neck, the head and the hair
+# A jacket's hem (`jacket_hem`): a long coat or an overshirt hangs past the hips over the trousers; read down in bands
+HEM_BAND_M = 0.02  # this tall from TUCKED_M under the hips, while
+HEM_SHARE = 0.5  # of its HEM_SECTORS round the band's middle, this share has its outermost clothes face (not the
+HEM_SECTORS = 24  # arms, hands, neck or head) nearer the jacket's paint than the jeans' (what is seen from outside: the
+# trousers inside a coat and its dark inner wall are not)
+# A scarf (`scarf_split`): in the open front over the chest, two colours apart from the jacket's, the one standing
+# forward of the other is a scarf over the shirt (the older woman's cream knit over her black turtleneck)
+SCARF_FROM_JACKET = 3.0  # a face's colour this many of the jacket's spreads from it is not the jacket's
+SCARF_APART = 20.0  # CIELAB: the two colours at least this far apart
+SCARF_FORWARD_M = 0.02  # the scarf's faces stand at least this much further forward than the shirt's (medians)
 MARGIN_M = 0.012  # the body lies at least this far under the shell
 SMOOTH_ROUNDS = 10  # rounds the body's push is smoothed over its edges
 WARM_CYCLES = 1  # the clip's cycles run before the film starts (the cloth leaves its first frame's standstill)
@@ -106,6 +122,7 @@ STANDING_S = 0.4  # the standing clip run after the hang, its last frame drawn
 FPS = 24
 CLOSED_DEGREES = 2.0  # a clip whose last frame turns every joint within this of its first repeats its first
 LOOK_JOINT = "Hips"
+HEM_SWING_M = 0.08  # a garment's hem (`hem_swing`): its loose sim points this near its lowest at rest
 
 
 # --- 1. the rigged person -------------------------------------------------------------------------------------------
@@ -122,7 +139,7 @@ def person_of(path):
         attributes = primitive["attributes"]
         points = skel_usd.accessor(document, blob, attributes["POSITION"]).astype(float)
         faces = skel_usd.accessor(document, blob, primitive["indices"]).reshape(-1, 3).astype(int)
-        places = skel_usd.accessor(document, blob, attributes["TEXCOORD_0"]).astype(float)
+        places = file_places(skel_usd.accessor(document, blob, attributes["TEXCOORD_0"]).astype(float))
         joints = skel_usd.accessor(document, blob, attributes["JOINTS_0"]).astype(int)
         shares = skel_usd.accessor(document, blob, attributes["WEIGHTS_0"]).astype(float)
         all_normals.append(skel_usd.accessor(document, blob, attributes["NORMAL"]).astype(float))
@@ -156,6 +173,13 @@ def base_picture(document, blob, material):
     view = document["bufferViews"][document["images"][document["textures"][texture]["source"]]["bufferView"]]
     start = view.get("byteOffset", 0)
     return np.asarray(Image.open(io.BytesIO(blob[start:start + view["byteLength"]])).convert("RGB"), float) / 255.0
+
+
+def file_places(places):
+    """glTF texture places (v down from the picture's top) as still_rig.bilinear reads them (v up): read as they
+    are, every face's paint came off the picture's mirror row (round 5, 2026-11-27: the stairwell woman's sage jacket and
+    blue jeans read as one speckle, so her kinds were her places' alone; the older woman's coat read as trousers)."""
+    return np.c_[places[:, 0], 1.0 - places[:, 1]]
 
 
 def face_paint(picture, places, faces):
@@ -195,8 +219,11 @@ def strongest_of(person):
     return np.array(person["names"])[face_weights.argmax(1)]
 
 
-def allowed(person, middles, strongest):
-    """{kind: which faces its place allows} for the kinds read from paint (every kind but the head)."""
+def allowed(person, middles, strongest, hem=None):
+    """{kind: which faces its place allows} for the kinds read from paint (every kind but the head). The jacket reaches
+    down to `hem` (`jacket_hem`; TUCKED_M under the hips when None) and onto a leg only where it reaches past that
+    (a long coat over the thighs; a short jacket's faces hanging from a leg are the hands' jeans), never on a hand
+    under its wrist (the camel coat's paint read nearer the older woman's hands than her fingers' did)."""
     ankle = max(joint_at(person, "LeftFoot")[1], joint_at(person, "RightFoot")[1])
     waist = joint_at(person, "Spine2")[1]
     hips = joint_at(person, "Hips")[1]
@@ -204,11 +231,17 @@ def allowed(person, middles, strongest):
     on_arms = np.isin(strongest, ARMS)
     chest = joint_at(person, "Chest")
     front = (np.abs(middles[:, 0] - chest[0]) < SHIRT_HALF_M) & (middles[:, 2] > chest[2])
+    short = hips - TUCKED_M
+    hem = short if hem is None else min(hem, short)
+    hand = np.zeros(len(middles), bool)
+    for side in ("Left", "Right"):
+        hand |= (strongest == f"{side}Hand") & (middles[:, 1] < joint_at(person, f"{side}Hand")[1])
     return {"skin": np.isin(strongest, SKIN_JOINTS),
-            "jacket": (middles[:, 1] > hips - TUCKED_M) & ~np.isin(strongest, LEGS),
+            "jacket": (middles[:, 1] > hem) & (~np.isin(strongest, LEGS) | (hem < short)) & ~hand,
             "shirt": front & ~on_arms & (middles[:, 1] > hips - TUCKED_M) & (middles[:, 1] < neck),
             "jeans": ~on_arms & (middles[:, 1] < waist),
-            "shoes": middles[:, 1] < ankle + ANKLE_OVER_M}
+            "shoes": middles[:, 1] < ankle + ANKLE_OVER_M,
+            "scarf": ~on_arms & (middles[:, 1] > hips - TUCKED_M) & (middles[:, 1] < neck)}
 
 
 def seeds(person, middles, strongest):
@@ -240,19 +273,85 @@ def kinds_of(person):
     middles = person["points"][faces].mean(1)
     strongest = strongest_of(person)
     colour = person["lab"]
-    places = allowed(person, middles, strongest)
+    seeded = {kind: found & ~person["head"] for kind, found in seeds(person, middles, strongest).items()}
+    seeded.update(scarf_split(person, middles, strongest, seeded))
+    read = {kind: centre_spread(colour[found]) for kind, found in seeded.items() if found.any()}
+    hem = None
+    if "jacket" in read and "jeans" in read:
+        nearer = colour_distance(colour, read["jacket"]) < colour_distance(colour, read["jeans"])
+        clothes = ~person["head"] & ~np.isin(strongest, ARMS + SKIN_JOINTS)
+        hem = jacket_hem(middles, nearer, clothes, joint_at(person, "Hips")[1] - TUCKED_M)
+    places = allowed(person, middles, strongest, hem)
     distance = np.full((len(faces), len(KINDS)), np.inf)
-    for kind, seeded in seeds(person, middles, strongest).items():
-        seeded = seeded & ~person["head"]
-        if not seeded.any():
-            continue
-        centre = np.median(colour[seeded], axis=0)
-        spread = max(SPREAD_LEAST, float(np.median(np.linalg.norm(colour[seeded] - centre, axis=1))))
-        distance[:, KINDS.index(kind)] = np.where(places[kind], np.linalg.norm(colour - centre, axis=1) / spread,
-                                                  np.inf)
+    for kind, centre in read.items():
+        distance[:, KINDS.index(kind)] = np.where(places[kind], colour_distance(colour, centre), np.inf)
     found = distance.argmin(1)
     found[person["head"]] = KINDS.index("head")
     return islands_joined(faces, settled(faces, found, ~person["head"]), ~person["head"])
+
+
+def centre_spread(colours):
+    """A kind's colour read off its seed faces: (its median, its spread: the median distance from it, at least
+    SPREAD_LEAST)."""
+    centre = np.median(colours, axis=0)
+    return centre, max(SPREAD_LEAST, float(np.median(np.linalg.norm(colours - centre, axis=1))))
+
+
+def colour_distance(colours, read):
+    """Each colour's distance from a kind's (`centre_spread`) in its spreads."""
+    return np.linalg.norm(colours - read[0], axis=1) / read[1]
+
+
+def jacket_hem(middles, nearer, clothes, start):
+    """The jacket's hem: from `start` (TUCKED_M under the hips) down, the bottom of the last HEM_BAND_M band in an
+    unbroken run seen from outside as the jacket (`outer_share` at least HEM_SHARE; `start` itself when the first
+    band is not)."""
+    hem = start
+    while True:
+        band = np.flatnonzero(clothes & (middles[:, 1] <= hem) & (middles[:, 1] > hem - HEM_BAND_M))
+        if not len(band) or outer_share(middles[band], nearer[band]) < HEM_SHARE:
+            return hem
+        hem -= HEM_BAND_M
+
+
+def outer_share(middles, nearer):
+    """The share of HEM_SECTORS round the faces' middle (seen from above) whose outermost face is `nearer`."""
+    offsets = middles[:, [0, 2]] - middles[:, [0, 2]].mean(0)
+    sector = ((np.arctan2(offsets[:, 1], offsets[:, 0]) + np.pi) / (2 * np.pi) * HEM_SECTORS).astype(int) % HEM_SECTORS
+    radius = np.linalg.norm(offsets, axis=1)
+    order = np.lexsort((-radius, sector))
+    first = order[np.r_[True, sector[order][1:] != sector[order][:-1]]]
+    return float(nearer[first].mean())
+
+
+def scarf_split(person, middles, strongest, seeded):
+    """{"scarf": its seed faces, "shirt": the shirt's} when the open front over the chest (SHIRT_HALF_M of its
+    middle, in front of it, from Spine1 to Neck2) shows two colours away from the jacket's (SCARF_FROM_JACKET) at least
+    SCARF_APART apart, each on GARMENT_FACES faces or more, one standing SCARF_FORWARD_M forward of the other: that
+    one is a scarf over the shirt. Else {} (the shirt is read where `seeds` reads it)."""
+    from scipy.cluster.vq import kmeans2
+    if not seeded["jacket"].any():
+        return {}
+    chest = joint_at(person, "Chest")
+    colour = person["lab"]
+    front = ((np.abs(middles[:, 0] - chest[0]) < SHIRT_HALF_M) & (middles[:, 2] > chest[2])
+             & (middles[:, 1] > joint_at(person, "Spine1")[1]) & (middles[:, 1] < joint_at(person, "Neck2")[1])
+             & ~person["head"] & ~np.isin(strongest, ARMS))
+    apart = np.flatnonzero(front & (colour_distance(colour, centre_spread(colour[seeded["jacket"]]))
+                                    > SCARF_FROM_JACKET))
+    if len(apart) < 2 * GARMENT_FACES:
+        return {}
+    centres, label = kmeans2(colour[apart], 2, seed=0, minit="++")
+    if min(np.bincount(label, minlength=2)) < GARMENT_FACES or np.linalg.norm(centres[0] - centres[1]) < SCARF_APART:
+        return {}
+    forward = [float(np.median(middles[apart[label == number], 2])) for number in (0, 1)]
+    scarf = int(np.argmax(forward))
+    if forward[scarf] - forward[1 - scarf] < SCARF_FORWARD_M:
+        return {}
+    found = {kind: np.zeros(len(middles), bool) for kind in ("scarf", "shirt")}
+    found["scarf"][apart[label == scarf]] = True
+    found["shirt"][apart[label != scarf]] = True
+    return found
 
 
 def face_neighbours(faces):
@@ -322,7 +421,8 @@ def over_surface(points, faces, sources):
 
 
 def riding_of(person, kinds, kind, used, faces):
-    """Which of a garment's points ride the skin: the jacket's yoke and cuffs, the jeans' waistband."""
+    """Which of a garment's points ride the skin: the jacket's yoke (under a scarf too) and cuffs, the jeans'
+    waistband, a scarf round the neck."""
     points = person["points"][used]
     local = {point: number for number, point in enumerate(used)}
 
@@ -336,7 +436,10 @@ def riding_of(person, kinds, kind, used, faces):
 
     if kind == "jacket":
         chest = joint_at(person, "Chest")[1]
-        return (from_border(("head", "skin"), high=chest) < YOKE_M) | (from_border(("skin",), low=chest) < CUFF_M)
+        return ((from_border(("head", "skin", "scarf"), high=chest) < YOKE_M)
+                | (from_border(("skin",), low=chest) < CUFF_M))
+    if kind == "scarf":
+        return from_border(("head", "skin"), high=joint_at(person, "Chest")[1]) < SCARF_NECK_M
     if kind == "jeans":
         return from_border(("shirt", "jacket", "skin")) < WAISTBAND_M
     return np.ones(len(used), bool)
@@ -466,19 +569,26 @@ def timing_of(person, clip, scale):
             "moves": moves, "played": played}
 
 
-def garments_of(person, kinds, body, scale):
-    """{kind: (used, faces, riding, sim)} for the simulated garments, each sim mesh with its tethers."""
+def garments_of(person, kinds, body, scale, reach):
+    """{kind: (used, faces, riding, sim)} for the simulated garments the person wears (GARMENT_FACES or more), each
+    sim mesh with its tethers (`reach`: each kind's longest, cloth_tether.TETHER_M's unless given)."""
     shoes_used, _ = garment_of(person, kinds, "shoes")
     shoes = person["points"][shoes_used] * scale
     garments = {}
-    for kind in SIMULATED:
+    for kind in worn(kinds):
         used, garment_faces = garment_of(person, kinds, kind)
         riding = riding_of(person, kinds, kind, used, garment_faces)
         sim = sim_of(person, kinds, kind, body, scale, used, garment_faces, riding)
         held = cloth_tether.pinned(sim["points"], sim["riding"], shoes)
-        sim["tether"] = cloth_tether.tethers(kind, over_surface(sim["points"], sim["faces"], np.flatnonzero(held)))
+        sim["tether"] = cloth_tether.tethers(reach[kind], over_surface(sim["points"], sim["faces"],
+                                                                         np.flatnonzero(held)))
         garments[kind] = (used, garment_faces, riding, sim)
     return garments
+
+
+def worn(kinds):
+    """The SIMULATED kinds the person wears (GARMENT_FACES faces or more)."""
+    return [kind for kind in SIMULATED if (kinds == KINDS.index(kind)).sum() >= GARMENT_FACES]
 
 
 def moved(sim, kind, timing, body_posed, body_faces):
@@ -571,6 +681,17 @@ def swing(positions, sim, names, body_posed, body_rest):
     return round(float((cKDTree(body_posed).query(positions[chosen])[0] - rest).max()), 4)
 
 
+def hem_swing(cloth, carried, sim, passing):
+    """How far a garment's hem (its loose sim points within HEM_SWING_M of its lowest at rest) swings off its skinned
+    place (metres): the most over the run and at the passing step."""
+    loose = ~sim["riding"]
+    hem = loose & (sim["points"][:, 1] < sim["points"][loose, 1].min() + HEM_SWING_M) if loose.any() else loose
+    if not hem.any():
+        return {"hem_swing_most_m": 0.0, "hem_swing_passing_m": 0.0}
+    off = np.linalg.norm(cloth[:, hem] - carried[:, hem], axis=2)
+    return {"hem_swing_most_m": round(float(off.max()), 4), "hem_swing_passing_m": round(float(off[passing].max()), 4)}
+
+
 def frames_of(person, timing, clip):
     """{name: run frame} drawn from a clip: the film's start and the stride points of a walk, standing's last."""
     if clip == "standing":
@@ -578,9 +699,12 @@ def frames_of(person, timing, clip):
     return {"film": timing["length"] * WARM_CYCLES, **stride_points(person, timing)}
 
 
-def made(body_glb, rig_path, out, height):
+def made(body_glb, rig_path, out, height, reach=None):
     """The whole make: kinds, garments, body, the walking and standing runs, cloth.npz and cloth.json in `out`; each
-    garment measured as tethered cloth (`garments`) and as plain skinning (`skinned`)."""
+    garment measured as tethered cloth (`garments`) and as plain skinning (`skinned`). `reach`: a garment's longest
+    tether where the person's clothes want other than cloth_tether.TETHER_M (an open overshirt's fronts, a long
+    coat's hem)."""
+    reach = {**cloth_tether.TETHER_M, **(reach or {})}
     out.mkdir(parents=True, exist_ok=True)
     person = person_of(body_glb)
     kinds = kinds_of(person)
@@ -588,11 +712,12 @@ def made(body_glb, rig_path, out, height):
     scale = height / float(np.ptp(person["points"][:, 1]))
     saved = {"scale": scale, "kinds": kinds, "shell_points": person["points"], "shell_faces": person["faces"],
              "body_points": body[0], "body_faces": body[1], "body_weights": body[2],
-             "joint_names": np.array(person["names"])}
+             "joint_names": np.array(person["names"]), "kind_names": np.array(KINDS),
+             "simulated": np.array(worn(kinds))}
     record = {"body": str(body_glb), "height_m": height, "scale": round(scale, 4),
               "faces": {kind: int((kinds == number).sum()) for number, kind in enumerate(KINDS)},
-              "tether_m": cloth_tether.TETHER_M, "runs": {}}
-    garments = garments_of(person, kinds, body, scale)
+              "tether_m": {kind: reach[kind] for kind in worn(kinds)}, "runs": {}}
+    garments = garments_of(person, kinds, body, scale, reach)
     for clip in ("walking", "standing"):
         timing = timing_of(person, clip, scale)
         frames = frames_of(person, timing, clip)
@@ -609,6 +734,8 @@ def made(body_glb, rig_path, out, height):
             for label, positions in (("garments", cloth), ("skinned", carried)):
                 drawn = own + cloth_mesh.displaced(sim["binding"], positions, carried, sim["faces"])
                 run[label][kind] = {**shape, **measures(positions, sim, carried, drawn, ~riding, body_posed, body[1])}
+                if clip == "walking":
+                    run[label][kind].update(hem_swing(positions, carried, sim, frames["passing"]))
                 if kind == "jeans" and clip == "walking":
                     passing = frames["passing"]
                     run[label][kind]["flap_passing_m"] = flap(positions[passing], sim, person["names"],
@@ -640,8 +767,11 @@ def main():
     parser.add_argument("rig", type=pathlib.Path)
     parser.add_argument("out", type=pathlib.Path)
     parser.add_argument("--height", type=float, required=True)
+    parser.add_argument("--tether", action="append", default=[], metavar="KIND=M",
+                        help="a garment's longest tether in metres (cloth_tether.TETHER_M's otherwise)")
     options = parser.parse_args()
-    record = made(options.body, options.rig, options.out, options.height)
+    reach = {kind: float(metres) for kind, metres in (given.split("=") for given in options.tether)}
+    record = made(options.body, options.rig, options.out, options.height, reach)
     print(f"cloth: {record['faces']}; " + "; ".join(
         f"{clip} {run['seconds']} s: " + ", ".join(f"{kind} deepest {found['deepest_m']} m stretch "
                                                     f"{found['largest_stretch']}" for kind, found in

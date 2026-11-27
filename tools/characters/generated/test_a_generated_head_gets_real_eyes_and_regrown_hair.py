@@ -115,7 +115,10 @@ the first (`laid_over`'s `first`: the outer wall); no collapse rounds (`slivers_
 `riding` alone. Round 4 (2026-11-27), each applied once, seen red, reverted: the normals unturned (`skinned_normals`
 returning its normals: the cloth shaded as it stood); the drawn surface not moved off its skinned place (`displaced`
 returning zeros); the jacket allowed on a leg (`allowed` without `LEGS`: the shards
-at the hem).
+at the hem). Round 5 (2026-11-27), each applied once, seen red, reverted: a long coat's hem read off every face of a
+band (`outer_share` the plain share: the hem stays at its start, 0.9 m); the scarf needing to stand 1 m forward
+(`SCARF_FORWARD_M` 1.0: no scarf found); the paint read at the file's places as stored (`file_places` returning its
+places: the top's red read as the bottom's blue).
 
 The colour (`colour.py`), on a toy front (a jacket painted dark grey-green with darker fold stripes over trousers
 painted black, boots at the bottom painted as black as the trousers with a trace of red) and its photo (a sage
@@ -1167,13 +1170,72 @@ def cloth_drawn_rides():
             bool(np.abs(shaded[1, 0] - turn[:3, 2]).max() < 1e-9), bool(np.abs(shaded[:, 1]).max() == 0.0)]
 
 def cloth_jacket_off_legs():
-    """[a face at the hips hanging from the hips may be jacket, the same face hanging from a thigh may not]."""
-    names = ["Hips", "Spine2", "Neck2", "Chest", "LeftFoot", "RightFoot"]
+    """[a face at the hips hanging from the hips may be jacket, the same face hanging from a thigh may not, a face
+    under the wrist hanging from the hand may not], then under a long coat's hem at 0.6 m [the thigh's face at 0.92 m
+    may, one at 0.7 m may, one at 0.5 m may not, the hand's may not]."""
+    names = ["Hips", "Spine2", "Neck2", "Chest", "LeftFoot", "RightFoot", "LeftHand", "RightHand"]
     bind = np.repeat(np.eye(4)[None], len(names), axis=0)
-    bind[:, 1, 3] = [1.0, 1.15, 1.5, 1.3, 0.06, 0.06]
-    middles = np.array([[0.1, 0.92, 0.1], [0.1, 0.92, 0.1]])
-    places = cloth.allowed({"names": names, "bind": bind}, middles, np.array(["Hips", "LeftLeg"]))
-    return places["jacket"].tolist()
+    bind[:, 1, 3] = [1.0, 1.15, 1.5, 1.3, 0.06, 0.06, 0.85, 0.85]
+    person = {"names": names, "bind": bind}
+    middles = np.array([[0.1, 0.92, 0.1], [0.1, 0.92, 0.1], [0.3, 0.8, 0.0]])
+    short = cloth.allowed(person, middles, np.array(["Hips", "LeftLeg", "LeftHand"]))["jacket"].tolist()
+    middles = np.array([[0.1, 0.92, 0.1], [0.1, 0.7, 0.1], [0.1, 0.5, 0.1], [0.3, 0.8, 0.0]])
+    long = cloth.allowed(person, middles, np.array(["LeftLeg", "LeftLeg", "LeftLeg", "LeftHand"]), hem=0.6)
+    return [short, long["jacket"].tolist()]
+
+
+def cloth_hem_found():
+    """A coat (a ring of radius 20 cm from 0.6 to 1.2 m, its paint the jacket's) over two legs (rings of 7 cm either
+    side, from the floor to 1.0 m, their paint the jeans', so inside the coat they outnumber it): the hem read from
+    0.9 m down, in metres (0.6), and read off every face of a band rather than its outermost (`outer_share` broken:
+    under 0.9 m the legs outnumber the coat and the hem stays at its start)."""
+    angles = np.linspace(0, 2 * np.pi, 120, endpoint=False)
+    coat = [[0.2 * np.cos(a), y, 0.2 * np.sin(a)] for a in angles for y in np.arange(0.605, 1.2, 0.01)]
+    legs = [[side * 0.09 + 0.07 * np.cos(a), y, 0.07 * np.sin(a)] for side in (-1, 1) for a in angles
+            for y in np.arange(0.005, 1.0, 0.005)]
+    middles = np.array(coat + legs)
+    nearer = np.r_[np.ones(len(coat), bool), np.zeros(len(legs), bool)]
+    clothes = np.ones(len(middles), bool)
+    found = cloth.jacket_hem(middles, nearer, clothes, 0.9)
+    band = np.abs(middles[:, 1] - 0.8) < 0.01
+    return [round(found, 2), bool(nearer[band].mean() < cloth.HEM_SHARE)]
+
+
+def cloth_scarf_split():
+    """A front of a chest: a cream scarf (two strands 3 to 9 cm off the middle, 4 cm forward) over a black shirt (the
+    middle 3 cm, behind it) inside a camel jacket: [the scarf's faces found, the shirt's found]; the same front with the
+    two colours side by side at one depth (a hoodie's grey and its dark drawstrings) has no scarf."""
+    names = ["Spine1", "Chest", "Neck2"]
+    bind = np.repeat(np.eye(4)[None], len(names), axis=0)
+    bind[:, 1, 3] = [1.05, 1.2, 1.5]
+    xs, ys = np.meshgrid(np.arange(-0.105, 0.106, 0.005), np.arange(1.1, 1.45, 0.005))
+    xs, ys = xs.ravel(), ys.ravel()
+    scarf = (np.abs(xs) > 0.03) & (np.abs(xs) < 0.09)
+    shirt = np.abs(xs) <= 0.03
+    middles = np.r_[np.c_[xs, ys, np.where(scarf, 0.12, 0.08)], np.c_[np.full(400, 0.2), np.linspace(1.1, 1.4, 400),
+                                                                     np.full(400, 0.05)]]
+    lab = np.r_[np.where(scarf[:, None], [85.0, 1.0, 8.0], np.where(shirt[:, None], [5.0, 0.0, 0.0], [58.0, 13.0, 24.0])),
+                np.tile([58.0, 13.0, 24.0], (400, 1))]
+    jacket = np.r_[~scarf & ~shirt, np.ones(400, bool)]
+    person = {"names": names, "bind": bind, "lab": lab, "head": np.zeros(len(middles), bool)}
+    strongest = np.full(len(middles), "Chest")
+    found = cloth.scarf_split(person, middles, strongest, {"jacket": jacket})
+    flat = middles.copy()
+    flat[:, 2] = np.where(jacket, flat[:, 2], 0.08)
+    none = cloth.scarf_split(person, flat, strongest, {"jacket": jacket})
+    return [bool(np.array_equal(found["scarf"][:len(xs)], scarf)), bool(np.array_equal(found["shirt"][:len(xs)], shirt)),
+            none == {}]
+
+
+def cloth_paint_read_from_top():
+    """A picture red in its top half and blue in its bottom, read at a face whose glTF texture places lie near the
+    top (v 0.1, glTF's v runs down): red, not blue (`file_places` left out: every face read its mirror row)."""
+    picture = np.zeros((8, 8, 3))
+    picture[:4, :, 0] = 1.0
+    picture[4:, :, 2] = 1.0
+    places = cloth.file_places(np.array([[0.4, 0.1], [0.6, 0.1], [0.5, 0.15]]))
+    lab = cloth.face_paint(picture, places, np.array([[0, 1, 2]]))[0]
+    return bool(lab[1] > 50 and lab[2] > 30)
 
 
 def colour_toy():
@@ -1329,7 +1391,7 @@ def tether_curtain():
     targets = np.repeat(points[None], frames, axis=0)
     targets[:, :, 2] -= 0.025 * np.sin(np.arange(frames) / 30.0 * 4.0 * np.pi)[:, None]
     body = np.repeat((np.asarray(ball.vertices) + centre)[None], frames, axis=0)
-    tether = cloth_tether.tethers("jeans", -points[:, 1])
+    tether = cloth_tether.tethers(cloth_tether.TETHER_M["jeans"], -points[:, 1])
     least = cloth_tether.allowances(targets, body, np.asarray(ball.faces), 0.0015)
     run = cloth_tether.tethered(targets, tether, faces, body, np.asarray(ball.faces), 30.0, least,
                                 np.tile([0.0, 0.0, -9.81], (frames, 256, 1)))
@@ -1442,7 +1504,12 @@ def tether_inside_read():
      [True, True, 6, [0, 1, 2, 3, 4, 5]]),
     ("the drawn surface rides its sim mesh exactly at rest and rigidly when it moves; a piece hung by nothing rides "
      "whole; its own normals turn with its skinning", cloth_drawn_rides, [True, True, 1, True, True, True]),
-    ("a face hanging from a leg is never jacket", cloth_jacket_off_legs, [True, False]),
+    ("a face hanging from a leg is jacket only above a long coat's hem, never a hand's under its wrist",
+     cloth_jacket_off_legs, [[True, False, False], [True, True, False, False]]),
+    ("a long coat's hem is read from the outside, under the trousers it hangs over", cloth_hem_found, [0.6, True]),
+    ("a scarf standing forward of the shirt in the open front is its own garment; one depth is no scarf",
+     cloth_scarf_split, [True, True, True]),
+    ("a face's paint is read at its own row of the picture, glTF's v running down", cloth_paint_read_from_top, True),
     ("the paint is toned toward the photo garment by garment: the jacket's sage, the boots' brown under trousers "
      "painted as black, the folds kept", colour_toned, [True] * 4),
     ("the body is never toned: hair and a face painted half skin, half dark keep their paint, the jacket is toned",

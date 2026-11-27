@@ -31,8 +31,9 @@ sys.path.insert(0, str(pathlib.Path(REPO) / "tools/characters/whole"))
 sys.path.insert(0, str(pathlib.Path(REPO) / "tools/characters/generated"))
 import render  # noqa: E402
 
-KINDS = ("head", "skin", "jacket", "shirt", "jeans", "shoes")  # cloth.KINDS (cloth.py needs scipy: not imported here)
-SIMULATED = ("jacket", "jeans")
+# The people are developed plainly (sRGB), as blender_eyes.VIEW, not in the whole route's AgX look (2026-11-27: its
+# medium high contrast look takes lit skin's chroma down and a shadow's up).
+VIEW = ("Standard", "None")
 SHELL = "work"  # still_rig.OUTFIT: the rigged shell's node
 SETTING = {"sky": "polyhaven_cloudy_vondelpark"}
 VIEWS = (("side", 270.0), ("three_quarter", 215.0))
@@ -43,6 +44,16 @@ UNDER = {"trunk": ("Hips", "Spine1", "Spine2", "Chest", "Neck1", "LeftShoulder",
 # the body under the clothes, seen only through a gap: the T-shirt's white on the trunk and arms, dark denim on the
 # legs; its head, hands and feet are never drawn (the shell's own are)
 UNDER_COLOURS = {"trunk": (0.78, 0.78, 0.76, 1.0), "legs": (0.06, 0.1, 0.2, 1.0)}
+
+
+def kinds_of(data):
+    """cloth.KINDS as cloth.npz names them (cloth.py needs scipy: not imported here)."""
+    return [str(kind) for kind in data["kind_names"]]
+
+
+def simulated_of(data):
+    """The garments cloth.npz moves as cloth."""
+    return [str(kind) for kind in data["simulated"]]
 
 
 def to_blender(points):
@@ -86,8 +97,8 @@ def face_kinds(shell, data):
     return np.array([kinds[tree.find(polygon.center)[1]] for polygon in shell.data.polygons])
 
 
-def split_off(shell, kinds, kind):
-    """A copy of the shell holding only `kind`'s polygons, unskinned (its points are set from the run)."""
+def split_off(shell, kinds, kind, number):
+    """A copy of the shell holding only `kind`'s polygons (kind number `number`), unskinned (its points are set from the run)."""
     garment = shell.copy()
     garment.data = shell.data.copy()
     garment.name = kind
@@ -97,7 +108,7 @@ def split_off(shell, kinds, kind):
     mesh = bmesh.new()
     mesh.from_mesh(garment.data)
     mesh.faces.ensure_lookup_table()
-    bmesh.ops.delete(mesh, geom=[face for face in mesh.faces if kinds[face.index] != KINDS.index(kind)],
+    bmesh.ops.delete(mesh, geom=[face for face in mesh.faces if kinds[face.index] != number],
                      context="FACES")
     mesh.to_mesh(garment.data)
     mesh.free()
@@ -151,13 +162,13 @@ def garments_made(shell, data):
     """{kind: (object, each Blender point's garment point)}; the skinned shell keeps the other kinds."""
     kinds = face_kinds(shell, data)
     found = {}
-    for kind in SIMULATED:
-        garment = split_off(shell, kinds, kind)
+    for kind in simulated_of(data):
+        garment = split_off(shell, kinds, kind, kinds_of(data).index(kind))
         used = data[f"{kind}_used"]
         tree = tree_of(to_blender(data["shell_points"][used]))
         mapping = np.array([tree.find(Vector(point))[1] for point in coordinates(garment.data)])
         found[kind] = (garment, mapping)
-    kept_only(shell, kinds, [KINDS.index(kind) for kind in SIMULATED])
+    kept_only(shell, kinds, [kinds_of(data).index(kind) for kind in simulated_of(data)])
     return found
 
 
@@ -235,6 +246,7 @@ def main():
     print(f"standing height {high.z - low.z:.3f} m", flush=True)
     exposure = render.place(LIBRARY, middle, SETTING)
     render.film(scene, exposure)
+    scene.view_settings.view_transform, scene.view_settings.look = VIEW
     scene.cycles.device = "CPU"
     scene.cycles.samples = int(SAMPLES)
     scene.render.resolution_x, scene.render.resolution_y = int(SIZE) * 2 // 3, int(SIZE)

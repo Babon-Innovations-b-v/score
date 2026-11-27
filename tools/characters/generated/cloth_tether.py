@@ -19,7 +19,8 @@ on the processor, one step SUBSTEPS times a frame, the edges ITERATIONS times a 
 import numpy as np
 from scipy.spatial import cKDTree
 
-TETHER_M = {"jacket": 0.05, "jeans": 0.06}  # the most a loose point may leave its target
+TETHER_M = {"jacket": 0.05, "jeans": 0.06, "scarf": 0.04}  # the most a loose point may leave its target (cloth.py's
+# --tether gives a garment its own: an open overshirt's fronts and a long coat's hem swing further)
 SLOPE = 0.25  # a tether grows by this over each metre of surface from the nearest pinned point
 HEM_M = 0.02  # a jeans point this near the shoes at rest is pinned
 PULL = 0.005  # a substep's share of the way back toward the target at the longest tether (over its tether nearer)
@@ -43,11 +44,11 @@ def pinned(points, riding, shoes):
     return riding | near
 
 
-def tethers(kind, from_pinned):
+def tethers(longest, from_pinned):
     """Each sim point's tether (metres): SLOPE times its distance over the surface from the nearest pinned point, at
-    most TETHER_M (a tether rising faster than its edges are long let a hem point beside a held one hang 4 mm off it
+    most `longest` (the garment's TETHER_M or its own; a tether rising faster than its edges are long let a hem point beside a held one hang 4 mm off it
     on a 7 mm edge, half again its length; round 3, 2026-11-26)."""
-    return np.minimum(TETHER_M[kind], SLOPE * from_pinned)
+    return np.minimum(longest, SLOPE * from_pinned)
 
 
 def vertex_normals(points, faces):

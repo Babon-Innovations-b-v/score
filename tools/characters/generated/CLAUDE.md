@@ -162,7 +162,13 @@ own paint) and brings in only what the generator cannot make, from the repo's ow
   (`cloth_mesh.displaced`), shaded by its own normals as skinning turns them (round 4, 2026-11-27: carried in the sim
   triangle's frame, the puffer standing up to 10 cm off its sim mesh drew 17 mm rough, lumpy and dark beside the
   skinned person), so a cloth on its targets is drawn exactly as the skinned person is. A face hanging from a leg is
-  never jacket.
+  never jacket, unless a long coat's: its hem is read down from the hips band by band as what is seen from outside
+  (`jacket_hem`: the trousers inside it and its dark inner wall outnumber it). A scarf is its own garment where the
+  open front shows two colours, one standing forward of the other (`scarf_split`); it rides round the neck. Each
+  person's garment may get its own longest tether (`--tether jacket=0.10`: an open overshirt's fronts, a long coat's
+  hem), and cloth.json records each garment's hem swing. The paint is read at the file's own row (`file_places`:
+  read as stored, glTF's v running down, every face read its mirror row, and round 4's kinds came from places alone).
+  The sheets and films are developed in plain sRGB (`blender_cloth.VIEW`, as `blender_eyes.VIEW`).
   **Free cloth is stopped** (coordinator, 2026-11-26): two free runs on Newton's VBD tore (the jeans stretched 90 cm
   down to and between the shoes, 19 cm inside the body; the jacket shredded). The tether makes the result at least as
   stable as plain skinning; cloth.json records every garment's numbers both ways (`garments` tethered, `skinned`).

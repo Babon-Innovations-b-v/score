@@ -27,7 +27,8 @@ The steps:
    black tears in the film) is closed by a fan from its middle (`closed`) after the fit (whose inside test the fans,
    reaching across the hollow, would mislead: 21% of the skin outside against 4%).
 5. The weights: Robust Skin Weights Transfer from the SOMA surface (prop_rig.transferred: closest-surface matches
-   within its distance and angle, each limb only from its own limb, the rest inpainted and smoothed), nothing above a
+   within its distance and angle, each limb only from its own limb, the rest inpainted and smoothed; a person whose
+   arms lie against the trunk all the way down has its arms read by `fused_landmarks`), nothing above a
    foot's ankle on that foot (`off_the_feet`: a wide trouser leg inpainted from its hem swung back from the calf at
    every push-off) and nothing well over a knee on that shin (`off_the_shins`: the same jeans hung thigh points from
    the shin and spiked 18 cm off the thigh at every stride), then the helmet and visor rigid on the head and the
@@ -114,6 +115,13 @@ OWN_TEXTURE = "the still's own paint, graded toward its place's palette (library
 CLIFF = 20.0  # per metre: the weights' summed difference across an edge (0 to 2) over its length above which the
 # cloth round it is eased (a whole change of joint over 10 cm; the shoulder's 0.36 across 2.4 mm tore 11.8 times)
 CLIFF_REACH = 0.05  # metres over the surface from such an edge the easing reaches
+# A person whose arms hang against the trunk all the way down (`fused_landmarks`; TRELLIS.2's hoodie man in an open
+# overshirt and the older woman in a long coat, 2026-11-27: no slice parts sleeve from trunk), the arm is the sleeve
+# at each side's outer edge:
+SLEEVE_BAND = 0.10  # metres: a slice's outermost points this deep on a side are the sleeve its middle is read from
+SLEEVE_HALF = 0.06  # metres: a point this near the sleeve's middle line, or beyond it, is the arm's
+ARM_UNDER_SHOULDER = 0.08  # metres: the sleeve is read and labelled this far under the shoulder (the Arm joint) down
+HAND_UNDER_WRIST = 0.10  # metres: and down to this far under the wrist (the Hand joint)
 CLIFF_ROUNDS, CLIFF_ALPHA = 200, 0.5  # its rounds (about 3 cm of spread on 3 mm edges), and how far towards its
 # neighbours' mean a point moves each round
 OUTFIT = "work"  # the dressed body's own outfit node, which skel_usd shows (DEFAULT_WORN)
@@ -379,7 +387,8 @@ def arms_turned(bind, names, parents, body, mesh):
     upper half took her chest's weights and bulged at the shoulder when her arms came down. Every joint down the arm
     turns with it; the bones keep their lengths. The bind and each arm's turn in degrees."""
     from scipy.spatial.transform import Rotation
-    still_fit, body_fit = (prop_rig.landmarks(prop_rig.sampled(shape)) for shape in (mesh, body))
+    still_fit = landmarks_of(prop_rig.sampled(mesh), bind, names)
+    body_fit = prop_rig.landmarks(prop_rig.sampled(body))
     out, turns = bind.copy(), {}
     for side in prop_rig.SIDES:
         chain = side + "Arm"
@@ -395,6 +404,48 @@ def arms_turned(bind, names, parents, body, mesh):
             out[joint] = moved @ bind[joint]
         turns[side] = round(float(np.degrees(angle)), 2)
     return out, turns
+
+
+def landmarks_of(points, bind, names):
+    """The still's landmarks (prop_rig.landmarks) or, where its arms never stand apart from its trunk, the fused
+    person's (`fused_landmarks`)."""
+    try:
+        return prop_rig.landmarks(points)
+    except prop_rig.RigError as error:
+        if "arms never stand apart" not in str(error):
+            raise
+    return fused_landmarks(points, bind, names)
+
+
+def fused_landmarks(points, bind, names):
+    """Landmarks of a still whose arms lie against its trunk from shoulder to hand (every slice one piece): its legs
+    as prop_rig finds them, each arm's axis through the middles of each slice's outermost SLEEVE_BAND on its side, from
+    ARM_UNDER_SHOULDER under the bind's shoulder down to HAND_UNDER_WRIST under its wrist, and its points within
+    SLEEVE_HALF of that line or beyond it the arm's (the limbs prop_rig.transferred matches on the arm alone)."""
+    height = float(points[:, 1].max())
+    cuts = prop_rig.slices(points)
+    crotch = prop_rig.crotch_of(cuts, height)
+    limbs = prop_rig.limb_labels(points, cuts, crotch, crotch, height)
+    found = {"height": height, "crotch": crotch, "samples": points, "limbs": limbs}
+    for side, sign in prop_rig.SIDES.items():
+        top = bind[names.index(side + "Arm"), 1, 3] - ARM_UNDER_SHOULDER
+        low = bind[names.index(side + "Hand"), 1, 3] - HAND_UNDER_WRIST
+        centres, members = [], []
+        for level in np.arange(low, top, prop_rig.SLICE):
+            band = np.flatnonzero((np.abs(points[:, 1] - level) < prop_rig.SLICE / 2) & (sign * points[:, 0] > 0))
+            if not len(band):
+                continue
+            outer = band[sign * points[band, 0] > (sign * points[band, 0]).max() - SLEEVE_BAND]
+            centres.append(points[outer].mean(0))
+            members.append(outer)
+        arm = prop_rig.limb(points, centres, np.concatenate(members), top)
+        found[side + "Arm"] = arm
+        along = (points[:, 1] - arm["start"][1]) / arm["direction"][1]
+        middle_x = arm["start"][0] + along * arm["direction"][0]
+        sleeve = (sign * points[:, 0] > sign * middle_x - SLEEVE_HALF) & (points[:, 1] <= top) & (
+            points[:, 1] >= low) & (points[:, 1] > crotch) & (sign * points[:, 0] > 0)
+        limbs[sleeve] = side + "Arm"
+    return found
 
 
 def arm_middle(arm):
@@ -879,7 +930,7 @@ def rigged(still, dressed, rig_path, palette_path, out, faces=FACES, person=Fals
     mesh = closed(fitted)
     colours = colours[cKDTree(raw.vertices).query(thin.vertices)[1]][cKDTree(fitted.vertices).query(mesh.vertices)[1]]
     part_of = parts_of(mesh, colours, body, names, bind, person)
-    fit = prop_rig.landmarks(prop_rig.sampled(mesh))
+    fit = landmarks_of(prop_rig.sampled(mesh), bind, names)
     weights, matched, smoothed = prop_rig.transferred(body, body_weights, mesh, np.array(names), fit)
     weights = off_the_shins(mesh.vertices, off_the_feet(mesh.vertices, weights, names, bind), names, bind)
     weights = rigid(mesh.vertices, mesh.faces, part_of, weights, names)

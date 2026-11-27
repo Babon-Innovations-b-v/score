@@ -40,6 +40,7 @@ def summary(record):
 
             flap = (f", flap at passing {pair('flap_passing_m', 100, 1)} cm" if "flap_passing_m" in found else "")
             flap += (f", swing out {pair('swing_passing_m', 100, 1)} cm" if "swing_passing_m" in found else "")
+            flap += (f", hem swing {pair('hem_swing_most_m', 100, 1)} cm" if "hem_swing_most_m" in found else "")
             lines.append(f"{clip} {kind}: deepest in body {pair('deepest_m', 1000, 0)} mm, drawn "
                          f"{pair('deepest_drawn_m', 1000, 0)} mm, stretch {pair('largest_stretch', 1, 2)}, drift "
                          f"{pair('drift_most_m', 100, 1)} cm, jitter p99 {pair('jitter_99_m_per_frame2', 1000, 1)} "
