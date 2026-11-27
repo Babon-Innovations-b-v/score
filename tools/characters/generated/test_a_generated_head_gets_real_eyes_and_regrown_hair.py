@@ -207,6 +207,8 @@ The jeans' own points ride no arm (`cloth.jeans_off_arms`). Break: the call left
 zeroing skipped (the hoodie man's jeans fused to his hands ballooned out at the hips as his arms were kept out).
 A face no kind's place allows takes the nearest paint's kind (`cloth.kinds_of`). Break: the `nowhere` fill left
 out (argmin over no allowed kind gave the head: the hoodie man's trousers fused to his forearms drawn as wedges).
+The beard takes the mouth's piece under the lower lip down to the chin (`beard.holes_in`, LIP_UNDER_NOSE_M). Break:
+the `chin` term left out (the hoodie man's pale chin lumps, joined to his lips, showed bare under his beard).
 A jeans hem resting on a shoe turns with the foot (`cloth.hem_on_shoes`). Break (applied once, seen red, reverted,
 2026-11-27): HEM_SHOE_M 0 (the hem left on the shin, sliding in and out of the shoe).
 still_rig's fan across the cut's loop (`person.neck_fans`) is found, the neck tube and a fan far under the cut kept.
@@ -1465,6 +1467,29 @@ def cloth_laid_hands_skin():
             bool((kinds[:4] == cloth.KINDS.index("jacket")).all())]
 
 
+def beard_chin_under_lip():
+    """A face grid 6 cm wide from the nose 10 cm down whose beard rings one light piece from 3 to 7 cm under the nose
+    (the lips and a pale chin under them, joined): [the lips 3.5 cm under the nose a hole, the chin 6 cm under it a
+    hole, a cheek's beard face] (`beard.holes_in`)."""
+    step = 0.002
+    xs, ys = np.meshgrid(np.arange(-0.03, 0.03 + 1e-9, step), np.arange(0.0, -0.10 - 1e-9, -step))
+    points = np.column_stack([xs.ravel(), ys.ravel(), np.zeros(xs.size)])
+    columns = xs.shape[1]
+    faces = []
+    for row in range(xs.shape[0] - 1):
+        for column in range(columns - 1):
+            corner = row * columns + column
+            faces += [[corner, corner + 1, corner + columns], [corner + 1, corner + columns + 1, corner + columns]]
+    faces = np.array(faces)
+    middles = points[faces].mean(1)
+    light = (np.abs(middles[:, 0]) < 0.02) & (middles[:, 1] < -0.03) & (middles[:, 1] > -0.07)
+    frame = {"middle_x": 0.0, "nose": np.array([0.0, 0.0, 0.0])}
+    holes = beard.holes_in(points, faces, ~light, np.ones(len(faces), bool), labels.adjacency(points, faces), frame)
+    picks = [np.argmin(np.linalg.norm(middles - target, axis=1)) for target in
+             ([0.0, -0.035, 0.0], [0.0, -0.06, 0.0], [0.025, -0.05, 0.0])]
+    return [bool(holes[pick]) for pick in picks]
+
+
 def cloth_nowhere_kind():
     """Faces painted as the jeans hanging from a forearm under the jacket's hem (TRELLIS.2's trousers fused to the
     arm: no kind's place allows them) beside a sleeve, a shin and a hand: [their kind is the jeans', never the
@@ -2186,6 +2211,7 @@ def tether_inside_read():
      cloth_jeans_off_arms, [0.0, 0.5, 1.0, 0.0]),
     ("a face no kind's place allows takes the nearest paint's kind, never the head", cloth_nowhere_kind,
      ["jeans", "jeans", "jeans"]),
+    ("the beard takes a pale chin joined to the lips, never the lips", beard_chin_under_lip, [False, True, False]),
     ("under a hood open in front (a hoodie's) the head keeps its whole front, chin and beard, down to the cut",
      lambda: hood_kept(open_front=True), [True, True, True, False, True, False, True]),
     ("still_rig's fan across the cut's loop and one out over it are found, the neck and an armpit's fan are kept",

@@ -25,6 +25,10 @@ CHIN = {"under_nose_m": 0.065, "radius_m": 0.012}
 THROAT_M = 0.16
 HOLE_M2 = 4e-4  # a piece of skin inside the beard smaller than this is the beard's (4 cm2; the lips are more)
 MOUTH_UNDER_NOSE_M = 0.035
+# The mouth's piece from this far under the nose down to the chin's bottom (CHIN's depth and its radius under it) is
+# the chin under the lower lip: a light patch of the beard joined to the lips (the hoodie man's chin, its lumps
+# painted pale, showed bare under his regrown beard, 2026-11-28)
+LIP_UNDER_NOSE_M = 0.05
 GREY_UNDER_NOSE_M = 0.085  # over this (the chin's bottom), a triangle the clothes' colours claim is a beard's grey
 # hairs (a grey hood's colour took the grey of a beard's chin, 2026-11-26)
 EARS_BEHIND_M = 0.01  # the beard reaches back to this far behind the head's middle (the ears' front)
@@ -87,7 +91,8 @@ def beard_labels(points, faces, colours, frame, scalp_hair):
 
 def holes_in(points, faces, beard, room, neighbours, frame):
     """The beard's small holes (pieces of other triangles in its room under HOLE_M2, joined over the triangles'
-    neighbours) but the mouth: a generated beard's light lumps on the chin (grey hairs, painted pale) read as skin."""
+    neighbours) but the mouth, and the mouth's piece under the lower lip (LIP_UNDER_NOSE_M) down to the chin's
+    bottom: a generated beard's light lumps on the chin (grey hairs, painted pale) read as skin."""
     other = room & ~beard
     inside = np.flatnonzero(other)
     count, piece = connected_components(neighbours[other][:, other], directed=False)
@@ -97,8 +102,10 @@ def holes_in(points, faces, beard, room, neighbours, frame):
     mouth = np.array([frame["middle_x"], frame["nose"][1] - MOUTH_UNDER_NOSE_M, frame["nose"][2]])
     middles = points[faces[inside]].mean(axis=1)
     mouth_piece = piece[np.argmin(np.linalg.norm(middles - mouth, axis=1))]
+    under = frame["nose"][1] - middles[:, 1]
+    chin = (piece == mouth_piece) & (under > LIP_UNDER_NOSE_M) & (under < CHIN["under_nose_m"] + CHIN["radius_m"])
     found = np.zeros(len(faces), dtype=bool)
-    found[inside[(sizes[piece] < HOLE_M2) & (piece != mouth_piece)]] = True
+    found[inside[((sizes[piece] < HOLE_M2) & (piece != mouth_piece)) | chin]] = True
     return found
 
 

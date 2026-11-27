@@ -332,6 +332,9 @@ under his beard's underside). There the two cut edges are one closed loop each: 
   still_rig skins those points onto the hands, so with the arms kept out the jeans ballooned out at the hips (only the
   laid hands' own points keep the hands'). **A face no kind's place allows takes the nearest paint's kind**
   (`kinds_of`): argmin over all-infinite distances gave KINDS' first, the head, and those faces were drawn skinned
-  to the forearms as black wedges.
+  to the forearms as black wedges. The beard takes the mouth's piece under the lower lip down to the chin
+  (`beard.holes_in`, LIP_UNDER_NOSE_M): a pale chin joined to the lips stayed skin. Open (2026-11-28, the hoodie
+  man): thin jacket-coloured straps from the hem to the hands, torn bits on the hood's rim by the jaw, the body's
+  own neck under the cut paler and pinker than the head's, some lumps still on the chin's front.
 - **head.glb's paint is the skin step's sRGB paint as written** (`head.paint_picture`): encoded again, it came out a
   washed copy (L 0.30 to 0.55), and the hair's labels and the swap's head wore it until 2026-11-27.
