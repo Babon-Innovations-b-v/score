@@ -9,7 +9,8 @@ and the jacket shredded; free cloth was stopped for the tether.
 1. `person_of`: still_rig's rigged person (body.glb, its own paint: rig it with a palette of no tokens) read back: its
    skeleton at the bind, its clips, its shell welded with each face's paint (its base colour map at the face's texture
    places, CIELAB) and each point's skin weights.
-2. `kinds_of`: each face's kind (KINDS). still_rig's head part (face, hair, neck) stays the head; every other face is
+2. `kinds_of`: each face's kind (KINDS). still_rig's head part (face, hair, neck) stays the head and its hand part
+   (the relaxed hands laid in place of TRELLIS.2's, 2026-11-27) the skin; every other face is
    the kind whose colour, read off the person where only that kind can be (`seeds`: the upper sleeves the jacket, the
    shins the jeans, the soles' height the shoes, the chest's middle in front the T-shirt, the fingers the skin; a
    scarf and the shirt under it where the open front shows two colours, one standing forward: `scarf_split`), lies
@@ -152,12 +153,12 @@ EDGE_LEAST_M = 0.002  # and at least this long (a shell sliver's growth reads in
 
 def person_of(path):
     """still_rig's body.glb read back: {document, blob, names, bind, parents, points (welded shell), faces, head
-    (each face from the head part), lab (each face's paint, CIELAB), weights (points x joints), normals (the shell's
+    (each face from the head part), hand (each face from the hand part), lab (each face's paint, CIELAB), weights (points x joints), normals (the shell's
     own smooth normals, the ones the skinned person is shaded by, averaged where welded)}."""
     document, blob, names, bind, parents = still_rig.skeleton_of(path)
     node = next(node for node in document["nodes"] if node.get("name") == still_rig.OUTFIT)
     picture = None
-    all_points, all_faces, all_weights, all_normals, all_head, all_colours, count = [], [], [], [], [], [], 0
+    all_points, all_faces, all_weights, all_normals, all_head, all_hand, all_colours, count = [], [], [], [], [], [], [], 0
     for primitive in document["meshes"][node["mesh"]]["primitives"]:
         attributes = primitive["attributes"]
         points = skel_usd.accessor(document, blob, attributes["POSITION"]).astype(float)
@@ -175,6 +176,7 @@ def person_of(path):
         all_faces.append(faces + count)
         all_weights.append(weights)
         all_head.append(np.full(len(faces), part == "head"))
+        all_hand.append(np.full(len(faces), part == "hand"))
         all_colours.append(face_paint(picture, places, faces))
         count += len(points)
     points, faces, index = welded(np.concatenate(all_points), np.concatenate(all_faces))
@@ -184,7 +186,8 @@ def person_of(path):
     np.add.at(normals, index, np.concatenate(all_normals))
     kept = faces_kept(index, np.concatenate(all_faces))
     return {"document": document, "blob": blob, "names": names, "bind": bind, "parents": parents, "points": points,
-            "faces": faces, "head": np.concatenate(all_head)[kept], "lab": np.concatenate(all_colours)[kept],
+            "faces": faces, "head": np.concatenate(all_head)[kept], "hand": np.concatenate(all_hand)[kept],
+            "lab": np.concatenate(all_colours)[kept],
             "weights": weights, "normals": normals / np.maximum(np.linalg.norm(normals, axis=1, keepdims=True), 1e-12)}
 
 
@@ -290,8 +293,8 @@ def seeds(person, middles, strongest):
 
 
 def kinds_of(person):
-    """Each face's kind number (KINDS): the head part's faces the head, every other face the kind its paint and
-    place say, settled by its neighbours."""
+    """Each face's kind number (KINDS): the head part's faces the head, the hand part's (still_rig's laid relaxed
+    hands) the skin, every other face the kind its paint and place say, settled by its neighbours."""
     faces = person["faces"]
     middles = person["points"][faces].mean(1)
     strongest = strongest_of(person)
@@ -310,7 +313,9 @@ def kinds_of(person):
         distance[:, KINDS.index(kind)] = np.where(places[kind], colour_distance(colour, centre), np.inf)
     found = distance.argmin(1)
     found[person["head"]] = KINDS.index("head")
-    return islands_joined(faces, settled(faces, found, ~person["head"]), ~person["head"])
+    found[person["hand"]] = KINDS.index("skin")
+    free = ~person["head"] & ~person["hand"]
+    return islands_joined(faces, settled(faces, found, free), free)
 
 
 def centre_spread(colours):

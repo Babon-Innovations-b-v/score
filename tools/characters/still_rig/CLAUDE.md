@@ -43,6 +43,16 @@ A still picture-made model (a TRELLIS.2 mesh, no skeleton) rigged as a player mo
   person's arm is labelled down to its fingertips (HAND_TIP_UNDER_WRIST; under the crotch only within HAND_HALF of
   its line): a hand resting on the thigh, cut with it by every slice, was the leg's, and 998 of the hoodie man's
   1429 hand points hung a fifth or more from the thighs.
+  A person's hands are replaced (2026-11-27, owner of the round 6 cloth sheets: the hands read as bent claws or
+  mitten lumps curled against the coat or thigh): the skeleton has one joint a hand, so no weights can open
+  TRELLIS.2's fused lumps; each is cut off from the wrist (`hand_cut`) and the whole route's relaxed hand with real
+  fingers laid on (`hands.py` writes them beside the clips rig from a whole-route skin, `whole.carried_skin`, whose
+  posture checks fail a splayed hand), its stub under the cuff, painted the person's own skin read off the middle of
+  the face (`face_skin`: the hoodie man's lumps read near black at their tips). While a hand goes more than
+  HAND_CLEAR into the clothes over a clip, that arm is turned out the fewest whole degrees more while it hangs that
+  bring it out (`hands_cleared`, every degree to HAND_CLEAR_MOST tried: the depth plateaus), and rig.json records
+  each clip's hands (degrees, depth); a hand resting on a lap (bench, seated), where the arm does not hang, keeps
+  its depth there, recorded.
 - **The place clips** (2099 #161: the places' people had only the dressed body's five clips): `place_clips.py` makes
   the prologue's clips (talking, stairs up and down, the rail lean, looking out, waving, swaying) and makes again the
   work bodies' (leaning, pointing, checking, clipboard, cheering, waiting, clapping, shifting) from their own sentences

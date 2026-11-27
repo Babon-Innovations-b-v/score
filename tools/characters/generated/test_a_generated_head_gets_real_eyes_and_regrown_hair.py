@@ -1331,6 +1331,35 @@ def cloth_jacket_off_legs():
     return [short, long["jacket"].tolist()]
 
 
+def cloth_laid_hands_skin():
+    """A person's laid hand (still_rig's hand part) whose wrist faces hang from the forearm and are painted the
+    jacket's colour: [those faces' kinds are the skin's, the sleeve's are the jacket's] (`kinds_of` not taking the
+    hand part as skin: the laid hands' wrists read as jacket and hung on its sim mesh)."""
+    names = ["Hips", "Spine1", "Spine2", "Chest", "Neck2", "LeftArm", "LeftForeArm", "LeftHand", "LeftShin",
+             "LeftFoot", "RightFoot", "RightArm", "RightForeArm", "RightHand", "RightShin"]
+    bind = np.repeat(np.eye(4)[None], len(names), axis=0)
+    bind[:, 1, 3] = [1.0, 1.1, 1.15, 1.3, 1.5, 1.4, 1.05, 0.8, 0.45, 0.06, 0.06, 1.4, 1.05, 0.8, 0.45]
+    bind[names.index("LeftArm"):names.index("LeftHand") + 1, 0, 3] = 0.3
+    bind[names.index("RightArm"):names.index("RightHand") + 1, 0, 3] = -0.3
+    places = ([("LeftArm", [0.3, 1.25 + 0.01 * k, 0.0], "jacket", False) for k in range(4)]
+              + [("LeftShin", [0.1, 0.3 + 0.01 * k, 0.0], "jeans", False) for k in range(4)]
+              + [("LeftHand", [0.3, 0.62 + 0.005 * k, 0.0], "skin", True) for k in range(3)]
+              + [("LeftForeArm", [0.3, 0.80 + 0.01 * k, 0.0], "jacket", True) for k in range(3)])
+    colour = {"jacket": [45.0, 10.0, 25.0], "jeans": [30.0, 0.0, -25.0], "skin": [70.0, 15.0, 18.0]}
+    corner = np.array([[0.0, 0.0, 0.0], [0.004, 0.0, 0.0], [0.0, 0.004, 0.0]])
+    points = np.concatenate([np.asarray(middle) + corner for _, middle, _, _ in places])
+    faces = np.arange(len(points)).reshape(-1, 3)
+    weights = np.zeros((len(points), len(names)))
+    for number, (joint, _, _, _) in enumerate(places):
+        weights[3 * number:3 * number + 3, names.index(joint)] = 1.0
+    person = {"names": names, "bind": bind, "points": points, "faces": faces, "weights": weights,
+              "lab": np.array([colour[kind] for _, _, kind, _ in places]),
+              "head": np.zeros(len(faces), bool), "hand": np.array([hand for _, _, _, hand in places])}
+    kinds = cloth.kinds_of(person)
+    return [bool((kinds[-3:] == cloth.KINDS.index("skin")).all()),
+            bool((kinds[:4] == cloth.KINDS.index("jacket")).all())]
+
+
 def cloth_hem_found():
     """A coat (a ring of radius 20 cm from 0.6 to 1.2 m, its paint the jacket's) over two legs (rings of 7 cm either
     side, from the floor to 1.0 m, their paint the jeans', so inside the coat they outnumber it): the hem read from
@@ -1814,6 +1843,8 @@ def tether_inside_read():
      "whole; its own normals turn with its skinning", cloth_drawn_rides, [True, True, 1, True, True, True]),
     ("a face hanging from a leg is jacket only above a long coat's hem, never a hand's under its wrist",
      cloth_jacket_off_legs, [[True, False, False], [True, True, False, False]]),
+    ("a laid hand's wrist painted like the jacket is skin, the sleeve stays jacket", cloth_laid_hands_skin,
+     [True, True]),
     ("a long coat's hem is read from the outside, under the trousers it hangs over", cloth_hem_found, [0.6, True]),
     ("a scarf standing forward of the shirt in the open front is its own garment; one depth is no scarf",
      cloth_scarf_split, [True, True, True]),

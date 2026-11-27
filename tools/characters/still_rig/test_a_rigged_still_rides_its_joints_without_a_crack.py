@@ -56,10 +56,12 @@ import sys
 
 import numpy as np
 import trimesh
+from scipy.spatial import cKDTree
 from scipy.spatial.transform import Rotation
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 import clips_added  # noqa: E402
+import hands as relaxed_hands  # noqa: E402
 import still_rig  # noqa: E402
 
 NAMES = ["Root", "Hips", "Chest", "Head"]
@@ -185,6 +187,18 @@ def test_a_rigged_still_rides_its_joints_without_a_crack():
     on_head = person.triangles_center[:, 1] > 1.52
     assert (found[on_head] == still_rig.PARTS.index("head")).all()
     assert set(found[~on_head]) == {still_rig.PARTS.index("suit")} and "head" not in still_rig.RIGID
+    head_ball = trimesh.creation.icosphere(subdivisions=5, radius=0.1)
+    head_ball.vertices += [0.0, 1.65, 0.0]
+    ball_parts = np.full(len(head_ball.faces), still_rig.PARTS.index("head"))
+    face_colours = np.tile([0.3, 0.2, 0.1], (len(head_ball.vertices), 1))  # hair
+    face_strip = (np.abs(head_ball.vertices[:, 0]) < 0.03) & (head_ball.vertices[:, 2] > 0.05)
+    face_colours[face_strip] = [0.8, 0.6, 0.5]
+    face_colours[face_strip & (head_ball.vertices[:, 1] > 1.67)] = [0.1, 0.1, 0.1]  # a dark brow, under half the strip
+    bind_head = bind.copy()
+    bind_head[joints.index("Head"), :3, 3] = [0.0, 1.65, 0.0]
+    assert np.allclose(still_rig.face_skin(head_ball.vertices, head_ball.faces, ball_parts, face_colours, joints,
+                                           bind_head),
+                       [0.8, 0.6, 0.5])
 
     feet = {}
     for side, x in (("Left", 0.1), ("Right", -0.1)):
@@ -297,3 +311,143 @@ def test_a_rigged_still_rides_its_joints_without_a_crack():
     for arm in (2, 4):
         local = Rotation.from_quat(turned[arm]).as_matrix()
         assert np.allclose(out[:, 1, :3, :3] @ local, out[:, arm, :3, :3])
+
+    hand_names = ["Root", "LeftForeArm", "LeftHand", "RightForeArm", "RightHand", "LeftLeg"]
+    hand_bind = np.repeat(np.eye(4)[None], len(hand_names), axis=0)
+    for side, x in (("Left", 0.3), ("Right", -0.3)):
+        hand_bind[hand_names.index(side + "ForeArm"), :3, 3] = [x, 1.05, 0.0]
+        hand_bind[hand_names.index(side + "Hand"), :3, 3] = [x, 0.8, 0.0]
+    hand_bind[hand_names.index("LeftLeg"), :3, 3] = [0.1, 0.9, 0.0]
+    def tube(x, radius, low, high, step=0.005, around=16):
+        """An open tube up the y axis at `x`, a ring of `around` points every `step`."""
+        heights = np.arange(low, high + 1e-9, step)
+        angles = np.linspace(0, 2 * np.pi, around, endpoint=False)
+        ring = np.c_[x + radius * np.cos(angles), np.zeros(around), radius * np.sin(angles)]
+        points = np.concatenate([ring + [0.0, height, 0.0] for height in heights])
+        faces = [[row * around + k, row * around + (k + 1) % around, (row + 1) * around + k] for row in
+                 range(len(heights) - 1) for k in range(around)]
+        faces += [[row * around + (k + 1) % around, (row + 1) * around + (k + 1) % around, (row + 1) * around + k]
+                  for row in range(len(heights) - 1) for k in range(around)]
+        return trimesh.Trimesh(points, np.array(faces), process=False)
+
+    arm_skin = trimesh.util.concatenate([tube(0.3, 0.04, 0.6, 1.05), tube(-0.3, 0.04, 0.6, 1.05),
+                                         tube(0.12, 0.05, 0.4, 0.9)])
+    skin_points, skin_faces = arm_skin.vertices, arm_skin.faces
+    on = np.zeros((len(skin_points), len(hand_names)))
+    for side, x in (("Left", 0.3), ("Right", -0.3)):
+        mine = np.abs(skin_points[:, 0] - x) < 0.05
+        on[mine, hand_names.index(side + "Hand")] = (skin_points[mine, 1] < 0.8)
+        on[mine, hand_names.index(side + "ForeArm")] = skin_points[mine, 1] >= 0.8
+    on[np.abs(skin_points[:, 0] - 0.12) < 0.06, hand_names.index("LeftLeg")] = 1.0
+    tones = np.zeros((len(skin_points), 3))
+    tones[:, 0] = np.clip(0.8 - skin_points[:, 1], 0, 1)
+    cut_out = relaxed_hands.cut(skin_points, skin_faces, on, tones, hand_names, hand_bind)
+    for side, x in (("Left", 0.3), ("Right", -0.3)):
+        kept = cut_out[f"{side}.points"]
+        assert (np.abs(kept[:, 0] - x) < 0.05).all() and kept[:, 1].max() <= 0.8 + relaxed_hands.STUB + 1e-9
+        assert kept[:, 1].min() < 0.61 and len(cut_out[f"{side}.tones"][0]) == 2
+        assert cut_out[f"{side}.faces"].max() == len(kept) - 1
+
+    cloth_colour, skin_colour = np.array([0.6, 0.45, 0.3]), np.array([0.85, 0.65, 0.55])
+    colours = np.tile(cloth_colour, (len(skin_points), 1))
+    under = skin_points[:, 1] < 0.8 - 0.01  # the hand's skin from a centimetre under the wrist
+    colours[under] = skin_colour
+    patch = (skin_points[:, 1] < 0.8) & (skin_points[:, 1] > 0.7) & (skin_points[:, 2] > 0.03)
+    colours[patch] = cloth_colour  # a cuff's flap hanging from the sleeve over the hand: cloth, kept
+    crevice = (skin_points[:, 1] > 0.66) & (skin_points[:, 1] < 0.676) & (skin_points[:, 2] < -0.035)
+    colours[crevice] = [0.3, 0.2, 0.15]  # a shaded crevice of the lump: cut with it
+    speck = (skin_points[:, 1] > 0.801) & (skin_points[:, 1] < 0.818) & (skin_points[:, 2] < -0.025)
+    colours[speck] = skin_colour  # a speck of skin paint on the sleeve: kept
+    colours[np.abs(skin_points[:, 0] - 0.12) < 0.06] = skin_colour  # a bare thigh beside the hand: no cloth
+    cut_faces = still_rig.hand_cut(skin_points, skin_faces, colours, on, hand_names, hand_bind, skin_colour)
+    arm_faces = (np.abs(skin_points[skin_faces, 0] - 0.3) < 0.05).all(1) | (
+        np.abs(skin_points[skin_faces, 0] + 0.3) < 0.05).all(1)
+    painted_skin = (np.abs(colours[skin_faces] - skin_colour).max(2) < 1e-9).all(1)
+    assert cut_faces[arm_faces & painted_skin & (skin_points[skin_faces, 1].max(1) < 0.785)].all()
+    assert cut_faces[arm_faces & crevice[skin_faces].all(1)].all()
+    assert not cut_faces[arm_faces & patch[skin_faces].all(1)].any()
+    assert not cut_faces[arm_faces & speck[skin_faces].any(1)].any()
+    assert not cut_faces[arm_faces & (skin_points[skin_faces, 1].max(1) > 0.8 + still_rig.HAND_CUFF_OVER)].any()
+    assert not cut_faces[~arm_faces].any()
+
+    outward = hand_bind.copy()
+    for side, sign in (("Left", 1.0), ("Right", -1.0)):
+        outward[hand_names.index(side + "Hand"), 0, 3] += sign * 0.04  # the joint 4 cm out beside its sleeve
+    round_cut = arm_faces & (skin_points[skin_faces, 1].max(1) < 0.79)  # a cut all round the arm
+    offsets = still_rig.sleeve_offsets(skin_points, skin_faces, round_cut, on, hand_names, outward)
+    assert np.allclose(offsets["Left"], [-0.04, 0.0, 0.0], atol=0.01)
+    assert np.allclose(offsets["Right"], [0.04, 0.0, 0.0], atol=0.01)
+    store = {"names": np.array(hand_names), **cut_out}
+    moved_bind = hand_bind.copy()
+    turn = Rotation.from_euler("z", 30, degrees=True).as_matrix()
+    for side in ("Left", "Right"):
+        fore, hand = hand_names.index(side + "ForeArm"), hand_names.index(side + "Hand")
+        elbow = hand_bind[fore, :3, 3] + [0.0, 0.1, 0.0]
+        moved_bind[fore, :3, 3] = elbow
+        moved_bind[hand, :3, :3] = turn
+        moved_bind[hand, :3, 3] = elbow + turn @ [0.0, -0.5, 0.0]
+    laid_hands = still_rig.hands_laid(store, hand_names, hand_bind, moved_bind)
+    for side in ("Left", "Right"):
+        points_laid, _, weights_laid, _ = laid_hands[side]
+        hand = hand_names.index(side + "Hand")
+        tip = cut_out[f"{side}.points"][cut_out[f"{side}.points"][:, 1].argmin()]
+        expected = moved_bind[hand, :3, 3] + turn @ ((tip - hand_bind[hand, :3, 3]) * 2.0)
+        assert np.allclose(points_laid[cut_out[f"{side}.points"][:, 1].argmin()], expected, atol=1e-9)
+        assert np.allclose(weights_laid.sum(1), 1.0)
+
+    part_with = np.zeros(len(skin_faces), int)
+    joined = still_rig.with_hands(skin_points, skin_faces, part_with, on, colours, cut_faces, laid_hands, skin_colour)
+    joined_points, joined_faces, joined_parts, joined_weights, joined_paint, joined_hand = joined
+    hand_count = sum(len(laid_hands[side][1]) for side in ("Left", "Right"))
+    still_faces = joined_faces[joined_parts != still_rig.PARTS.index("hand")]
+    assert (joined_parts == still_rig.PARTS.index("hand")).sum() == hand_count
+    assert len(still_faces) > (~cut_faces).sum() and still_rig.open_edges(
+        trimesh.Trimesh(joined_points, still_faces, process=False)) == 0  # the cut's holes (and the tubes' ends) shut
+    assert joined_faces.max() == len(joined_points) - 1 and len(np.unique(joined_faces)) == len(joined_points)
+    assert joined_hand.sum() == sum(len(laid_hands[side][0]) for side in ("Left", "Right"))
+    assert np.allclose(joined_paint[joined_hand].min(0), skin_colour, atol=0.05)
+    assert np.allclose(joined_weights.sum(1), 1.0)
+    new_points = ~joined_hand & (cKDTree(skin_points).query(joined_points)[0] > 1e-9)  # the fans' middles
+    cuffs = new_points & (np.abs(np.abs(joined_points[:, 0]) - 0.3) < 0.05) & (joined_points[:, 1] < 0.83) & (
+        joined_points[:, 1] > 0.6)
+    assert cuffs.sum() == 2 and np.allclose(joined_paint[cuffs], cloth_colour)  # the cuff's fan in the cloth's paint
+
+    laid_paint = np.full((len(stood), 3), np.nan)
+    laid_paint[painted.vertices[:, 0] > 0] = [0.9, 0.6, 0.5]
+    box_map, box_faces, box_places = still_rig.unwrapped(stood, painted.faces, painted.vertex_normals, size=64)
+    hand_maps, _ = still_rig.own_maps(stood[box_map], box_faces, box_places,
+                                      still_rig.taken_back(painted.vertices, stood), source, {}, size=64,
+                                      laid_paint=laid_paint[box_map])
+    right_faces = (painted.vertices[painted.faces][:, :, 0] > 0).all(1)
+    read = still_rig.bilinear(hand_maps["base_color"] / 255.0, box_places[box_faces[right_faces]].mean(1))
+    assert np.abs(read - [0.9, 0.6, 0.5]).max() < 0.05
+    read = still_rig.bilinear(hand_maps["base_color"] / 255.0, box_places[box_faces[left]].mean(1))
+    assert np.abs(read * 255 - (200, 40, 40)).max() < 20
+
+    plate = trimesh.creation.box((0.3, 0.3, 0.02)).subdivide_to_size(0.005)
+    finger = trimesh.creation.box((0.02, 0.02, 0.02), trimesh.transformations.translation_matrix([0.05, 0.0, 0.005]))
+    depth_points = np.r_[plate.vertices, finger.vertices]
+    depth_faces = np.r_[plate.faces, finger.faces + len(plate.vertices)]
+    depth_parts = np.r_[np.zeros(len(plate.faces), int), np.full(len(finger.faces), still_rig.PARTS.index("hand"))]
+    depth_names = ["Root", "LeftHand"]
+    depth_weights = np.zeros((len(depth_points), 2))
+    depth_weights[:len(plate.vertices), 0] = depth_weights[len(plate.vertices):, 1] = 1.0
+    order, kept = still_rig.strongest(depth_weights, 2)
+    still = np.repeat(np.eye(4)[None, None], 2, axis=1)
+    depth = still_rig.hands_depth(depth_points, depth_faces, depth_parts, order, kept, depth_names)
+    assert depth(still)["Left"] > 0.0
+    out_move = still.copy()
+    out_move[0, 1, 2, 3] = 0.05
+    assert depth(out_move)["Left"] == 0.0
+
+    def fake_depth(moves):
+        """The left hand 'in the clothes' while it is nearer than 0.36 m to the middle, 3 cm in on a plateau out to
+        0.345 m (a degree more out brings it no nearer out: the hoodie man's left hand); the right always 2 cm in."""
+        reach = (moves @ kept_bind)[:, 3, 0, 3].min()
+        return {"Left": 0.03 if reach < 0.345 else float(max(0.0, 0.36 - reach)), "Right": 0.02}
+
+    straight = np.stack([arm_worlds(15.0, 15.0)] * 2)
+    cleared_worlds, _, cleared = still_rig.hands_cleared(straight, kept_bind, kept_names, kept_parents, fake_depth)
+    assert cleared["Left"][1] <= still_rig.HAND_CLEAR and 0.0 < cleared["Left"][0] <= 6.0
+    assert cleared["Right"][0] == 0.0 and cleared["Right"][1] == 0.02
+    assert cleared_worlds[:, 3, 0, 3].min() >= 0.36 - still_rig.HAND_CLEAR
