@@ -137,6 +137,11 @@ HEM_SWING_M = 0.08  # a garment's hem (`hem_swing`): its loose sim points this n
 # toward the middle between the legs, more lower down, so the front and back panels each span both legs while the
 # cloth over each thigh swings with it (a pelvis share over the thighs too, 0.15 to 0.3 or more, let the lifted
 # thigh 11 to 12.7 cm through the coat's front)
+# A trouser hem resting on the shoes moves with them (`hem_on_shoes`): a point of a worn garment this near a shoe point
+# at rest takes that point's weights, all of them at the shoe and none this far off. Skinned to the shins alone, the
+# stairwell woman's wide hem slid in and out of her shoes as each foot turned: 755 drawn points inside the shoes'
+# hulls on the film's frames, 101 changing from frame to frame (whole person round 5, 2026-11-27).
+HEM_SHOE_M = 0.03
 SKIRT_BLEND_M = 0.08  # metres under the hip joints over which the garment's own weights give way to the skirt's
 SKIRT_HIPS = (0.3, 0.6)  # the pelvis's share in the middle between the legs at the hip joints and at the hem
 ARM_LEAST = 0.05  # a point with this much of its weight on an arm is on it (`skirted`)
@@ -488,6 +493,22 @@ def riding_of(person, kinds, kind, used, faces):
     return np.ones(len(used), bool)
 
 
+def hem_on_shoes(person, kinds):
+    """The person's weights with each worn garment's points near the shoes eased onto the nearest shoe point's
+    (HEM_SHOE_M), so a hem resting on a shoe turns with the foot."""
+    weights = person["weights"].copy()
+    shoes, _ = garment_of(person, kinds, "shoes")
+    if not len(shoes):
+        return weights
+    tree = cKDTree(person["points"][shoes])
+    for kind in worn(kinds):
+        used, _ = garment_of(person, kinds, kind)
+        distance, nearest = tree.query(person["points"][used])
+        share = np.clip(1.0 - distance / HEM_SHOE_M, 0.0, 1.0)[:, None]
+        weights[used] = (1.0 - share) * weights[used] + share * person["weights"][shoes[nearest]]
+    return weights
+
+
 def skirted(person, kinds, kind="jacket"):
     """The person's weights with a long garment's points under the hip joints hung as a skirt (module docstring;
     SKIRT_*): each point's thighs (the Leg joints) shared by where it lies between them across the body, the pelvis
@@ -837,6 +858,7 @@ def made(body_glb, rig_path, out, height, reach=None):
     kinds = kinds_of(person)
     rig_weights = person["weights"]
     person = {**person, "weights": skirted(person, kinds)}
+    person = {**person, "weights": hem_on_shoes(person, kinds)}
     body = body_under(person, dict(np.load(rig_path)))
     scale = height / float(np.ptp(person["points"][:, 1]))
     saved = {"scale": scale, "kinds": kinds, "shell_points": person["points"], "shell_faces": person["faces"],

@@ -177,6 +177,8 @@ Under the hood's depth the head model keeps only its neck (`head_swap.kept_regio
 underside turned down kept, its own collar standing 10 cm out in front and at the side given to the body, a face
 inside a neck ring turned in refused. Break (applied once, seen red, reverted, 2026-11-27): the front kept whole
 again (the head's front collar kept: the stairwell woman's torn collar shards).
+A jeans hem resting on a shoe turns with the foot (`cloth.hem_on_shoes`). Break (applied once, seen red, reverted,
+2026-11-27): HEM_SHOE_M 0 (the hem left on the shin, sliding in and out of the shoe).
 still_rig's fan across the cut's loop (`person.neck_fans`) is found, the neck tube and a fan far under the cut kept.
 Breaks (each applied once, seen red, reverted, 2026-11-27): `FAN_BAND` 1 (the armpit's fan taken too); `FAN_OFF_M` 1
 (no fan found). The skin's matte is read over plain skin (`skin.plain_skin`) and a socket's shade deeper than the
@@ -1502,6 +1504,26 @@ def cloth_skirted():
             round(float(found[int(np.flatnonzero((points[:, 0] == 0.0) & (points[:, 1] == 0.58))[0]), 0]), 3)]
 
 
+def hem_turns_with_shoe():
+    """A jeans leg panel 30 cm wide from 0.30 m down to 0.08 m (1 cm apart) skinned to the left shin, over a shoe panel
+    from 0.07 m down to 0.0 m on the left foot (`cloth.hem_on_shoes`): the hem's lowest row takes the foot's weights
+    (all but the 1 cm gap's third), a row 4 cm up keeps the shin's; every row sums to one."""
+    x, y = np.meshgrid(np.linspace(-0.15, 0.15, 31), np.r_[np.linspace(0.0, 0.07, 8), np.linspace(0.08, 0.30, 23)])
+    points = np.round(np.c_[x.ravel(), y.ravel(), np.zeros(x.size)], 6)
+    corner = (np.arange(30)[:, None] * 31 + np.arange(30)[None]).ravel()
+    faces = np.r_[np.c_[corner, corner + 1, corner + 32], np.c_[corner, corner + 32, corner + 31]]
+    names = ["LeftShin", "LeftFoot"]
+    weights = np.zeros((len(points), 2))
+    weights[points[:, 1] >= 0.08, 0] = 1.0
+    weights[points[:, 1] < 0.08, 1] = 1.0
+    shoe = (points[faces][:, :, 1] <= 0.07).all(1)
+    kinds = np.where(shoe, cloth.KINDS.index("shoes"), cloth.KINDS.index("jeans"))
+    found = cloth.hem_on_shoes({"names": names, "points": points, "faces": faces, "weights": weights}, kinds)
+    hem = int(np.flatnonzero((points[:, 0] == 0.0) & (points[:, 1] == 0.08))[0])
+    up = int(np.flatnonzero((points[:, 0] == 0.0) & (points[:, 1] == 0.12))[0])
+    return [round(float(found[hem, 1]), 3), round(float(found[up, 1]), 3), bool(np.allclose(found.sum(1), 1.0))]
+
+
 def cloth_short_edge_collapsed():
     """A tiny triangle of 1 mm sides set in a 1 cm hexagon (no corner under ANGLE_LEAST) collapsed: no edge under
     3 mm is left (the hoodie man's jeans kept a 1 mm edge, read as a stretch of 0.68)."""
@@ -1911,6 +1933,8 @@ def tether_inside_read():
     ("a long coat under the hip joints hangs from both thighs and the pelvis as a skirt; its cuff, its top and a "
      "short jacket keep their own; a hand on it eases it in", cloth_skirted,
      [0.6, True, [0.0, 0.0, 1.0], True, True, True, True, 0.135]),
+    ("a jeans hem resting on a shoe takes the foot's weights, the leg above keeps the shin's", hem_turns_with_shoe,
+     [0.667, 0.0, True]),
     ("a remeshed edge under a third of the mesh's edge is collapsed", cloth_short_edge_collapsed, [True, True]),
     ("a face's paint is read at its own row of the picture, glTF's v running down", cloth_paint_read_from_top, True),
     ("the body under the clothes wears the person's own shirt and trousers", cloth_under_coloured, [True, True, True]),
