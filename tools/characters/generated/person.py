@@ -15,10 +15,12 @@ The steps, each on what the one before made (`--from` starts at one, the ones be
 3. swap: the body toned (`colour.toned`), the mended head alone (no eyeballs: `head_swap.py` takes one mesh) put on
    it (`head_swap.py`) into <out>/swap/<name>.glb and its head-to-body record.
 4. rig: still_rig `--person` with an empty palette (her own paint, ungraded) into <out>/rig.
-5. cloth: `cloth.made` at her height, its film FILM_SECONDS long, into <out>/cloth.
-6. pieces: what the drawing needs to carry the head's own pieces onto the rigged body (`pieces_of`): the head-to-rig
-   matrix (the swap's head-to-body matrix after the body-to-rig similarity, found by `framed`), the cut's level, the
-   hair step's removed triangles and its points laid onto the scalp, all in the head model's own frame.
+5. pieces: what the cloth and the drawing need to carry the head's own pieces onto the rigged body (`pieces_of`):
+   the head-to-rig matrix (the swap's head-to-body matrix after the body-to-rig similarity, found by `framed`), the
+   cut's level, the hair step's removed triangles and its points laid onto the scalp, all in the head model's own
+   frame, and the rig's faces round the neck by where they came from (`neck_roles`).
+6. cloth: `cloth.made` at her height, its film FILM_SECONDS long, into <out>/cloth; the rig's head part round the
+   neck that is the body's own (its collar, its neck) read by its paint as every other face (`released`).
 7. render: `blender_person.py` (Cycles on the graphics card) into <out>/renders.
 8. sheet: the turnaround sheet beside the close-up photo, the walking sheet and the film (ffmpeg) in <out>.
 """
@@ -55,7 +57,7 @@ PEOPLE = {"a_stairwell_woman": {"height_m": 1.68, "head_m": 0.42, "cut_depth": 0
                                 "dressed": "character/dress_woman_stair_made/1/body.glb"},
           "c_older_woman": {"height_m": 1.64, "head_m": 0.42, "cut_depth": 0.18, "collar_depth": 0.16,
                             "dressed": "character/dress_woman_stair_made/1/body.glb", "tether": {"jacket": 0.10}}}
-STEPS = ("head", "hair", "swap", "rig", "cloth", "pieces", "render", "sheet")
+STEPS = ("head", "hair", "swap", "rig", "pieces", "cloth", "render", "sheet")
 FILM_SECONDS = 4.0  # the walking film (cloth.SECONDS is the cloth sheet's 3 s)
 # still_rig's thinning: the detailed head takes some 60% of the faces; at 100k the clothes kept 35k and folded onto
 # themselves as fins and dark flecks (whole person round 5, 2026-11-27: 7.2% of the jacket's edges past 150 degrees)
@@ -71,6 +73,22 @@ OVER_KNEES = 0.35  # the fit reads the body above this share of its height (the 
 # the swapped model is such a fan: the drawing takes it off. The armpits' and boots' fans lie far under the band.
 FAN_BAND = 0.04
 FAN_OFF_M = 0.012
+# And from FAN_BAND under the cut up, a rig face whose middle lies more than FAN_MIDDLE_M off every point of the
+# swapped model is a fan too (whole person round 6, 2026-11-27: fans closing the hair's loops out under it stood as
+# wedges by the chin; a real face's middle lies at most 5.7 mm off, the jacket's round the neck)
+FAN_MIDDLE_M = 0.008
+# still_rig's head part is every face within 25 cm of the head's middle over the neck (`still_rig.parts_of`), so on
+# the swapped body it took the body's own puffer collar top and its own old hair kept round the neck by the swap's
+# hood: the collar's top drawn skinned beside the cloth's collar and torn where the sphere cut it, the old hair as
+# dark shards over the collar (whole person round 6, 2026-11-27, ray cast off the front close-up: of 15006 head-kind
+# pixels in the collar's zone, some 6400 the body's sage collar, 3885 its old hair, 2693 fans, 19 the swap's head).
+# A rig face nearer the swapped body's points than its head's, from RELEASE_BAND body heights under the cut up, is
+# the body's (`neck_roles`): the cloth reads it by its paint as any other face, and keeps it the head (for the drawing
+# to take off) only where its paint is the hair's, read on the swap's head faces lying on the head model's hair
+# (within HAIR_ON_M of a hair-step hair face, nearer one than any skin face) up to HAIR_READ_BAND over the cut.
+RELEASE_BAND = 0.06
+HAIR_ON_M = 0.003
+HAIR_READ_BAND = 0.06
 SAMPLES, SIZE, FILM_SAMPLES, FILM_WIDTH = 64, 1200, 64, 720
 THREADS = 8
 TILE = 400  # the sheets' picture height (px)
@@ -139,7 +157,9 @@ def rig_step(out, person, name):
 
 def cloth_step(out, person):
     cloth.SECONDS = FILM_SECONDS
-    record = cloth.made(out / "rig/body.glb", CLIPS, out / "cloth", person["height_m"], person.get("tether"))
+    pieces = np.load(out / "pieces.npz")
+    record = cloth.made(out / "rig/body.glb", CLIPS, out / "cloth", person["height_m"], person.get("tether"),
+                        (pieces["released_centres"], pieces["hair_read_centres"]))
     (out / "cloth" / "cloth.json").write_text(json.dumps(record, indent=1))
 
 
@@ -184,20 +204,52 @@ def removed_faces(faces, kept):
 
 def neck_fans(swapped, to_rig, level, height, faces_points):
     """Which rig faces (`faces_points`, each face's three points in the rig's glTF frame) are still_rig's fans across
-    the cut's loops: within FAN_BAND of the swapped body's `level` (its glTF y; `height` its height) and with a point
-    more than FAN_OFF_M off every point of the swapped model (`swapped`, its glTF frame; `to_rig` onto the rig's)."""
+    the cut's loops: within FAN_BAND of the swapped body's `level` (its glTF y; `height` its height) with a point
+    more than FAN_OFF_M off every point of the swapped model (`swapped`, its glTF frame; `to_rig` onto the rig's), or
+    from FAN_BAND under it up with the middle more than FAN_MIDDLE_M off."""
     on_rig = swapped @ to_rig[:3, :3].T + to_rig[:3, 3]
     off = cKDTree(on_rig).query(faces_points.reshape(-1, 3))[0].reshape(-1, 3).max(axis=1)
     back = np.linalg.inv(to_rig)
     heights = (faces_points.mean(axis=1) @ back[:3, :3].T + back[:3, 3])[:, 1]
-    return (np.abs(heights - level) < FAN_BAND * height) & (off > FAN_OFF_M)
+    middle_off = cKDTree(on_rig).query(faces_points.mean(axis=1))[0]
+    return (((np.abs(heights - level) < FAN_BAND * height) & (off > FAN_OFF_M))
+            | ((heights > level - FAN_BAND * height) & (middle_off > FAN_MIDDLE_M)))
+
+
+def neck_roles(head_points, body_points, to_rig, level, height, middles, hair, skin):
+    """The rig's faces (`middles`, the rig's glTF frame) round the neck by where they came from: (released: nearer
+    the swapped body's points than its head's, from RELEASE_BAND under the swapped body's `level` up (`head_points`,
+    `body_points` its two primitives' points in its glTF frame, `height` its height, `to_rig` onto the rig's); hair:
+    nearer its head's, up to HAIR_READ_BAND over the cut, within HAIR_ON_M of a `hair` point and nearer one than any
+    `skin` point (the head model's hair and skin face middles on the rig))."""
+    def on_rig(points):
+        return np.asarray(points, float) @ to_rig[:3, :3].T + to_rig[:3, 3]
+
+    to_head = cKDTree(on_rig(head_points)).query(middles)[0]
+    to_body = cKDTree(on_rig(body_points)).query(middles)[0]
+    back = np.linalg.inv(to_rig)
+    over = ((middles @ back[:3, :3].T + back[:3, 3])[:, 1] - level) / height
+    to_hair = cKDTree(hair).query(middles)[0]
+    to_skin = cKDTree(skin).query(middles)[0]
+    released = (to_body <= to_head) & (over > -RELEASE_BAND)
+    on_hair = (to_head < to_body) & (over >= 0.0) & (over < HAIR_READ_BAND) & (to_hair < HAIR_ON_M) & (to_hair < to_skin)
+    return released, on_hair
+
+
+def swap_parts(path):
+    """The swapped model's two primitives' points (its glTF frame): (the head's, the highest; the body's)."""
+    parts = [np.asarray(item.vertices, float) for item in trimesh.load(str(path), process=False).geometry.values()]
+    parts.sort(key=lambda points: points[:, 1].mean())
+    return parts[-1], np.concatenate(parts[:-1])
 
 
 def pieces_of(out, name):
     """<out>/pieces.npz: head_to_rig (the head model's glTF frame onto the rig's), body_to_rig, the cut's level (the
     swapped body's glTF y), the hair step's face middles and removed faces, its points and how far each was laid
     onto the scalp (`hair_*`, the head model's own units), the hair's scale (its metres over the model's units) and the
-    middles of still_rig's fans across the cut's loops (`neck_fans`, the rig's glTF frame)."""
+    middles of still_rig's fans across the cut's loops (`neck_fans`), of the rig's faces round the neck that are the
+    swapped body's own (`released_centres`, fans left out) and of its head's faces on the hair (`hair_read_centres`;
+    `neck_roles`), all in the rig's glTF frame."""
     record = json.loads((out / "swap" / f"{name}.json").read_text())
     swapped = trimesh.load(str(out / "swap" / f"{name}.glb"), force="mesh", process=False).vertices
     rigged = trimesh.load(str(out / "rig/body.glb"), process=False).geometry
@@ -214,14 +266,25 @@ def pieces_of(out, name):
     if len(kept.vertices) != len(points):
         raise SystemExit(f"kept.glb has {len(kept.vertices)} points, head.glb {len(points)}: not the hair's model")
     faces = np.asarray(model.faces)
-    saved = {"head_to_rig": to_rig @ np.asarray(record["head_to_body_gltf"]), "body_to_rig": to_rig,
+    removed = removed_faces(faces, np.asarray(kept.faces))
+    head_to_rig = to_rig @ np.asarray(record["head_to_body_gltf"])
+    centres = points[faces].mean(1) @ head_to_rig[:3, :3].T + head_to_rig[:3, 3]
+    middles = triangles.mean(axis=1)
+    released, on_hair = neck_roles(*swap_parts(out / "swap" / f"{name}.glb"), to_rig,
+                                   float(record["cut_level_gltf_y"]), float(record["body_height_units"]), middles,
+                                   centres[removed], centres[~removed])
+    released &= ~fans
+    saved = {"head_to_rig": head_to_rig, "body_to_rig": to_rig,
              "level": record["cut_level_gltf_y"], "hair_centres": points[faces].mean(1).astype(np.float32),
-             "hair_removed": removed_faces(faces, np.asarray(kept.faces)), "hair_points": points.astype(np.float32),
+             "hair_removed": removed, "hair_points": points.astype(np.float32),
              "hair_laid": (np.asarray(kept.vertices) / hair_scale - points).astype(np.float32),
-             "hair_scale": hair_scale, "fan_centres": triangles[fans].mean(axis=1).astype(np.float32)}
+             "hair_scale": hair_scale, "fan_centres": middles[fans].astype(np.float32),
+             "released_centres": middles[released].astype(np.float32),
+             "hair_read_centres": middles[on_hair].astype(np.float32)}
     np.savez_compressed(out / "pieces.npz", **saved)
     return {"body_to_rig_rms_m": round(float(rms), 5), "hair_removed": int(saved["hair_removed"].sum()),
-            "laid_points": int((np.linalg.norm(saved["hair_laid"], axis=1) > 1e-7).sum()), "neck_fans": int(fans.sum())}
+            "laid_points": int((np.linalg.norm(saved["hair_laid"], axis=1) > 1e-7).sum()), "neck_fans": int(fans.sum()),
+            "released": int(released.sum()), "hair_read": int(on_hair.sum())}
 
 
 def render_step(given, out):

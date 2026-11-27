@@ -183,16 +183,18 @@ def above_cut(local, pieces):
     return over_cut(local, pieces) > 0.0
 
 
-def shell_cut(shell, head, pieces, garment):
+def shell_cut(shell, head, pieces, garment, old_hair):
     """The rig's faces above the cut that the swap's head covers taken off the shell, never a cloth garment's
-    (`garment`, per polygon: the jacket's collar round the neck is the body's, drawn by the cloth), and still_rig's
+    (`garment`, per polygon: the jacket's collar round the neck is the body's, drawn by the cloth), still_rig's
     fans across the cut's loops (pieces.npz's `fan_centres`, `person.neck_fans`: wedges reaching across the neck's
-    hollow and out under the hair, drawn as dark shards between the neck and the collar); how many."""
+    hollow and out under the hair, drawn as dark shards between the neck and the collar) and the body's own old hair
+    round the neck (`old_hair`, per polygon: the strands are the hair; drawn, it stood as dark shards over the
+    collar, whole person round 6, 2026-11-27); how many."""
     to_head = (head.matrix_world.inverted() @ shell.matrix_world)
     tree = tree_of([head.matrix_world @ vertex.co for vertex in head.data.vertices])
     centres = np.array([to_head @ polygon.center for polygon in shell.data.polygons])
     above = above_cut(centres, pieces) & ~garment
-    doomed = set()
+    doomed = set(np.flatnonzero(old_hair).tolist())
     for index in np.flatnonzero(above):
         world = shell.matrix_world @ shell.data.polygons[int(index)].center
         if tree.find(world)[2] < COVER_M:
@@ -207,6 +209,15 @@ def shell_cut(shell, head, pieces, garment):
     edit.free()
     shell.data.update()
     return len(doomed)
+
+
+def old_hair_of(shell, pieces, kinds, head_kind):
+    """Which polygons of the shell are the body's own old hair round the neck: the cloth kept them the head
+    (`cloth.kinds_of`: painted as the head's hair) among the faces there that are the swapped body's own (pieces.npz's
+    `released_centres`, `person.neck_roles`)."""
+    released = tree_of(cloth.to_blender(pieces["released_centres"]))
+    return np.array([kinds[polygon.index] == head_kind and released.find(polygon.center)[2] < FAN_MATCH
+                     for polygon in shell.data.polygons])
 
 
 def garment_cut(head, shell, garment):
@@ -369,9 +380,12 @@ def head_dressed(armature, shell, pieces, data):
     bpy.context.view_layer.update()
     weights = weights_held(shell, armature)
     simulated = [cloth.kinds_of(data).index(kind) for kind in cloth.simulated_of(data)]
-    garment = np.isin(cloth.face_kinds(shell, data), simulated)
+    kinds = cloth.face_kinds(shell, data)
+    garment = np.isin(kinds, simulated)
+    old_hair = old_hair_of(shell, pieces, kinds, cloth.kinds_of(data).index("head"))
     print(f"head faces the cloth draws taken off: {garment_cut(head, shell, garment)}", flush=True)
-    print(f"rig faces under the head taken off: {shell_cut(shell, head, pieces, garment)}", flush=True)
+    print(f"rig faces under the head taken off: {shell_cut(shell, head, pieces, garment, old_hair)} (the body's old "
+          f"hair {int(old_hair.sum())})", flush=True)
     blender_skin.attributes(head, skin)
     blender_skin.face_uv(head, skin["box"])
     print(f"painted skin faces: {skin_marked(head, lids, skin)}", flush=True)

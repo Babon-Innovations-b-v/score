@@ -181,7 +181,15 @@ A jeans hem resting on a shoe turns with the foot (`cloth.hem_on_shoes`). Break 
 2026-11-27): HEM_SHOE_M 0 (the hem left on the shin, sliding in and out of the shoe).
 still_rig's fan across the cut's loop (`person.neck_fans`) is found, the neck tube and a fan far under the cut kept.
 Breaks (each applied once, seen red, reverted, 2026-11-27): `FAN_BAND` 1 (the armpit's fan taken too); `FAN_OFF_M` 1
-(no fan found). The skin's matte is read over plain skin (`skin.plain_skin`) and a socket's shade deeper than the
+with `FAN_MIDDLE_M` 1 (no cut fan found); `FAN_MIDDLE_M` 1 (the wedge reaching out over the band kept). The rig's faces round the neck by
+where they came from (`person.neck_roles`): the body's own collar over the cut released, the head's neck and the body
+far under the cut not; the head's faces on its hair read as the hair, those on its skin not. Breaks (each applied
+once, seen red, reverted, 2026-11-27): `RELEASE_BAND` 1 (the body far under the cut released); `HAIR_ON_M` 0 (the face
+on the hair not read). Faces round the neck released from still_rig's head part take their kind by paint
+(`cloth.kinds_of`): one painted as the jacket the jacket, one as the skin the skin (skin's place or not), one as the
+hair the head, one never released the head. Breaks (each applied once, seen red, reverted, 2026-11-27): `released`
+left out of the head's mask (all four the head); the skin's place kept (the released skin face the jacket); no hair
+read (the old hair the jacket). The skin's matte is read over plain skin (`skin.plain_skin`) and a socket's shade deeper than the
 fitted line is taken off (`skin.hollows`), a stain on open skin kept. Breaks (each applied once, seen red, reverted,
 2026-11-27): `skin.MATTE_DARK` 0 (the skin between a brow and the lashes pressed as a highlight); `skin.HOLLOW`'s
 `shut` (5, 6) (the socket left 18% dark); `shut` (-2, -1) with `MATTE_DARK` 0 (the stain lifted).
@@ -1760,10 +1768,60 @@ def neck_fans_found():
     cut_fan = np.stack([cut_ring, np.roll(cut_ring, -1, 0), np.tile((0.0, 0.2, 0.0), (48, 1))], 1)
     low_ring = ring * 0.6 + (0.3, -0.2, 0.0)
     low_fan = np.stack([low_ring, np.roll(low_ring, -1, 0), np.tile((0.3, -0.2, 0.0), (48, 1))], 1)
+    wedge = np.array([[[0.05, 0.3, 0.0], [0.09, 0.33, 0.03], [0.1, 0.36, -0.02]]])  # out under the hair, over the band
     swapped = np.concatenate([tube, low_ring])
-    found = person.neck_fans(swapped, np.eye(4), 0.2, 1.7, np.concatenate([tube_faces, cut_fan, low_fan]))
+    found = person.neck_fans(swapped, np.eye(4), 0.2, 1.7, np.concatenate([tube_faces, cut_fan, low_fan, wedge]))
     return [int(found[len(tube_faces):len(tube_faces) + 48].sum()), int(found[:len(tube_faces)].sum()),
-            int(found[len(tube_faces) + 48:].sum())]
+            int(found[len(tube_faces) + 48:-1].sum()), int(found[-1])]
+
+
+def neck_roles_read():
+    """A swapped model's head (a neck tube from the cut up) and body (a neck tube under it and a collar ring 9 cm out
+    over the cut), the head model's hair and skin middles beside the head: [the collar's face released, the head's
+    neck not, the body 40 cm under the cut not; a head face on the hair read as the hair, one on the skin not]."""
+    angles = np.linspace(0.0, 2.0 * np.pi, 64, endpoint=False)
+    ring = np.stack([np.cos(angles), np.zeros(64), np.sin(angles)], -1)
+    head = np.concatenate([ring * 0.05 + (0.0, height, 0.0) for height in np.linspace(0.2, 0.3, 21)])
+    body = np.concatenate([ring * radius + (0.0, height, 0.0) for radius, heights in
+                           ((0.05, np.linspace(-0.3, 0.2, 101)), (0.09, np.linspace(0.2, 0.24, 9)))
+                           for height in heights])
+    middles = np.array([[0.09, 0.22, 0.0], [0.05, 0.25, 0.0], [0.05, -0.2, 0.0], [0.0, 0.28, 0.05],
+                        [0.0, 0.28, -0.05]])
+    hair, skin = np.array([[0.0, 0.281, 0.051]]), np.array([[0.0, 0.281, -0.051]])
+    released, on_hair = person.neck_roles(head, body, np.eye(4), 0.2, 1.7, middles, hair, skin)
+    return released[:3].tolist() + on_hair[3:].tolist()
+
+
+def cloth_neck_released():
+    """Four faces of still_rig's head part at the chest's height (strongest on the Chest) and a few hair faces over
+    them: released and painted as the jacket, as the hair and as the skin, and one painted as the jacket never
+    released: [their kinds]."""
+    names = ["Hips", "Spine1", "Spine2", "Chest", "Neck2", "LeftArm", "LeftForeArm", "LeftHand", "LeftShin",
+             "LeftFoot", "RightFoot", "RightArm", "RightForeArm", "RightHand", "RightShin"]
+    bind = np.repeat(np.eye(4)[None], len(names), axis=0)
+    bind[:, 1, 3] = [1.0, 1.1, 1.15, 1.3, 1.5, 1.4, 1.05, 0.8, 0.45, 0.06, 0.06, 1.4, 1.05, 0.8, 0.45]
+    bind[names.index("LeftArm"):names.index("LeftHand") + 1, 0, 3] = 0.3
+    colour = {"jacket": [45.0, 10.0, 25.0], "jeans": [30.0, 0.0, -25.0], "skin": [70.0, 15.0, 18.0],
+              "hair": [12.0, 3.0, 3.0]}
+    places = ([("LeftArm", [0.3, 1.25 + 0.01 * k, 0.0], "jacket", "") for k in range(4)]
+              + [("LeftShin", [0.1, 0.3 + 0.01 * k, 0.0], "jeans", "") for k in range(4)]
+              + [("LeftHand", [0.3, 0.62 + 0.005 * k, 0.0], "skin", "hand") for k in range(3)]
+              + [("Neck2", [0.0, 1.6 + 0.01 * k, -0.05], "hair", "hair") for k in range(3)]
+              + [("Chest", [0.05 * k, 1.45, -0.05], kind, "released") for k, kind in
+                 enumerate(("jacket", "hair", "skin"))]
+              + [("Chest", [0.15, 1.45, -0.05], "jacket", "head")])
+    corner = np.array([[0.0, 0.0, 0.0], [0.004, 0.0, 0.0], [0.0, 0.004, 0.0]])
+    points = np.concatenate([np.asarray(middle) + corner for _, middle, _, _ in places])
+    faces = np.arange(len(points)).reshape(-1, 3)
+    weights = np.zeros((len(points), len(names)))
+    for number, (joint, _, _, _) in enumerate(places):
+        weights[3 * number:3 * number + 3, names.index(joint)] = 1.0
+    role = np.array([role for _, _, _, role in places])
+    person = {"names": names, "bind": bind, "points": points, "faces": faces, "weights": weights,
+              "lab": np.array([colour[kind] for _, _, kind, _ in places]),
+              "head": np.isin(role, ("hair", "released", "head")), "hand": role == "hand"}
+    kinds = cloth.kinds_of(person, role == "released", role == "hair")
+    return [cloth.KINDS[kind] for kind in kinds[-4:]]
 
 
 def hood_kept():
@@ -1884,8 +1942,12 @@ def tether_inside_read():
      skin_socket_shade_off, [True, True]),
     ("under the hood's depth the head keeps its neck alone, its own collar front and side given to the body",
      hood_kept, [True, True, False, False, True, False]),
-    ("still_rig's fan across the cut's loop is found, the neck and an armpit's fan are kept", neck_fans_found,
-     [48, 0, 0]),
+    ("still_rig's fan across the cut's loop and one out over it are found, the neck and an armpit's fan are kept",
+     neck_fans_found, [48, 0, 0, 1]),
+    ("the body's own collar over the cut is released, the head's neck and the body under not; the hair read on it",
+     neck_roles_read, [True, False, False, True, False]),
+    ("the body's own faces round the neck take their kind by paint, its old hair and the rest stay the head",
+     cloth_neck_released, ["jacket", "head", "skin", "head"]),
     ("a hollow the model shuts reads shut, the photo's darker, warmer light in it divided out", skin_hollow_light_off,
      [True, True]),
     ("the photo's fringe and lid openings are kept off, its brows and moustache kept; the model's painted fringe "

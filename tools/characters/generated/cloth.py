@@ -10,7 +10,10 @@ and the jacket shredded; free cloth was stopped for the tether.
    skeleton at the bind, its clips, its shell welded with each face's paint (its base colour map at the face's texture
    places, CIELAB) and each point's skin weights.
 2. `kinds_of`: each face's kind (KINDS). still_rig's head part (face, hair, neck) stays the head and its hand part
-   (the relaxed hands laid in place of TRELLIS.2's, 2026-11-27) the skin; every other face is
+   (the relaxed hands laid in place of TRELLIS.2's, 2026-11-27) the skin, but for the faces round a swapped head's neck
+   that are the body's own (`released`: its collar's top and its neck; still_rig's head part is a sphere round the
+   head) unless painted as the head's hair (`hair`, where it is read; the drawing takes that old hair off); every
+   other face is
    the kind whose colour, read off the person where only that kind can be (`seeds`: the upper sleeves the jacket, the
    shins the jeans, the soles' height the shoes, the chest's middle in front the T-shirt, the fingers the skin; a
    scarf and the shirt under it where the open front shows two colours, one standing forward: `scarf_split`), lies
@@ -297,9 +300,12 @@ def seeds(person, middles, strongest):
     return found
 
 
-def kinds_of(person):
+def kinds_of(person, released=None, hair=None):
     """Each face's kind number (KINDS): the head part's faces the head, the hand part's (still_rig's laid relaxed
-    hands) the skin, every other face the kind its paint and place say, settled by its neighbours."""
+    hands) the skin, every other face the kind its paint and place say, settled by its neighbours. The `released`
+    faces of the head part (per face) take the kind their paint says too, the skin's anywhere, unless it is nearer
+    the `hair` faces' read than every kind's: the kinds are read as without them (their old hair, read as a garment,
+    made a white T-shirt a scarf and the shirt black, whole person round 6, 2026-11-27)."""
     faces = person["faces"]
     middles = person["points"][faces].mean(1)
     strongest = strongest_of(person)
@@ -316,10 +322,18 @@ def kinds_of(person):
     distance = np.full((len(faces), len(KINDS)), np.inf)
     for kind, centre in read.items():
         distance[:, KINDS.index(kind)] = np.where(places[kind], colour_distance(colour, centre), np.inf)
+    if released is not None and "skin" in read:
+        distance[:, KINDS.index("skin")] = np.where(released, colour_distance(colour, read["skin"]),
+                                                    distance[:, KINDS.index("skin")])
     found = distance.argmin(1)
-    found[person["head"]] = KINDS.index("head")
+    head = person["head"].copy()
+    if released is not None:
+        hairy = (colour_distance(colour, centre_spread(colour[hair])) < distance.min(1) if hair is not None
+                 and hair.any() else np.zeros(len(faces), bool))
+        head &= ~(released & ~hairy & np.isfinite(distance.min(1)))
+    found[head] = KINDS.index("head")
     found[person["hand"]] = KINDS.index("skin")
-    free = ~person["head"] & ~person["hand"]
+    free = ~head & ~person["hand"]
     return islands_joined(faces, settled(faces, found, free), free)
 
 
@@ -846,16 +860,24 @@ def frames_of(person, timing, clip):
     return {"film": timing["length"] * WARM_CYCLES, **stride_points(person, timing)}
 
 
-def made(body_glb, rig_path, out, height, reach=None):
+def neck_faces(person, centres):
+    """Which of the person's faces have their middle at one of `centres` (the rig's glTF frame, within 0.1 mm)."""
+    if not len(centres):
+        return np.zeros(len(person["faces"]), bool)
+    return cKDTree(np.asarray(centres, float)).query(person["points"][person["faces"]].mean(1))[0] < 1e-4
+
+
+def made(body_glb, rig_path, out, height, reach=None, neck=None):
     """The whole make: kinds, garments, body, the walking and standing runs, cloth.npz and cloth.json in `out`; each
     garment measured as tethered cloth (`garments`) and as plain skinning of its own weights (`skinned`), and a
     long garment's middle between the legs also as the rig's own skinning (`rig_skinned`). `reach`: a garment's
     longest tether where the person's clothes want other than cloth_tether.TETHER_M (an open overshirt's fronts, a
-    long coat's hem)."""
+    long coat's hem). `neck`: (the middles of the faces round a swapped head's neck that are the body's own, those of
+    the head's faces on its hair) from person.pieces_of, for `kinds_of`."""
     reach = {**cloth_tether.TETHER_M, **(reach or {})}
     out.mkdir(parents=True, exist_ok=True)
     person = person_of(body_glb)
-    kinds = kinds_of(person)
+    kinds = kinds_of(person, *(neck_faces(person, centres) for centres in neck)) if neck else kinds_of(person)
     rig_weights = person["weights"]
     person = {**person, "weights": skirted(person, kinds)}
     person = {**person, "weights": hem_on_shoes(person, kinds)}

@@ -238,7 +238,7 @@ own paint) and brings in only what the generator cannot make, from the repo's ow
 - **Look at the film.** The deepest loose point inside the body, the stretch and the drift say the run held; only the
   side-by-side film says whether the jeans swing and the jacket hangs as cloth or still read as a stretched skin.
 - **The whole person** (`person.py`, drawn by `blender_person.py`; 2026-11-27): one entry point runs head → hair →
-  swap → rig → cloth → pieces → render → sheet for a person by name (her measures in `person.PEOPLE`, her inputs in a
+  swap → rig → pieces → cloth → render → sheet for a person by name (her measures in `person.PEOPLE`, her inputs in a
   sources folder laid out by name: head/glb, head/cutouts, head/closeups, head/marks, body/glb, body/cutouts). The
   swap takes the mended head alone (head.glb's `head`, no eyeballs) onto the colour-toned body; still_rig stands her
   at the dressed body's height and the cloth's `scale` brings her to her own (1.68 m: 0.942). The drawing is
@@ -268,6 +268,18 @@ own paint) and brings in only what the generator cannot make, from the repo's ow
   detailed head: 11.7% of edges folded past 150 degrees against 0.27% unthinned); the rig is thinned to RIG_FACES
   300k at still_rig.THIN_AGGRESSION 2 (1.3%). A trouser hem resting on the shoes turns with the foot
   (`cloth.hem_on_shoes`, HEM_SHOE_M): skinned to the shins alone it slid in and out of the shoes as each foot turned.
+  Round 6 (2026-11-27), ray cast off the front close-up: of 15006 pixels of the rig's head kind in the collar's zone,
+  some 6400 were the body's own sage collar top, 3885 its own old hair and 2693 fans; 19 the swap's head. The shared
+  cause: still_rig's head part is a sphere (25 cm round the head's middle over the neck), so `cloth.kinds_of` made the
+  collar's top and the old hair the swap's hood keeps round the neck the head: skinned beside the cloth's collar,
+  torn where the sphere cut it, and drawn as dark shards. The pieces step now runs before the cloth: `person.neck_roles`
+  gives the rig's faces from RELEASE_BAND under the cut up that are the swapped body's own (nearer its points than
+  the head's), and those the cloth reads by paint as every other face (the skin's anywhere), keeping the head only
+  where the paint is the hair's (read on the swap's head faces on the hair step's hair); `blender_person.old_hair_of`
+  takes those off, and a fan is also any face over FAN_BAND under the cut whose middle lies FAN_MIDDLE_M off the
+  swapped model. The neck's mark just over the cut is the swap's seam (`head_swap.seam_closed`): the throat's ragged
+  two-walled cut edge laid onto the body's, neighbours' shifts 1.8 cm apart within 7 mm, folds 4.7% of the band's
+  edges (none before the seam); averaging or re-laying the shifts left 1.1 to 1.9% or opened the seam: open.
   Run: `python -m tools.characters.generated.person <name> <sources> <out> [--from <step> | --only <step>]` (head
   2 min, hair 5, swap 1.5, rig 3.5, cloth 5 to 10 at nice 19; the render some hours: 13 sheet frames and the 96-frame
   film with 240k strands, 5.7 GB).
