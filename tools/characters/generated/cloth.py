@@ -321,7 +321,9 @@ def kinds_of(person, released=None, hair=None):
     the `hair` faces' read than every kind's: the kinds are read as without them (their old hair, read as a garment,
     made a white T-shirt a scarf and the shirt black, whole person round 6, 2026-11-27). A released face outside the
     head part keeps its place's kinds: the skin's anywhere made an older woman's cream scarf over her shoulders skin
-    (3173 faces, drawn in the skin's finish as brown blotches, whole person round 7, 2026-11-27)."""
+    (3173 faces, drawn in the skin's finish as brown blotches, whole person round 7, 2026-11-27). A face no kind's
+    place allows takes the kind of the nearest paint of all: it fell to KINDS' first, the head, and the hoodie man's
+    trousers fused to his forearms (5373 faces) were drawn skinned to them as black wedges at his hands (2026-11-28)."""
     faces = person["faces"]
     middles = person["points"][faces].mean(1)
     strongest = strongest_of(person)
@@ -341,6 +343,9 @@ def kinds_of(person, released=None, hair=None):
     if released is not None and "skin" in read:
         distance[:, KINDS.index("skin")] = np.where(released & person["head"], colour_distance(colour, read["skin"]),
                                                     distance[:, KINDS.index("skin")])
+    nowhere = ~np.isfinite(distance).any(1)  # no kind's place: the nearest paint of all (never "head", argmin's 0)
+    for kind, centre in read.items():
+        distance[nowhere, KINDS.index(kind)] = colour_distance(colour[nowhere], centre)
     found = distance.argmin(1)
     head = person["head"].copy()
     if released is not None:
@@ -564,18 +569,19 @@ def hem_on_shoes(person, kinds):
 
 
 def jeans_off_arms(person, kinds):
-    """The person's weights with the jeans' own points (on no face of another kind) carrying none of the arms'
+    """The person's weights with the jeans' points (but those of still_rig's laid hands) carrying none of the arms'
     (ARMS' upper arm to hand): each such point's other weights scaled up to one, or, with nothing left, the nearest
     such point's that has some. still_rig skins TRELLIS.2's hands fused to the thighs onto the hands, and with the
     arms kept out (still_rig.arms_kept_out) 1736 of the hoodie man's jeans points rode them and ballooned out at the
-    hips beside the hands (2026-11-27)."""
+    hips beside the hands (2026-11-27); the points the jeans share with other skin faces kept riding the hands and
+    drew the faces between as black straps from the hips to the hands (2026-11-28)."""
     weights = person["weights"].copy()
     jeans = kinds == KINDS.index("jeans")
     if not jeans.any():
         return weights
     own = np.zeros(len(person["points"]), bool)
     own[person["faces"][jeans].ravel()] = True
-    own[person["faces"][~jeans].ravel()] = False
+    own[person["faces"][person["hand"]].ravel()] = False
     arms = np.isin(person["names"], ARMS[:6])
     rows = weights[own]
     rows[:, arms] = 0.0

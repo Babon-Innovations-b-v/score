@@ -329,6 +329,9 @@ under his beard's underside). There the two cut edges are one closed loop each: 
   lets the T-shirt kind show round the neck off the arms (ROUND_NECK_M under Neck2), so a hoodie's grey hood over an
   overshirt is skinned with the hoodie, not hung torn on the jacket's sim mesh, and the jacket's yoke rides where it
   meets it. **The jeans ride no arm** (`cloth.jeans_off_arms`): TRELLIS.2 fuses the hands to the thighs and
-  still_rig skins those points onto the hands, so with the arms kept out the jeans ballooned out at the hips.
+  still_rig skins those points onto the hands, so with the arms kept out the jeans ballooned out at the hips (only the
+  laid hands' own points keep the hands'). **A face no kind's place allows takes the nearest paint's kind**
+  (`kinds_of`): argmin over all-infinite distances gave KINDS' first, the head, and those faces were drawn skinned
+  to the forearms as black wedges.
 - **head.glb's paint is the skin step's sRGB paint as written** (`head.paint_picture`): encoded again, it came out a
   washed copy (L 0.30 to 0.55), and the hair's labels and the swap's head wore it until 2026-11-27.

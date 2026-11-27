@@ -205,6 +205,8 @@ The T-shirt, the garment under the jacket, may show round the neck off the arms 
 hoodie's hood). Break: `round_neck` left out (the hoodie man's grey hood read as the jacket, torn on its sim mesh).
 The jeans' own points ride no arm (`cloth.jeans_off_arms`). Break: the call left out of `made` and the row's
 zeroing skipped (the hoodie man's jeans fused to his hands ballooned out at the hips as his arms were kept out).
+A face no kind's place allows takes the nearest paint's kind (`cloth.kinds_of`). Break: the `nowhere` fill left
+out (argmin over no allowed kind gave the head: the hoodie man's trousers fused to his forearms drawn as wedges).
 A jeans hem resting on a shoe turns with the foot (`cloth.hem_on_shoes`). Break (applied once, seen red, reverted,
 2026-11-27): HEM_SHOE_M 0 (the hem left on the shin, sliding in and out of the shoe).
 still_rig's fan across the cut's loop (`person.neck_fans`) is found, the neck tube and a fan far under the cut kept.
@@ -1421,13 +1423,14 @@ def cloth_shirt_round_neck():
 
 
 def cloth_jeans_off_arms():
-    """A jeans face whose points ride the hand wholly, half and half with the thigh, and the thigh, beside a skin face
-    sharing the last two with the hand (`cloth.jeans_off_arms`): [the hand's share at each of the four points]."""
+    """A jeans face whose points ride the hand wholly, half and half with the thigh, and the thigh, beside a laid
+    hand's face (still_rig's hand part) sharing the last two (`cloth.jeans_off_arms`): [the hand's share at each of
+    the four points]."""
     names = ["Hips", "LeftHand", "LeftLeg"]
     points = np.array([[0.0, 0.9, 0.0], [0.02, 0.9, 0.0], [0.04, 0.9, 0.0], [0.03, 0.88, 0.0], [0.0, 0.85, 0.0]])
     faces = np.array([[0, 1, 4], [1, 2, 3]])
     weights = np.array([[0.0, 1.0, 0.0], [0.0, 0.5, 0.5], [0.0, 0.0, 1.0], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0]])
-    person = {"names": names, "points": points, "faces": faces, "weights": weights}
+    person = {"names": names, "points": points, "faces": faces, "weights": weights, "hand": np.array([False, True])}
     kinds = np.array([cloth.KINDS.index("jeans"), cloth.KINDS.index("skin")])
     found = cloth.jeans_off_arms(person, kinds)
     return [round(float(found[number, 1]), 6) for number in (0, 1, 3, 4)]
@@ -1460,6 +1463,33 @@ def cloth_laid_hands_skin():
     kinds = cloth.kinds_of(person)
     return [bool((kinds[-3:] == cloth.KINDS.index("skin")).all()),
             bool((kinds[:4] == cloth.KINDS.index("jacket")).all())]
+
+
+def cloth_nowhere_kind():
+    """Faces painted as the jeans hanging from a forearm under the jacket's hem (TRELLIS.2's trousers fused to the
+    arm: no kind's place allows them) beside a sleeve, a shin and a hand: [their kind is the jeans', never the
+    head's] (`kinds_of`: argmin over no allowed kind gave KINDS' first, the head)."""
+    names = ["Hips", "Spine1", "Spine2", "Chest", "Neck2", "LeftArm", "LeftForeArm", "LeftHand", "LeftShin",
+             "LeftFoot", "RightFoot", "RightArm", "RightForeArm", "RightHand", "RightShin"]
+    bind = np.repeat(np.eye(4)[None], len(names), axis=0)
+    bind[:, 1, 3] = [1.0, 1.1, 1.15, 1.3, 1.5, 1.4, 1.05, 0.8, 0.45, 0.06, 0.06, 1.4, 1.05, 0.8, 0.45]
+    bind[names.index("LeftArm"):names.index("LeftHand") + 1, 0, 3] = 0.3
+    bind[names.index("RightArm"):names.index("RightHand") + 1, 0, 3] = -0.3
+    places = ([("LeftArm", [0.3, 1.25 + 0.01 * k, 0.0], "jacket") for k in range(4)]
+              + [("LeftShin", [0.1, 0.3 + 0.01 * k, 0.0], "jeans") for k in range(4)]
+              + [("LeftHand", [0.3, 0.62 + 0.005 * k, 0.0], "skin") for k in range(3)]
+              + [("LeftForeArm", [0.2, 0.70 + 0.01 * k, 0.0], "jeans") for k in range(3)])
+    colour = {"jacket": [45.0, 10.0, 25.0], "jeans": [30.0, 0.0, -25.0], "skin": [70.0, 15.0, 18.0]}
+    corner = np.array([[0.0, 0.0, 0.0], [0.004, 0.0, 0.0], [0.0, 0.004, 0.0]])
+    points = np.concatenate([np.asarray(middle) + corner for _, middle, _ in places])
+    weights = np.zeros((len(points), len(names)))
+    for number, (joint, _, _) in enumerate(places):
+        weights[3 * number:3 * number + 3, names.index(joint)] = 1.0
+    person = {"names": names, "bind": bind, "points": points, "faces": np.arange(len(points)).reshape(-1, 3),
+              "weights": weights, "lab": np.array([colour[kind] for _, _, kind in places]),
+              "head": np.zeros(len(places), bool), "hand": np.zeros(len(places), bool)}
+    kinds = cloth.kinds_of(person)
+    return [cloth.KINDS[kind] for kind in kinds[-3:]]
 
 
 def cloth_hem_found():
@@ -2152,8 +2182,10 @@ def tether_inside_read():
      hood_kept, [True, True, False, False, True, False, False]),
     ("the garment under the jacket may show round the neck (a hood) off the arms, not behind the chest",
      cloth_shirt_round_neck, [True, False, False, True]),
-    ("the jeans' own points ride no arm, a point the hand's skin shares keeps its hand weights",
+    ("the jeans' points ride no arm, a point a laid hand shares keeps its hand weights",
      cloth_jeans_off_arms, [0.0, 0.5, 1.0, 0.0]),
+    ("a face no kind's place allows takes the nearest paint's kind, never the head", cloth_nowhere_kind,
+     ["jeans", "jeans", "jeans"]),
     ("under a hood open in front (a hoodie's) the head keeps its whole front, chin and beard, down to the cut",
      lambda: hood_kept(open_front=True), [True, True, True, False, True, False, True]),
     ("still_rig's fan across the cut's loop and one out over it are found, the neck and an armpit's fan are kept",
