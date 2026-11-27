@@ -49,9 +49,12 @@ CLIPS = pathlib.Path(os.environ.get("SCORE_PEOPLE_CLIPS",
 # Each person's measures: her height (m), the head model's height as drawn (m), the swap's cut under the crown (body
 # heights), the depth under the crown from which down the body keeps its own collar round the neck (`head_swap`'s
 # hood: just under the chin; the head model's own collar, kept to the cut, stood in shards against the jacket's) and
-# the dressed body whose skeleton and clips she plays.
+# the dressed body whose skeleton and clips she plays; `tether` a garment's longest tether where her clothes want other
+# than cloth_tether.TETHER_M (`cloth.made`'s reach: a long coat's hem).
 PEOPLE = {"a_stairwell_woman": {"height_m": 1.68, "head_m": 0.42, "cut_depth": 0.17, "collar_depth": 0.15,
-                                "dressed": "character/dress_woman_stair_made/1/body.glb"}}
+                                "dressed": "character/dress_woman_stair_made/1/body.glb"},
+          "c_older_woman": {"height_m": 1.64, "head_m": 0.42, "cut_depth": 0.18, "collar_depth": 0.16,
+                            "dressed": "character/dress_woman_stair_made/1/body.glb", "tether": {"jacket": 0.10}}}
 STEPS = ("head", "hair", "swap", "rig", "cloth", "pieces", "render", "sheet")
 FILM_SECONDS = 4.0  # the walking film (cloth.SECONDS is the cloth sheet's 3 s)
 RIG_FACES = 100000  # still_rig's thinning (the cloth rounds' rigs)
@@ -134,7 +137,7 @@ def rig_step(out, person, name):
 
 def cloth_step(out, person):
     cloth.SECONDS = FILM_SECONDS
-    record = cloth.made(out / "rig/body.glb", CLIPS, out / "cloth", person["height_m"])
+    record = cloth.made(out / "rig/body.glb", CLIPS, out / "cloth", person["height_m"], person.get("tether"))
     (out / "cloth" / "cloth.json").write_text(json.dumps(record, indent=1))
 
 
