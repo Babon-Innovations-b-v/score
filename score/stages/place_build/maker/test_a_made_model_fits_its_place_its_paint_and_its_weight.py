@@ -26,9 +26,10 @@ Breaks that turn this red (each applied once and seen red, then reverted):
   hole in the far corner (#192, tc4r's desk)
 - front.drawn laying the model unturned (`matrix` not applied) -> every open turn is drawn alike and the first is
   picked; front.picked numbering its drawings from 0 -> the turn after the picked one is laid
-- generate.closed_skipped: its no-boundary return dropped, or the boundary not found before it is counted -> the
-  closed mesh goes on to the meshparts wheel's fill_holes (2026-11-27: 'invalid configuration argument', 9 cluster
-  makes), or the open one is never filled
+- generate.closed_skipped: its no-boundary or no-loop return dropped, or the boundary or its loops not found before
+  they are counted -> the closed mesh, or one whose boundary edges close no loop, goes on to the meshparts wheel's
+  fill_holes (2026-11-27: 'invalid configuration argument', 9 cluster makes, then 10 more), or the open one is never
+  filled
 - generate.band_for: BAND for every model (#191's rule alone) -> the drill and the cart with no glass are remeshed at
   band 3, their gear teeth and pegboard holes closed (#159 r15); band 1 for every model -> the fridge's glass door
   keeps its pinholes
@@ -282,20 +283,26 @@ def test_a_made_model_fits_its_place_its_paint_and_its_weight(tmp_path):
         generate.BAND, generate.PROJECT)]  # the drill, the cart and the locker at band 1; the fridge's glass at BAND
     filled = []
 
-    class Boundary:  # cumesh's compiled mesh as fill_holes asks it: its boundary edges counted once found
-        def __init__(self, edges):
-            self.edges, self.found = edges, False
+    class Boundary:  # cumesh's compiled mesh as fill_holes asks it: its boundary edges and loops counted once found
+        def __init__(self, edges, loops):
+            self.edges, self.loops, self.found, self.looped = edges, loops, False, False
 
         def get_boundary_info(self):
             self.found = True
 
         def num_boundaries(self):
             return self.edges if self.found else 0
-    meshes = [type("Mesh", (), {"cu_mesh": Boundary(edges)})() for edges in (0, 12)]
+
+        def get_boundary_loops(self):
+            self.looped = True
+
+        def num_boundary_loops(self):
+            return self.loops if self.looped else 0
+    meshes = [type("Mesh", (), {"cu_mesh": Boundary(edges, loops)})() for edges, loops in ((0, 0), (5, 0), (12, 2))]
     fill = generate.closed_skipped(lambda mesh, perimeter: filled.append((mesh.cu_mesh.edges, perimeter)))
     for mesh in meshes:
         fill(mesh)
-    assert filled == [(12, 3e-2)]  # the closed mesh never reaches the old wheel's empty-grid kernels; the open one does
+    assert filled == [(12, 3e-2)]  # the closed mesh and the loopless one never reach the old wheel's empty-grid kernels
     import subprocess
     library, origin = tmp_path / "library", tmp_path / "origin.git"
     for command in (["init", "-q", "--bare", "-b", "main", str(origin)], ["init", "-q", "-b", "main", str(library)],

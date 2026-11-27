@@ -93,14 +93,18 @@ def layer_norm_in_place(input, normalized_shape, weight=None, bias=None, eps=1e-
 
 
 def closed_skipped(fill_holes):
-    """CuMesh's `fill_holes` left undone on a mesh with no boundary edge, as TRELLIS.2's own Mesh.fill_holes does: the
-    meshparts image's cumesh wheel (its author's, 2025-12-10) lacks CuMesh's 2025-12-18 early return for no boundary
-    (5bc2fd1), so a closed mesh launched its kernels on an empty grid (2026-11-27, 2099 prologue on the cluster: 9 of
-    191 makes stopped at 'clean_up.cu line 385, invalid configuration argument', each sinking its run of 5). A closed
-    mesh has no hole, so the model is the same."""
+    """CuMesh's `fill_holes` left undone on a mesh with no boundary loop, as CuMesh's own 2025-12-18 early return
+    (5bc2fd1, `L == 0 || E == 0`) does: the meshparts image's cumesh wheel (its author's, 2025-12-10) lacks it, so a
+    mesh with no loop launched its kernels on an empty grid (2026-11-27, 2099 prologue on the cluster: 9 of 191 makes
+    stopped at 'clean_up.cu line 385, invalid configuration argument', each sinking its run of 5). Counting boundary
+    edges was not enough: 10 more makes the same day had boundary edges that close no loop and stopped at the same
+    line. With no loop there is no hole to fill, so the model is the same."""
     def filled(mesh, max_hole_perimeter=3e-2):
         mesh.cu_mesh.get_boundary_info()
         if mesh.cu_mesh.num_boundaries() == 0:
+            return None
+        mesh.cu_mesh.get_boundary_loops()
+        if mesh.cu_mesh.num_boundary_loops() == 0:
             return None
         return fill_holes(mesh, max_hole_perimeter)
     return filled
