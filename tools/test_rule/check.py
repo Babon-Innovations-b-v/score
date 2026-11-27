@@ -122,7 +122,7 @@ FUNCTION_DEBT = {
     "score/stages/sim_body/inside/tuning/test_one_optimisation_moves_every_unknown_together_within_its_bounds.py": 17,
     "tools/characters/maker/test_made_as_asked_and_bound_to_its_limbs.py": 59,
     "tools/characters/people/test_body_pieces_hold_together.py": 16,
-    "tools/props/closeup/test_only_a_clean_closeup_goes_on.py": 25,
+    "tools/props/closeup/test_only_a_clean_closeup_goes_on.py": 24,
     "tools/props/library/test_pieces_keep_true_shape_and_library_paint.py": 40,
 }
 

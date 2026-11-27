@@ -14,11 +14,10 @@ check's view (owner, 2026-10-24), a person is drawn in the rig's A-pose (CONTEXT
 
 Breaks that turn each test red (each applied once and seen red, 2026-10-26):
 - test_one_object_on_a_plain_background_passes_the_measurements: check.measure's `"fill": float(max(` made `min(`.
-- test_a_small_object_is_faulted: frame_faults' `if measures["fill"] < FILL_MIN:` made `if False:`.
+- test_a_picture_off_one_measure_is_faulted_for_it: frame_faults' `if measures["fill"] < FILL_MIN:` made `if False:`
+  (small); frame_faults' `if measures["border_clean"] < BORDER_CLEAN:` made `if False:` (cut by the edge);
+  measured_faults' `> PROPORTION_LIMIT` made `> 5` (wrong proportion).
 - test_two_objects_are_faulted: measure's `"one_piece": float(max(sizes) / ...)` made `float(1.0)`.
-- test_an_object_cut_by_the_edge_is_faulted: frame_faults' `if measures["border_clean"] < BORDER_CLEAN:` made
-  `if False:`.
-- test_a_wrong_proportion_is_faulted: measured_faults' `> PROPORTION_LIMIT` made `> 5`.
 - test_an_object_is_held_to_its_one_stated_look_down: proportion_error's last line made a best fit over 6 to 60
   degrees (`min(abs(math.log(seen / expected_proportion(size, down))) for down in range(6, 61))`, the range 9ef3c78c
   tried and 2026-10-25 took out).
@@ -53,6 +52,10 @@ Breaks that turn each test red (each applied once and seen red, 2026-10-26):
   .exists() ...)` made `if True` (the ticket asked before the cache, as before batch 2).
 - test_an_unfinished_answer_is_a_gap_though_it_holds_a_picture: pro.saved's `if not found or cut` made `if not found`.
 - test_a_steps_cost_is_kept_for_a_run_that_is_run_again: kept_entry's `path.write_text(...)` dropped.
+- test_a_cut_out_keeps_the_whole_object_and_opens_only_its_gaps (2026-11-27): cutout.cut's
+  `solid = ndimage.binary_fill_holes(body)` made `solid = body` (pale panel); its `if not glass:` made `if True:`
+  (clear glass pane); both its `without_specks(` calls dropped (speck); recoloured's `if green:` made `if False:`
+  (green on the tinted pane).
 """
 import base64
 import io
@@ -67,6 +70,7 @@ from PIL import Image, ImageDraw
 HERE = pathlib.Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
 import check  # noqa: E402
+import cutout  # noqa: E402
 import stage  # noqa: E402
 
 FIXTURES = HERE / "fixtures"
@@ -112,9 +116,14 @@ def test_one_object_on_a_plain_background_passes_the_measurements(tmp_path):
     assert check.measured_faults(measures) == []
 
 
-def test_a_small_object_is_faulted(tmp_path):
-    box = centred(check.expected_proportion(SIZE), fill=0.3)
-    assert "object small in the frame" in faulted(tmp_path, box, SIZE)
+@pytest.mark.parametrize("box, size, fault", [
+    (centred(check.expected_proportion(SIZE), fill=0.3), SIZE, "object small in the frame"),
+    ((0, 100, 300, 512), SIZE, "background not plain to the edge"),
+    # A 400 x 100 px bar (0.25 tall for its width) for a box 1.2 m tall on a 0.4 m square: about 2.3 expected.
+    ((56, 200, 456, 300), (0.4, 0.4, 1.2), FAULT),
+], ids=["small", "cut by the edge", "wrong proportion"])
+def test_a_picture_off_one_measure_is_faulted_for_it(tmp_path, box, size, fault):
+    assert fault in faulted(tmp_path, box, size)
 
 
 def test_two_objects_are_faulted(tmp_path):
@@ -122,15 +131,6 @@ def test_two_objects_are_faulted(tmp_path):
     two = check.measured_faults(check.measure(drawn(tmp_path, [(60, 150, 220, 400), (290, 150, 450, 400)]),
                                               (1.0, 0.5, 1.0)))
     assert "more than one object" not in one and "more than one object" in two
-
-
-def test_an_object_cut_by_the_edge_is_faulted(tmp_path):
-    assert "background not plain to the edge" in faulted(tmp_path, (0, 100, 300, 512), SIZE)
-
-
-def test_a_wrong_proportion_is_faulted(tmp_path):
-    """A 400 x 100 px bar (0.25 tall for its width) for a box 1.2 m tall on a 0.4 m square: about 2.3 expected."""
-    assert FAULT in faulted(tmp_path, (56, 200, 456, 300), (0.4, 0.4, 1.2))
 
 
 def test_an_object_is_held_to_its_one_stated_look_down(tmp_path):
@@ -469,3 +469,42 @@ def test_a_steps_cost_is_kept_for_a_run_that_is_run_again(tmp_path):
     assert stage.kept_entry({"euros": 1.4}, path)["euros"] == 1.4
     assert stage.kept_entry(None, path)["euros"] == 1.4
     assert stage.kept_entry({"euros": 0.6}, path)["euros"] == 2.0
+
+
+def drawn_frame(ground, window, panel):
+    """A 256 px close-up: a dark frame on a vignetted `ground`, its left opening showing `window`, its right one a
+    textured `panel`, and a dark speck in a corner; with the matte's soft alpha as a matte gets it wrong (the pale
+    panel torn to 0.2, the speck held as object)."""
+    rows, cols = np.mgrid[0:256, 0:256]
+    glow = 12 * (1 - np.hypot(rows - 128, cols - 128) / 181)[..., None]
+    pixels = np.clip(np.array(ground, dtype=np.float32) + (glow if ground[1] < 250 else 0), 0, 255)
+    pixels = np.broadcast_to(pixels, (256, 256, 3)).copy()
+    soft = np.zeros((256, 256), np.float32)
+    pixels[60:196, 60:196], soft[60:196, 60:196] = (55, 60, 65), 1.0
+    pixels[72:184, 72:122] = window
+    soft[72:184, 72:122] = 0.0
+    noise = np.random.default_rng(1).normal(0, 7, (112, 50, 1))
+    pixels[72:184, 134:184], soft[72:184, 134:184] = np.clip(np.array(panel) + noise, 0, 255), 0.2
+    pixels[16:22, 16:22], soft[16:22, 16:22] = (40, 40, 40), 1.0
+    return Image.fromarray(pixels.astype(np.uint8)), soft
+
+
+@pytest.mark.parametrize("ground, window, glass, window_kept", [
+    ((215, 215, 215), (215, 215, 215), False, False),  # the drawn ground seen through the opening: a gap
+    ((0, 255, 0), (0, 255, 0), False, False),          # the green ground seen through: a gap
+    ((0, 255, 0), (0, 255, 0), True, True),            # clear glass shows only the ground: a glazed row keeps the pane
+    ((0, 255, 0), (40, 210, 60), False, True),         # green through tinted glass: kept, no green left on it
+], ids=["grey gap", "green gap", "clear glass pane", "tinted glass"])
+def test_a_cut_out_keeps_the_whole_object_and_opens_only_its_gaps(ground, window, glass, window_kept):
+    """The 2099 prologue's close-up gaps (2026-11-27): a matte tears pale parts, keeps green behind glass and leaves
+    specks. The pale panel the matte tore stays solid, the window is a gap or a pane as the row is glazed, the speck
+    goes, and nothing of the green ground stays green."""
+    picture, soft = drawn_frame(ground, window, (246, 246, 244))
+    cut = np.asarray(cutout.cut(picture, soft, "green" if ground == (0, 255, 0) else "white", glass))
+    alpha, rgb = cut[..., 3], cut[..., :3].astype(int)
+    assert (alpha[80:176, 140:178] > 250).mean() > 0.99, "the torn pale panel is solid"
+    assert (alpha[66:190, 62:68] > 250).all(), "the frame is solid"
+    assert bool((alpha[80:176, 80:114] > 250).mean() > 0.99) is window_kept, "the window is a gap, or a glazed pane"
+    assert (alpha[10:28, 10:28] == 0).all(), "the speck is dropped"
+    kept = alpha > 128
+    assert not (rgb[..., 1] - np.maximum(rgb[..., 0], rgb[..., 2]) > 40)[kept].any(), "no green left on the object"

@@ -66,6 +66,14 @@ for the creator.
   adapter"): a row whose `layer` is `people` is drawn with `stage.PERSON` (one person, front on, in the rig's A-pose,
   arms and legs clear) and measured by `check.person_faults` (framed, arms apart: `arm_gap_share`, which the maker's
   `prop_person.py` reads from here), never by a box's proportions.
+- **The cut-out is made here, from a matte's soft alpha, with no model** (`cutout.py`; the 2099 prologue's 36
+  close-up gaps, 2026-11-27): a matte alone (BiRefNet-general) tore holes in pale parts on the pale ground, kept the
+  green ground behind glass and left specks and green fringes. `cutout.cut` fills every hole inside the object's
+  outline unless it is the drawn ground seen through a gap (judged against the ground's own colour fitted at that
+  spot, and its smoothness), keeps a glazed row's holes as panes (`glazed`), neutralises green spill and drops
+  specks. A gap the matte holds as object (the ground between a banner and its pole) or a cast shadow it holds as
+  part of the object cannot be told from the object's own pixels: such a row is drawn again on a ground its own
+  colours stand clear of (green for anything not green), with no shadow.
 - **Print does not matter** on a close-up: labels and print go on the model as decals later.
-- Checks: `test_only_a_clean_closeup_goes_on.py` (pytest, `make tests`): check, stage and pro through their own
-  functions, pictures drawn in the test, Google's batch faked at its send and status.
+- Checks: `test_only_a_clean_closeup_goes_on.py` (pytest, `make tests`): check, stage, pro and cutout through their
+  own functions, pictures drawn in the test, Google's batch faked at its send and status.
