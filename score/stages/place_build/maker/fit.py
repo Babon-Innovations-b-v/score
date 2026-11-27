@@ -11,7 +11,8 @@ desk 9% too wide), each axis at most STRETCH off the uniform scale that sets its
 axis is never thinned or thickened past it.
 
     fitted_matrix(points, like_points) -> (matrix 4x4, {"yaw", "scale", "distance_m"})
-    headed(points, cut, turn, down, pick=None) -> (matrix 4x4, {"yaw", "overlap"[, "open", "front"]})
+    row_yaws(points, size)             -> the quarter turns that lay the model's box as the row's size reads it
+    headed(points, cut, turn, down, pick=None, yaws=YAWS) -> (matrix 4x4, {"yaw", "overlap"[, "open", "front"]})
     height_matrix(points, height)      -> matrix 4x4
     size_matrix(points, size)          -> (matrix 4x4, {"stretch", "off"})
 """
@@ -29,6 +30,10 @@ TIE = 0.01  # an overlap within this of the best keeps the earlier turn (TRELLIS
 FRONT_BAND = 0.05  # turns whose outline overlap is within this of the best are left to the close-up's content
 # (front.picked, #192): tc4r's desk's 90 and 270 degree outlines 0.551 and 0.538 (the right one the lower), its
 # fridge's four within 0.007; a chair's half turn shows another outline and stays out
+ROW_BAND = STRETCH  # a quarter turn whose laid box stays further off the row's size than the best turn's by more than
+# this is never laid: a quarter turn swaps the model's width and depth, which the size fit's stretch cannot bring back
+# (2026-11-28: 11 street, capsule and square models refit at their rows, the window 1.6 wide 0.15 deep among them,
+# turned a quarter by their look and laid a fifth as wide)
 
 
 def yawed(degrees):
@@ -102,6 +107,13 @@ def size_matrix(points, size):
     return standing(applied(scaled, points), np.zeros(3), np.zeros(3)) @ scaled, how
 
 
+def row_yaws(points, size):
+    """The quarter turns of `points` (Y up) whose laid box `size_matrix` brings within ROW_BAND of the best turn's
+    `off`: the row's wide along x and its deep along z after the turn. A row as wide as it is deep keeps all four."""
+    offs = [size_matrix(applied(yawed(yaw), points), size)[1]["off"] for yaw in YAWS]
+    return tuple(yaw for yaw, off in zip(YAWS, offs) if off <= min(offs) + ROW_BAND)
+
+
 def view_axes(turn, down):
     """The close-up camera's right and up in a Y-up frame (front +z): turned `turn` degrees to the model's right from
     its front and looking down `down` degrees; straight down (90) has the front at the frame's foot (the prop route's
@@ -137,18 +149,18 @@ def overlap(drawn, seen):
     return float((drawn & seen).sum() / max((drawn | seen).sum(), 1))
 
 
-def headed(points, cut, turn, down, pick=None):
+def headed(points, cut, turn, down, pick=None, yaws=YAWS):
     """The quarter turn about y that lays `points` (Y up) as the close-up `cut` (its opaque pixels) shows it from a
     camera turned `turn` degrees and looking down `down`; what was chosen. Never a mirror (#159 r15: TRELLIS.2 makes
     its picture's hand, and hand drill b01, mirrored on a 0.05 better outline, laid its crank pointing at the camera
     behind its own knob, so no look drew it). Turns whose outline overlaps within FRONT_BAND of the best are open (a
     box-like object's front and back): `pick` (front.picked's way: the open turns' matrices in, an index and its reason
     out) decides between them from the close-up's content, else a later turn is kept over an earlier only when it
-    beats it by TIE (TRELLIS.2's own heading first)."""
+    beats it by TIE (TRELLIS.2's own heading first). Only `yaws` are tried (`row_yaws`: those the row's size allows)."""
     right, up = view_axes(turn, down)
     seen = cut_outline(cut)
     tried = []
-    for yaw in YAWS:
+    for yaw in yaws:
         laid = applied(yawed(yaw), points)
         tried.append((overlap(outline(laid @ right, laid @ up), seen), yawed(yaw), yaw))
     best = max(score for score, _, _ in tried)

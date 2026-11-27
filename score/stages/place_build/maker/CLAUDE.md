@@ -61,7 +61,9 @@ score_lib as a draft `model/<name>_trellis.<place>` entry. `__init__.py` is the 
   uniform, tc2's sign came out 13% too thick and its desk 9% too wide; past a quarter the row and the model disagree,
   so a leg or panel is not thinned further, and the record's `off` says how far the box stayed off). Set at a size, it
   is first turned to its close-up's heading (`fit.headed`, #166: TRELLIS.2 keeps its own heading, so the desk, rack and
-  sign lay wide for deep): the quarter turn whose outline from the close-up's camera (tools/props/closeup/check.py's
+  sign lay wide for deep): among the turns the row's size allows (`fit.row_yaws`: a quarter turn swaps width and depth,
+  which the stretch cannot bring back, so a turn whose box stays ROW_BAND further off the row than the best is never laid;
+  2026-11-28's refit laid a 1.6 m window 0.33 m wide), the quarter turn whose outline from the close-up's camera (tools/props/closeup/check.py's
   turn and look-down) best overlaps the picture's, never a mirror (#159 r15: TRELLIS.2 makes its picture's hand; hand
   drill b01, mirrored on a 0.05 better outline, laid its crank behind its knob). Turns within
   FRONT_BAND of the best (a box-like object's front and back: tc4r's desk a half turn off, its fridge's glass door on

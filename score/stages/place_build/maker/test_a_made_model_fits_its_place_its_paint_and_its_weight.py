@@ -25,7 +25,9 @@ Breaks that turn this red (each applied once and seen red, then reverted):
   wide and shallow (#166: desk, rack and sign); its mirror tried and taken (the 0.05 gain hand drill b01 was
   mirrored on, #159 r15) -> the L is laid mirrored; `pick` not asked
   (the outline's earliest kept), or FRONT_BAND made 0 -> the desk top TRELLIS.2 laid a half turn off keeps its cable
-  hole in the far corner (#192, tc4r's desk)
+  hole in the far corner (#192, tc4r's desk); `yaws` ignored, or fit.row_yaws keeping every turn -> the window 1.6 wide
+  and 0.15 deep that its look turns a quarter is laid 0.35 wide and 1.25 deep (2026-11-28's refit: booth bench,
+  windows, shutter, shirt, barrier swapped)
 - front.drawn laying the model unturned (`matrix` not applied) -> every open turn is drawn alike and the first is
   picked; front.picked numbering its drawings from 0 -> the turn after the picked one is laid
 - generate.closed_skipped: its no-boundary or no-loop return dropped, or the boundary or its loops not found before
@@ -265,6 +267,14 @@ def test_a_made_model_fits_its_place_its_paint_and_its_weight(tmp_path, monkeypa
             laid = fit.applied(heading, z_up_to_model(boxes, yaw))
             assert np.linalg.det(heading[:3, :3]) > 0 and (how["yaw"] + yaw) % 360 == 0 and np.allclose(np.sort(laid, 0),
                                                                                           np.sort(truth, 0)), how
+    window = [([-0.8, -0.14, 0.0], [0.8, 0.14, 1.6])]  # 1.6 wide, 0.28 deep: level from 45 degrees every turn looks alike
+    pane, row = z_up_to_model(window, 0.0), (1.6, 0.15, 1.6)  # wide, deep, tall
+    quarter = lambda matrices: (next((index for index, matrix in enumerate(matrices)  # a look that picks a quarter
+                                      if np.allclose(matrix, fit.yawed(90.0))), 0), "a quarter turn")
+    heading, how = fit.headed(pane, drawn(window, 45.0, 0.0), 45.0, 0.0, quarter, fit.row_yaws(pane, row))
+    laid = fit.applied(heading, pane)
+    sized = np.ptp(fit.applied(fit.size_matrix(laid, row)[0], laid), 0)
+    assert how["yaw"] in (0.0, 180.0) and abs(sized[0] - 1.6) < 0.01 and sized[2] < 0.3, (how, sized)
     slab = holed_slab(tmp_path / "slab.glb")
     mesh, texels, factor = front.textured(slab)
     shown = front.drawn(mesh, texels, factor, fit.yawed(180.0), (0, 0, 400, 400), (60, 130, 340, 270), (400, 400),

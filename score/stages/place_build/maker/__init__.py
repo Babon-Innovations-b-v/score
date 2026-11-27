@@ -249,8 +249,9 @@ def close_up_view(size):
 
 def sized_matrix(points, picture, size, raw, words):
     """`points` (the raw model `raw`'s) turned to the heading `picture` (the row's close-up, cut out) shows, the turns
-    its outline leaves open decided by its content (front.picked, #192: the object's `words` given), then scaled to
-    `size` (fit.headed, fit.size_matrix); how it was set."""
+    its outline leaves open decided by its content (front.picked, #192: the object's `words` given), only among the
+    turns the row's `size` allows (fit.row_yaws: a quarter turn swaps width and depth), then scaled to `size`
+    (fit.headed, fit.size_matrix); how it was set."""
     from PIL import Image
     image = Image.open(picture)
     if "A" not in image.getbands():
@@ -259,7 +260,8 @@ def sized_matrix(points, picture, size, raw, words):
     cut = np.asarray(image.getchannel("A")) > 127
     turn, down = close_up_view(size)
     heading, how = fit.headed(points, cut, turn, down,
-                              lambda matrices: front.picked(words, raw, picture, cut, turn, down, matrices))
+                              lambda matrices: front.picked(words, raw, picture, cut, turn, down, matrices),
+                              fit.row_yaws(points, size))
     matrix, stretched = fit.size_matrix(fit.applied(heading, points), size)
     return matrix @ heading, {**how, **stretched}
 
