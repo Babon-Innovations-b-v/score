@@ -10,9 +10,8 @@ only the gravity its limb's turn adds to the hang its made shape already has (`t
 panel, turned up behind the calf with the shin at the passing step, is pulled back down, while a jacket on an upright
 trunk does not sag a tether's length. The body keeps it out (`retracted`: a point deeper than half the garment's
 thickness, or than its skinned place where the skinning itself draws it inside, is drawn back toward its target, never
-pushed sideways; a garment's re-weighted points, a skirt's panel or a cut sleeve's edge, have their targets pushed out
-of the body first, `pushed_out`), and the edges keep the target's own lengths that frame, so the cloth is as stable
-as the skinning and only swings and sags inside its tether.
+pushed sideways), and the edges keep the target's own lengths that frame, so the cloth is as stable as the skinning
+and only swings and sags inside its tether.
 
 Position-based (Mueller et al. 2007, "Position based dynamics"; the max distance and backstop of game cloth): numpy
 on the processor, one step SUBSTEPS times a frame, the edges ITERATIONS times a substep, deterministic.
@@ -29,7 +28,6 @@ DAMPING = 0.2  # a substep's share of the speed against its target's lost
 SUBSTEPS = 10
 NEIGHBOURS = 8  # body points asked whether a point is inside
 ITERATIONS = 3
-PUSH_ROUNDS = 4  # rounds a target's push out of the body is spread over its neighbours (`pushed_out`)
 GRAVITY = np.array([0.0, -9.81, 0.0])
 
 
@@ -77,29 +75,6 @@ def allowances(skinned, body, faces, clearance):
     clearance from 5 cm inside tore an edge five times over against its neighbour; round 3, 2026-11-26)."""
     return np.stack([np.minimum(clearance, outside(points, frame, vertex_normals(frame, faces))[0])
                      for points, frame in zip(skinned, body)])
-
-
-def pushed_out(targets, chosen, faces, body, body_faces, clearance):
-    """Targets (frames, points, 3) with the `chosen` ones lying less than `clearance` outside the posed body (frames,
-    body points, 3) pushed out along the nearest body point's normal to it, each push spread over its neighbours
-    (PUSH_ROUNDS, never lessened): a skirt's panel, skinned between both thighs and the pelvis, is pushed ahead by
-    the thigh it hangs over, as cloth is (round 5, 2026-11-27: the older woman's coat front lay 12.7 cm inside her
-    lifted thigh), and a sleeve cut off the side by the trunk it swings past."""
-    edges = edges_of(faces)
-    edges = edges[chosen[edges].all(1)]
-    count = np.zeros(len(chosen))
-    np.add.at(count, edges.ravel(), 1.0)
-    found = np.array(targets, float)
-    for frame in range(len(found)):
-        over, normal = outside(found[frame], body[frame], vertex_normals(body[frame], body_faces))
-        push = np.where(chosen, np.maximum(0.0, clearance - over), 0.0)
-        for _ in range(PUSH_ROUNDS):
-            spread = np.zeros(len(push))
-            np.add.at(spread, edges[:, 0], push[edges[:, 1]])
-            np.add.at(spread, edges[:, 1], push[edges[:, 0]])
-            push = np.where(chosen, np.maximum(push, spread / np.maximum(count, 1.0)), 0.0)
-        found[frame] += push[:, None] * normal
-    return found
 
 
 def retracted(positions, targets, body_points, body_normals, least):

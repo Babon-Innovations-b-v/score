@@ -192,9 +192,10 @@ own paint) and brings in only what the generator cannot make, from the repo's ow
   eased onto its own limb and each cut edge closed by a flap turned in toward the body (`flaps_of`), so the sleeve
   swings with the arm and the side stays; the sleeve's region spans the whole side under the arm, so its half on the
   trunk's side of the arm's line is copied onto the trunk 4 mm in under it (`covered`: cut alone, the coat's back
-  opened wide as the sleeve left); blender_cloth splits the drawn garment the same way. A re-weighted point's
-  target (a skirt's, a cut sleeve's) is pushed out of the body before the run (`cloth_tether.pushed_out`: the
-  skirted coat's front lay 12.7 cm inside the lifted thigh, as a thigh pushes a skirt ahead). The hands' depth in
+  opened wide as the sleeve left); blender_cloth splits the drawn garment the same way.
+  The skirt keeps most of each thigh's swing (the pelvis 0.15 to 0.3, 0.15 more in the middle): with 0.3 to 0.6
+  the lifted thigh went 12.7 cm through the coat's front, and pushing the targets out of the body point by point
+  tore it (stretch 4.5). The hands' depth in
   the trunk and legs is recorded (`hands_in`); the arms are kept out of the coat in still_rig (`arms_kept_out`).
   **Free cloth is stopped** (coordinator, 2026-11-26): two free runs on Newton's VBD tore (the jeans stretched 90 cm
   down to and between the shoes, 19 cm inside the body; the jacket shredded). The tether makes the result at least as

@@ -129,8 +129,7 @@ band (`outer_share` the plain share: the hem stays at its start, 0.9 m); the sca
 places: the top's red read as the bottom's blue); the under body's sRGB left unlinearised (`under_colours`: the
 jacket's grey 0.5, not 0.214). Cloth round 5 (2026-11-27), each applied once, seen red, reverted: no skirt (`skirted`'s
 share 0: the coat's middle on one thigh); the sleeve's faces not given their copies (`sleeves_cut`: sleeve and side
-still share points under the shoulder); no cover (`covered` returning no faces); `SHORT_LEAST` 0 (the 1 mm edge kept); `pushed_out` adding no push (the
-sheet left inside the ball).
+still share points under the shoulder); no cover (`covered` returning no faces); `SHORT_LEAST` 0 (the 1 mm edge kept).
 
 The colour (`colour.py`), on a toy front (a jacket painted dark grey-green with darker fold stripes over trousers
 painted black, boots at the bottom painted as black as the trousers with a trace of red) and its photo (a sage
@@ -1624,23 +1623,6 @@ def tether_curtain():
             bool(np.linalg.norm(run - targets, axis=2).max() > 0.01), bool((now / built - 1.0).max() < 0.05)]
 
 
-def tether_pushed_out():
-    """A sheet of targets through a ball (10 cm), its points left of 5 cm chosen: every chosen point ends at least the
-    clearance outside the ball by its planes (to a tenth: the facets), the others stay where they were, and a chosen
-    point outside the ball beside a pushed one is moved too (the push spread)."""
-    ball = trimesh.creation.icosphere(subdivisions=3, radius=0.1)
-    x, y = np.meshgrid(np.linspace(-0.15, 0.15, 13), np.linspace(-0.15, 0.15, 13))
-    points = np.c_[x.ravel(), y.ravel(), np.full(x.size, 0.05)]
-    corner = (np.arange(12)[:, None] * 13 + np.arange(12)[None]).ravel()
-    faces = np.r_[np.c_[corner, corner + 1, corner + 14], np.c_[corner, corner + 14, corner + 13]]
-    chosen = points[:, 0] < 0.05
-    found = cloth_tether.pushed_out(points[None], chosen, faces, np.asarray(ball.vertices)[None], ball.faces, 0.003)[0]
-    over, _ = cloth_tether.outside(found, np.asarray(ball.vertices), np.asarray(ball.vertex_normals))
-    beside = chosen & (np.linalg.norm(points, axis=1) > 0.125) & (np.linalg.norm(points, axis=1) < 0.14)
-    return [bool(over[chosen].min() >= 0.0027), bool(np.allclose(found[~chosen], points[~chosen])),
-            bool((np.linalg.norm(found[beside] - points[beside], axis=1) > 0).any())]
-
-
 def tether_gravity():
     """The gravity a point feels beyond its rest hang (m/s^2), its limb unturned, turned a quarter and turned over."""
     moves = np.repeat(np.eye(4)[None, None], 3, axis=0)
@@ -1750,7 +1732,7 @@ def tether_inside_read():
     ("a scarf standing forward of the shirt in the open front is its own garment; one depth is no scarf",
      cloth_scarf_split, [True, True, True]),
     ("a long coat under the hip joints hangs from both thighs and the pelvis as a skirt; its cuff, its top and a "
-     "short jacket keep their own", cloth_skirted, [0.8, True, [0.6, 0.0, 0.4], True, True, True, True]),
+     "short jacket keep their own", cloth_skirted, [0.45, True, [0.3, 0.0, 0.7], True, True, True, True]),
     ("a sleeve fused to the side is cut off it under the shoulder, each piece eased onto its own limb, every cut "
      "edge closed by a flap, the side covered", cloth_sleeve_cut,
      [True, 0, True, True, True, True, True, True, True, [True, True, True, True]]),
@@ -1766,8 +1748,6 @@ def tether_inside_read():
     ("tethered cloth: riding points on their targets, every point within its tether, never deeper than its target, "
      "the loose cloth swinging, the edges held", tether_curtain, [True] * 5),
     ("tethered cloth feels only the gravity its turn adds to its rest hang", tether_gravity, [0.0, 13.87, 19.62]),
-    ("a re-weighted target inside the body is pushed out to the clearance, the push spread to its neighbours",
-     tether_pushed_out, [True, True, True]),
     ("a point is inside the body only where all its nearest body points' planes say so",
      lambda: (lambda found: (found[0] <= 5, found[1] <= 0.03 * found[2]))(tether_inside_read()), (True, True)),
 ])
