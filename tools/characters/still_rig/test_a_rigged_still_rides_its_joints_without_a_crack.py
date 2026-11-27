@@ -34,6 +34,10 @@ above it touching the backpack, and a stray backpack face inside the cloth. Each
   swung back from the calf in a fin at every push-off); a point 20 cm over its knee keeps a weight on its shin, or a
   point under the knee loses its shin (`off_the_shins`: the same jeans' thigh points hung from the shin and spiked
   18 cm off the thigh at every stride).
+- a person whose arms (columns of 5 cm at 20 cm either side) touch its trunk (15 cm) all the way down is refused
+  (`landmarks_of` not falling back to `fused_landmarks`), its arm's axis is read more than 2 cm off the sleeve's middle
+  (the band reaching into the trunk), or a sleeve point is not its arm's or a trunk point is (the hoodie man and the
+  older woman refused before the split, 2026-11-27).
 - a body's file grown by the place clips (`clips_added`) reads its rest offsets other than its bind's (a clip then
   played on the wrong bones), takes a clips rig's joints in the rig's order rather than the skin's, loses a byte of the
   numbers it had (the clips it was built with changed), or a climb keeps its height's run over the loop, gives a rise
@@ -237,3 +241,20 @@ def test_a_rigged_still_rides_its_joints_without_a_crack():
         raise AssertionError("a climb up kept as a climb down")
     except ValueError:
         pass
+
+    def column(x, radius, low, high):
+        return trimesh.creation.cylinder(radius=radius, segment=[[x, low, 0.0], [x, high, 0.0]], sections=32)
+
+    fused = trimesh.util.concatenate([column(0.0, 0.15, 0.8, 1.5), column(0.2, 0.05, 0.8, 1.45),
+                                      column(-0.2, 0.05, 0.8, 1.45), column(0.1, 0.05, 0.0, 0.82),
+                                      column(-0.1, 0.05, 0.0, 0.82)])
+    samples = still_rig.prop_rig.sampled(fused, 60000)
+    arm_names = ["LeftArm", "RightArm", "LeftHand", "RightHand"]
+    arm_bind = np.repeat(np.eye(4)[None], len(arm_names), axis=0)
+    arm_bind[:, 1, 3] = [1.45, 1.45, 0.95, 0.95]
+    fit = still_rig.landmarks_of(samples, arm_bind, arm_names)
+    for side, x in (("Left", 0.2), ("Right", -0.2)):
+        assert abs(fit[side + "Arm"]["start"][0] - x) < 0.02
+        sleeve = (np.abs(samples[:, 0] - x) < 0.045) & (samples[:, 1] > 0.9) & (samples[:, 1] < 1.3)
+        assert (fit["limbs"][sleeve] == side + "Arm").all()
+    assert (fit["limbs"][(np.abs(samples[:, 0]) < 0.1) & (samples[:, 1] > 0.9)] == "").all()
