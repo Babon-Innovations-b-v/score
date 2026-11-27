@@ -44,7 +44,11 @@ HOOD_SLAB = 0.012  # with a hood kept: the neck's parting from the hood read on 
 HOOD_ANGLES = 18  # and per this many directions round the axis (20 degrees each)
 NECK_RANGE = (0.025, 0.09)  # the parting looked for between these radii from the axis (4 to 15 cm)
 FRONT_HALF_ANGLE = 40.0  # with a hood kept: the front (chin, throat) within this many degrees of -y stays the head's
-NECK_FALLBACK = 0.048  # the neck's reach (8 cm) where a hood lies against it with no empty ring between
+# down to the cut even where no ring parts it from the collar (its faces need not turn outward: the chin's underside)
+NECK_FALLBACK = 0.048  # the neck's reach (8 cm) where a hood lies against it with no empty ring between; with a hood
+# kept, nothing of the head's under the hood's depth lies farther out, front included: the stairwell woman's open
+# puffer collar stood 9 to 13 cm out within 40 to 80 degrees of the front, the head model's copy of it was kept there
+# and drawn over the body's as torn shards and black holes (whole person round 5, 2026-11-27)
 HOOD_GAP = 0.003  # an empty ring at least this wide (5 mm) parts them; narrower, nothing is round the neck there
 TEXEL_SLACK = 0.02  # barycentric slack so a triangle's edge texels are painted too (no unblended rim)
 # The chin over the cut (`chin_over_cut`), in body heights: read on slices 4 mm high of the face's middle column (2.7 cm
@@ -543,9 +547,10 @@ def direction_bin(across):
 def kept_region(level, crown, height, axis, hood, body_points):
     """The test (face centre, normal -> bool) of what the head model gives above the cut: within KEEP_RADIUS of the
     head's axis; with `hood` (a depth under the crown, body heights), under that depth only what lies inside the empty
-    ring parting the neck from the body's hood or high collar (`neck_gaps`), the front (chin and throat, within
-    FRONT_HALF_ANGLE of -y) excepted, so that hood stays the body's. Given a face's normal (the head's faces), only
-    faces turned outward count (a neck is, a hood's inside is not); the body loses all inside the ring."""
+    ring parting the neck from the body's hood or high collar (`neck_gaps`) and within the neck's reach
+    (NECK_FALLBACK), so that hood stays the body's. Given a face's normal (the head's faces), only faces turned outward
+    count (a neck is, a hood's inside is not), the front (chin and throat, within FRONT_HALF_ANGLE of -y) excepted;
+    the body loses all inside the ring."""
     top = crown - hood * height if hood is not None else None
     gaps = neck_gaps(body_points, axis, level, height) if hood is not None else None
 
@@ -554,10 +559,12 @@ def kept_region(level, crown, height, axis, hood, body_points):
         radius = math.hypot(*across)
         if centre.z < level or radius > KEEP_RADIUS * height:
             return False
-        if top is None or centre.z > top or abs(math.degrees(math.atan2(across[0], -across[1]))) < FRONT_HALF_ANGLE:
+        if top is None or centre.z > top:
             return True
-        outward = normal is None or normal.x * across[0] + normal.y * across[1] > 0
-        return radius < gaps[direction_bin(across)] and outward
+        if radius > min(gaps[direction_bin(across)], NECK_FALLBACK * height):
+            return False
+        front = abs(math.degrees(math.atan2(across[0], -across[1]))) < FRONT_HALF_ANGLE
+        return front or normal is None or normal.x * across[0] + normal.y * across[1] > 0
     return kept
 
 

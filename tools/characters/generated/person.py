@@ -57,7 +57,9 @@ PEOPLE = {"a_stairwell_woman": {"height_m": 1.68, "head_m": 0.42, "cut_depth": 0
                             "dressed": "character/dress_woman_stair_made/1/body.glb", "tether": {"jacket": 0.10}}}
 STEPS = ("head", "hair", "swap", "rig", "cloth", "pieces", "render", "sheet")
 FILM_SECONDS = 4.0  # the walking film (cloth.SECONDS is the cloth sheet's 3 s)
-RIG_FACES = 100000  # still_rig's thinning (the cloth rounds' rigs)
+# still_rig's thinning: the detailed head takes some 60% of the faces; at 100k the clothes kept 35k and folded onto
+# themselves as fins and dark flecks (whole person round 5, 2026-11-27: 7.2% of the jacket's edges past 150 degrees)
+RIG_FACES = 300000
 FRAME_KEPT = 0.8  # the body-to-rig fit's share of closest pairs (the feet are moved onto the dressed body's own)
 FRAME_ROUNDS = 30
 FRAME_POINTS = 20000

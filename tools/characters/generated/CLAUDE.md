@@ -260,6 +260,13 @@ own paint) and brings in only what the generator cannot make, from the repo's ow
   swapped model; pieces.npz's `fan_centres`) and `blender_person.shell_cut` takes them off; the collision body is drawn
   only from UNDER_NECK under the cut down (`under_cut`: pushed under the rig's neck, it stood out of the swap's slimmer
   one as dark strips at the collar).
+  Round 5 (2026-11-27), ray cast off the close-ups: the jacket's torn collar was the head model's own copy of it,
+  kept by the swap's front exception and drawn over the rig's (cloth) copy; under the hood's depth the swap now
+  keeps only the neck (within NECK_FALLBACK, front included) and the drawing takes off the head's faces whose rig copy
+  is a cloth garment's (`blender_person.garment_cut`): one collar, the cloth's. The fins and dark flecks over the
+  puffer and the jeans were still_rig's thinning folding the thin shell onto itself (100k faces, 85k of them the
+  detailed head: 11.7% of edges folded past 150 degrees against 0.27% unthinned); the rig is thinned to RIG_FACES
+  300k at still_rig.THIN_AGGRESSION 2 (1.3%).
   Run: `python -m tools.characters.generated.person <name> <sources> <out> [--from <step> | --only <step>]` (head
   2 min, hair 5, swap 1.5, rig 3.5, cloth 5 to 10 at nice 19; the render some hours: 13 sheet frames and the 96-frame
   film with 240k strands, 5.7 GB).

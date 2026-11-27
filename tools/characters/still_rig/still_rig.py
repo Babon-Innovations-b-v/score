@@ -90,6 +90,11 @@ import hands as relaxed_hands  # noqa: E402  (still_rig/hands.py: the whole rout
 GRADE = HERE.parents[2] / "score/stages/place_build/maker/grade.py"  # the made props' grade, loaded by its file
 
 FACES = 60000
+# fast-simplification's aggressiveness (its default 7): a generated person's garments are thin double sheets, and at 7
+# the thinning folds them onto themselves (the stairwell woman's swapped model, 504k outer faces thinned to 100k: 11.7%
+# of its edges folded past 150 degrees against 0.27% unthinned, drawn as fins and dark flecks over her puffer and
+# jeans, round 5, 2026-11-27); 2 keeps 300k at 1.3%
+THIN_AGGRESSION = 2
 FAR_TRIANGLES = 1220  # prop_far.FAR_TRIANGLES
 JOINTS_A_VERTEX = 4
 EDGE_LEAST = 0.002  # metres: a shorter edge is left out of the stretch
@@ -313,7 +318,8 @@ def thinned(mesh, faces):
     kept whole)."""
     import fast_simplification
     points, triangles = fast_simplification.simplify(mesh.vertices, mesh.faces,
-                                                     target_reduction=max(0.0, 1.0 - faces / len(mesh.faces)))
+                                                     target_reduction=max(0.0, 1.0 - faces / len(mesh.faces)),
+                                                     agg=THIN_AGGRESSION)
     return prop_rig.welded(trimesh.Trimesh(points, triangles, process=False))
 
 

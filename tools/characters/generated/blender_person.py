@@ -76,6 +76,10 @@ TO_BLENDER = Matrix(((1, 0, 0, 0), (0, 0, -1, 0), (0, 1, 0, 0), (0, 0, 0, 1)))  
 FAN_MATCH = 1e-4  # a shell face whose middle lies this near a fan's middle in pieces.npz (the rig's units) is that fan
 UNDER_NECK = 0.02  # the collision body is drawn only this far (body heights) under the cut and lower
 COVER_M = 0.015  # a rig face above the cut this near the swap's head (the rig's metres) is the head's: taken off
+# A face of the swap's head whose nearest rig face is a cloth garment's and lies this near (the rig's metres; its
+# faces some 5 mm across) is that garment's: the cloth draws it (`garment_cut`). The head model's high puffer collar,
+# drawn by both, stood as torn shards round the neck and shimmered as she walked (whole person round 5, 2026-11-27).
+GARMENT_MATCH_M = 0.008
 STANDING = {"front": 180.0, "three_quarter": 215.0, "side": 270.0, "back": 0.0}  # blender_cloth's turns
 FACE_FRAME_M = render.FACE_FRAME_M  # the close-ups: the head and the neck's top
 FACE_UNDER_EYES_M = 0.07  # the close-up aimed this far under the eyes
@@ -202,6 +206,27 @@ def shell_cut(shell, head, pieces, garment):
     edit.to_mesh(shell.data)
     edit.free()
     shell.data.update()
+    return len(doomed)
+
+
+def garment_cut(head, shell, garment):
+    """The swap head's faces that are a cloth garment's (`garment`, per shell polygon) taken off the head: those whose
+    nearest rig face is a garment's within GARMENT_MATCH_M (both at the bind; the rig is the thinned swap, so each of
+    the head's faces has its copy there); how many."""
+    centres = [shell.matrix_world @ polygon.center for polygon in shell.data.polygons]
+    tree = tree_of(centres)
+    doomed = []
+    for polygon in head.data.polygons:
+        _, index, distance = tree.find(head.matrix_world @ polygon.center)
+        if garment[index] and distance < GARMENT_MATCH_M:
+            doomed.append(polygon.index)
+    edit = bmesh.new()
+    edit.from_mesh(head.data)
+    edit.faces.ensure_lookup_table()
+    bmesh.ops.delete(edit, geom=[edit.faces[index] for index in doomed], context="FACES")
+    edit.to_mesh(head.data)
+    edit.free()
+    head.data.update()
     return len(doomed)
 
 
@@ -345,6 +370,7 @@ def head_dressed(armature, shell, pieces, data):
     weights = weights_held(shell, armature)
     simulated = [cloth.kinds_of(data).index(kind) for kind in cloth.simulated_of(data)]
     garment = np.isin(cloth.face_kinds(shell, data), simulated)
+    print(f"head faces the cloth draws taken off: {garment_cut(head, shell, garment)}", flush=True)
     print(f"rig faces under the head taken off: {shell_cut(shell, head, pieces, garment)}", flush=True)
     blender_skin.attributes(head, skin)
     blender_skin.face_uv(head, skin["box"])

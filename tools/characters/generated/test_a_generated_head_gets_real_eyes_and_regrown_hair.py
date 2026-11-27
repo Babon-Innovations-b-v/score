@@ -173,6 +173,10 @@ The chin over the cut (`head_swap.chin_over_cut`, from which up the whole face r
 slice of the face's middle column standing 2.5 cm forward of the throat; a column with no chin is refused. Breaks
 (each applied once, seen red, reverted, 2026-11-27): the column's width left out (the shoulder read as the chin, 0.005);
 the throat read as the column's highest slice (no chin found, the row's refusal raised).
+Under the hood's depth the head model keeps only its neck (`head_swap.kept_region`): its throat in front kept, a chin's
+underside turned down kept, its own collar standing 10 cm out in front and at the side given to the body, a face
+inside a neck ring turned in refused. Break (applied once, seen red, reverted, 2026-11-27): the front kept whole
+again (the head's front collar kept: the stairwell woman's torn collar shards).
 still_rig's fan across the cut's loop (`person.neck_fans`) is found, the neck tube and a fan far under the cut kept.
 Breaks (each applied once, seen red, reverted, 2026-11-27): `FAN_BAND` 1 (the armpit's fan taken too); `FAN_OFF_M` 1
 (no fan found). The skin's matte is read over plain skin (`skin.plain_skin`) and a socket's shade deeper than the
@@ -181,6 +185,7 @@ fitted line is taken off (`skin.hollows`), a stain on open skin kept. Breaks (ea
 `shut` (5, 6) (the socket left 18% dark); `shut` (-2, -1) with `MATTE_DARK` 0 (the stain lifted).
 """
 import functools
+import types
 
 import numpy as np
 import pytest
@@ -1739,6 +1744,27 @@ def neck_fans_found():
             int(found[len(tube_faces) + 48:].sum())]
 
 
+def hood_kept():
+    """A body 1 high whose neck (4 cm radius) rises out of a high collar (a ring 10 to 12 cm out) above a cut at 0.80,
+    the hood kept from 0.85 down (`head_swap.kept_region`): which of the head's faces under the hood's depth it keeps
+    (the throat in front, the chin's underside in front turned down, the collar's front at 10 cm, the collar's side
+    at 10 cm, the neck's side turned out, the neck's side turned in)."""
+    angles = np.linspace(-np.pi, np.pi, 72, endpoint=False)
+    heights = np.linspace(0.80, 0.82, 5)
+    neck = [(0.04 * np.sin(angle), -0.04 * np.cos(angle), height) for angle in angles for height in heights]
+    collar = [(radius * np.sin(angle), -radius * np.cos(angle), height) for angle in angles for height in heights
+              for radius in (0.10, 0.12)]
+    kept = head_swap.kept_region(0.80, 1.0, 1.0, (0.0, 0.0), 0.15, np.array(neck + collar))
+    point = types.SimpleNamespace
+    faces = [(point(x=0.0, y=-0.04, z=0.81), point(x=0.0, y=-1.0, z=0.0)),
+             (point(x=0.0, y=-0.03, z=0.84), point(x=0.0, y=0.0, z=-1.0)),
+             (point(x=0.05, y=-0.087, z=0.81), point(x=0.0, y=-1.0, z=0.0)),
+             (point(x=-0.1, y=0.0, z=0.81), point(x=-1.0, y=0.0, z=0.0)),
+             (point(x=-0.04, y=0.0, z=0.81), point(x=-1.0, y=0.0, z=0.0)),
+             (point(x=-0.04, y=0.0, z=0.81), point(x=1.0, y=0.0, z=0.0))]
+    return [bool(kept(centre, normal)) for centre, normal in faces]
+
+
 def chin_read():
     """A face's middle column over the cut: the throat 1 cm forward up to 2 cm, the chin and face 5 cm forward above,
     a shoulder 9 cm forward off the column (`head_swap.chin_over_cut`): (the chin's height, a column with no chin
@@ -1834,6 +1860,8 @@ def tether_inside_read():
      [True, True]),
     ("a socket the photo shades deeper than the fit is lifted to the open skin, a stain on open skin kept dark",
      skin_socket_shade_off, [True, True]),
+    ("under the hood's depth the head keeps its neck alone, its own collar front and side given to the body",
+     hood_kept, [True, True, False, False, True, False]),
     ("still_rig's fan across the cut's loop is found, the neck and an armpit's fan are kept", neck_fans_found,
      [48, 0, 0]),
     ("a hollow the model shuts reads shut, the photo's darker, warmer light in it divided out", skin_hollow_light_off,
