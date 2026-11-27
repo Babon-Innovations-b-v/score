@@ -37,7 +37,10 @@ above it touching the backpack, and a stray backpack face inside the cloth. Each
 - a person whose arms (columns of 5 cm at 20 cm either side) touch its trunk (15 cm) all the way down is refused
   (`landmarks_of` not falling back to `fused_landmarks`), its arm's axis is read more than 2 cm off the sleeve's middle
   (the band reaching into the trunk), or a sleeve point is not its arm's or a trunk point is (the hoodie man and the
-  older woman refused before the split, 2026-11-27).
+  older woman refused before the split, 2026-11-27); a hand hanging under the crotch's height against a strut to the
+  thigh (each slice cutting hand and thigh as one piece) is not its arm's to the fingertips, or the thigh is
+  (`HAND_TIP_UNDER_WRIST`, `HAND_HALF`; break applied once, seen red, reverted, 2026-11-27: the old band ending at
+  the crotch).
 - a body's file grown by the place clips (`clips_added`) reads its rest offsets other than its bind's (a clip then
   played on the wrong bones), takes a clips rig's joints in the rig's order rather than the skin's, loses a byte of the
   numbers it had (the clips it was built with changed), or a climb keeps its height's run over the loop, gives a rise
@@ -250,9 +253,10 @@ def test_a_rigged_still_rides_its_joints_without_a_crack():
     def column(x, radius, low, high):
         return trimesh.creation.cylinder(radius=radius, segment=[[x, low, 0.0], [x, high, 0.0]], sections=32)
 
-    fused = trimesh.util.concatenate([column(0.0, 0.15, 0.8, 1.5), column(0.2, 0.05, 0.8, 1.45),
-                                      column(-0.2, 0.05, 0.8, 1.45), column(0.1, 0.05, 0.0, 0.82),
-                                      column(-0.1, 0.05, 0.0, 0.82)])
+    fused = trimesh.util.concatenate([column(0.0, 0.15, 0.8, 1.5), column(0.2, 0.05, 0.76, 1.45),
+                                      column(-0.2, 0.05, 0.76, 1.45), column(0.1, 0.05, 0.0, 0.82),
+                                      column(-0.1, 0.05, 0.0, 0.82), column(0.15, 0.025, 0.765, 0.795),
+                                      column(-0.15, 0.025, 0.765, 0.795)])
     samples = still_rig.prop_rig.sampled(fused, 60000)
     arm_names = ["LeftArm", "RightArm", "LeftHand", "RightHand"]
     arm_bind = np.repeat(np.eye(4)[None], len(arm_names), axis=0)
@@ -263,6 +267,10 @@ def test_a_rigged_still_rides_its_joints_without_a_crack():
         sleeve = (np.abs(samples[:, 0] - x) < 0.045) & (samples[:, 1] > 0.9) & (samples[:, 1] < 1.3)
         assert (fit["limbs"][sleeve] == side + "Arm").all()
     assert (fit["limbs"][(np.abs(samples[:, 0]) < 0.1) & (samples[:, 1] > 0.9)] == "").all()
+    for side, x in (("Left", 0.2), ("Right", -0.2)):
+        hand = (np.abs(samples[:, 0] - x) < 0.02) & (samples[:, 1] < 0.79) & (samples[:, 1] > 0.765)
+        thigh = (np.abs(samples[:, 0] - x / 2) < 0.03) & (samples[:, 1] < 0.79)
+        assert (fit["limbs"][hand] == side + "Arm").all() and not (fit["limbs"][thigh] == side + "Arm").any()
 
     kept_names = ["Root", "Chest", "LeftArm", "LeftHand", "RightArm", "RightHand"]
     kept_parents = np.array([-1, 0, 1, 2, 1, 4])

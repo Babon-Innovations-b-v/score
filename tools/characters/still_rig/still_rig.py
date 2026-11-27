@@ -122,6 +122,10 @@ SLEEVE_BAND = 0.10  # metres: a slice's outermost points this deep on a side are
 SLEEVE_HALF = 0.06  # metres: a point this near the sleeve's middle line, or beyond it, is the arm's
 ARM_UNDER_SHOULDER = 0.08  # metres: the sleeve is read and labelled this far under the shoulder (the Arm joint) down
 HAND_UNDER_WRIST = 0.10  # metres: and down to this far under the wrist (the Hand joint)
+HAND_TIP_UNDER_WRIST = 0.20  # metres: the arm's points are labelled on down to the fingertips, this far under the wrist
+HAND_HALF = 0.03  # metres: under the crotch, a point this near the arm's line or beyond it is the hand's (2026-11-27:
+# a hand resting on the thigh, cut with it by every slice, was the leg's; 998 of the hoodie man's 1429 hand points
+# and 267 of the older woman's 650 hung a fifth or more from the thighs and pulled the hands into the trousers)
 # A person's clips keep each arm out as far from its trunk as the still's own arm hangs (`arms_kept_out`; 2026-11-27:
 # the dressed body's walk brought the hands 3 to 6 degrees off the trunk, the coat's and overshirt's own sleeves hang
 # 9 to 20 out, so the hands pressed into the coat and the thighs):
@@ -471,7 +475,8 @@ def fused_landmarks(points, bind, names):
     """Landmarks of a still whose arms lie against its trunk from shoulder to hand (every slice one piece): its legs
     as prop_rig finds them, each arm's axis through the middles of each slice's outermost SLEEVE_BAND on its side, from
     ARM_UNDER_SHOULDER under the bind's shoulder down to HAND_UNDER_WRIST under its wrist, and its points within
-    SLEEVE_HALF of that line or beyond it the arm's (the limbs prop_rig.transferred matches on the arm alone)."""
+    SLEEVE_HALF of that line or beyond it the arm's, down to the fingertips (HAND_TIP_UNDER_WRIST; under the crotch
+    within HAND_HALF: a hand resting on the thigh), the limbs prop_rig.transferred matches on the arm alone."""
     height = float(points[:, 1].max())
     cuts = prop_rig.slices(points)
     crotch = prop_rig.crotch_of(cuts, height)
@@ -492,8 +497,10 @@ def fused_landmarks(points, bind, names):
         found[side + "Arm"] = arm
         along = (points[:, 1] - arm["start"][1]) / arm["direction"][1]
         middle_x = arm["start"][0] + along * arm["direction"][0]
-        sleeve = (sign * points[:, 0] > sign * middle_x - SLEEVE_HALF) & (points[:, 1] <= top) & (
-            points[:, 1] >= low) & (points[:, 1] > crotch) & (sign * points[:, 0] > 0)
+        tip = bind[names.index(side + "Hand"), 1, 3] - HAND_TIP_UNDER_WRIST
+        half = np.where(points[:, 1] > crotch, SLEEVE_HALF, HAND_HALF)
+        sleeve = (sign * points[:, 0] > sign * middle_x - half) & (points[:, 1] <= top) & (
+            points[:, 1] >= tip) & (sign * points[:, 0] > 0)
         limbs[sleeve] = side + "Arm"
     return found
 

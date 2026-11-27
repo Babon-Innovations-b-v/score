@@ -39,7 +39,10 @@ A still picture-made model (a TRELLIS.2 mesh, no skeleton) rigged as a player mo
   the still's own arm hangs at the bind (`arms_kept_out`, a soft floor on the arm's angle out across the trunk,
   only while it hangs down on its own side; 2026-11-27: the dressed body's walk swung the hands 3 to 6 degrees off
   the trunk while the older woman's coat and the hoodie man's overshirt hang their sleeves 9 to 20 out, and the hands
-  went into the coat and the thighs). The arm's new local turns are written over the dressed body's keys.
+  went into the coat and the thighs). The arm's new local turns are written over the dressed body's keys. A fused
+  person's arm is labelled down to its fingertips (HAND_TIP_UNDER_WRIST; under the crotch only within HAND_HALF of
+  its line): a hand resting on the thigh, cut with it by every slice, was the leg's, and 998 of the hoodie man's
+  1429 hand points hung a fifth or more from the thighs.
 - **The place clips** (2099 #161: the places' people had only the dressed body's five clips): `place_clips.py` makes
   the prologue's clips (talking, stairs up and down, the rail lean, looking out, waving, swaying) and makes again the
   work bodies' (leaning, pointing, checking, clipboard, cheering, waiting, clapping, shifting) from their own sentences
