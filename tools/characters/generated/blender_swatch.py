@@ -110,7 +110,7 @@ def main():
     bpy.data.objects["ground"].visible_camera = False
     scene.render.film_transparent = True
     scene.view_settings.view_transform, scene.view_settings.look = blender_eyes.VIEW
-    scene.cycles.device = "CPU"
+    render.on_card(scene)
     scene.cycles.samples = int(SAMPLES)
     scene.render.threads_mode = "FIXED"
     scene.render.threads = blender_sheet.THREADS

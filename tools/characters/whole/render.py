@@ -272,6 +272,24 @@ def developed(path, fstop):
     bpy.data.images.remove(image)
 
 
+def on_card(scene):
+    """Cycles on this PC's graphics card, OptiX before CUDA with every card of that kind on; on the processor only
+    when Blender finds no card. Prints and returns the kind it drew on."""
+    preferences = bpy.context.preferences.addons["cycles"].preferences
+    for kind in ("OPTIX", "CUDA"):
+        cards = [device for device in preferences.get_devices_for_type(kind) if device.type == kind]
+        if cards:
+            preferences.compute_device_type = kind
+            for device in preferences.devices:
+                device.use = device.type == kind
+            scene.cycles.device = "GPU"
+            print(f"RENDER DEVICE {kind}: {', '.join(card.name for card in cards)}", flush=True)
+            return kind
+    scene.cycles.device = "CPU"
+    print("RENDER DEVICE CPU: no card found", flush=True)
+    return "CPU"
+
+
 def camera_made(render):
     """An 85 mm lens on an upright full-frame sensor, the scene's camera."""
     camera = bpy.data.objects.new("camera", bpy.data.cameras.new("camera"))

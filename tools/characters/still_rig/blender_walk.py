@@ -1,5 +1,5 @@
 """A rigged still's check frames: its glTF walking `--clip` for `--frames` frames from three sides (front, side, back
-three-quarter), on Cycles on the processor at `--samples` (a check, never shipped), one PNG a view and frame in `--out`.
+three-quarter), on Cycles on the graphics card at `--samples` (a check, never shipped), one PNG a view and frame in `--out`.
 
     blender -b --python tools/characters/still_rig/blender_walk.py -- <body.glb> --out <folder>
         [--clip walking] [--frames 24] [--step 1] [--samples 16] [--size 480]
@@ -13,6 +13,9 @@ import sys
 
 import bpy
 import mathutils
+
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1] / "whole"))
+import render  # noqa: E402  (its on_card: Cycles on the graphics card)
 
 VIEWS = {"front": 0.0, "side": 90.0, "back": 215.0}  # degrees round the body from its front (+y after the import: the glTF stands it facing -z)
 DISTANCE, AIM_HEIGHT, LENS = 4.2, 0.95, 50.0
@@ -46,10 +49,10 @@ def imported(path, clip):
 
 
 def staged(size, samples):
-    """A floor, a sun and a sky light, Cycles on the processor."""
+    """A floor, a sun and a sky light, Cycles on the graphics card."""
     scene = bpy.context.scene
     scene.render.engine = "CYCLES"
-    scene.cycles.device = "CPU"
+    render.on_card(scene)
     scene.cycles.samples = samples
     scene.cycles.use_denoising = True
     scene.render.resolution_x = scene.render.resolution_y = size

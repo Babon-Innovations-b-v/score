@@ -207,7 +207,7 @@ def main():
     exposure = render.place(LIBRARY, Vector((eyes[0], eyes[1], lift)), SETTING)
     render.film(scene, exposure)
     scene.view_settings.view_transform, scene.view_settings.look = blender_eyes.VIEW
-    scene.cycles.device = "CPU"
+    render.on_card(scene)
     scene.cycles.samples = int(SAMPLES)
     scene.render.threads_mode = "FIXED"
     scene.render.threads = THREADS

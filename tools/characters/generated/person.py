@@ -19,7 +19,7 @@ The steps, each on what the one before made (`--from` starts at one, the ones be
 6. pieces: what the drawing needs to carry the head's own pieces onto the rigged body (`pieces_of`): the head-to-rig
    matrix (the swap's head-to-body matrix after the body-to-rig similarity, found by `framed`), the cut's level, the
    hair step's removed triangles and its points laid onto the scalp, all in the head model's own frame.
-7. render: `blender_person.py` (Cycles on the processor) into <out>/renders.
+7. render: `blender_person.py` (Cycles on the graphics card) into <out>/renders.
 8. sheet: the turnaround sheet beside the close-up photo, the walking sheet and the film (ffmpeg) in <out>.
 """
 import argparse
@@ -70,19 +70,22 @@ def sources_of(folder, name):
             "style": REPO / "data/people/hair" / f"gen_{name}.json"}
 
 
-def run(command, log, env=None):
-    """`command` with its output to `log`, at the lowest priority; refused on a failed exit."""
+def run(command, log, env=None, low=True):
+    """`command` with its output to `log`, at the lowest priority when `low`; refused on a failed exit."""
     with open(log, "w") as stream:
-        done = subprocess.run(["nice", "-n", "19", *map(str, command)], stdout=stream, stderr=subprocess.STDOUT,
+        done = subprocess.run([*(["nice", "-n", "19"] if low else []), *map(str, command)], stdout=stream,
+                              stderr=subprocess.STDOUT,
                               cwd=REPO, env={**os.environ, **(env or {})})
     if done.returncode:
         raise SystemExit(f"{command[0]} failed ({done.returncode}): see {log}")
 
 
-def blender(script, arguments, log):
-    """A Blender run of `script` on the processor."""
+def blender(script, arguments, log, card=False):
+    """A Blender run of `script`: on the processor at the lowest priority, or with `card` seeing the graphics card at
+    normal priority (a render on the card fed by a niced process waits on every other job's processor work)."""
+    shown = {} if card else {"CUDA_VISIBLE_DEVICES": ""}
     run([BLENDER, "-b", "-t", THREADS, "--python", HERE / script, "--", *arguments], log,
-        {"LD_LIBRARY_PATH": str(BLENDER_LIBS), "CUDA_VISIBLE_DEVICES": ""})
+        {"LD_LIBRARY_PATH": str(BLENDER_LIBS), **shown}, low=not card)
 
 
 def head_step(given, out, person):
@@ -194,7 +197,8 @@ def pieces_of(out, name):
 def render_step(given, out):
     width = FILM_WIDTH * 3 // 2  # blender_cloth's film is 2:3 by its height
     blender("blender_person.py", [REPO, out / "rig/body.glb", out / "cloth/cloth.npz", LIBRARY, out / "renders",
-                                  SAMPLES, SIZE, FILM_SAMPLES, width, out, given["closeup"]], out / "render.log")
+                                  SAMPLES, SIZE, FILM_SAMPLES, width, out, given["closeup"]], out / "render.log",
+            card=True)
 
 
 def tile(path, height=TILE):

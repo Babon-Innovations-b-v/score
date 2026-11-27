@@ -380,7 +380,7 @@ def main():
           flush=True)
     render.film(scene, render.place(LIBRARY, middle, cloth.SETTING))
     scene.view_settings.view_transform, scene.view_settings.look = blender_eyes.VIEW
-    scene.cycles.device = "CPU"
+    render.on_card(scene)
     scene.cycles.samples = int(SAMPLES)
     scene.render.resolution_x, scene.render.resolution_y = int(SIZE) * 2 // 3, int(SIZE)
     scene.render.resolution_percentage = 100

@@ -178,7 +178,7 @@ def staged(holder, middle):
     scene = bpy.context.scene
     render.film(scene, render.place(LIBRARY, middle, SETTING))
     scene.view_settings.view_transform, scene.view_settings.look = VIEW
-    scene.cycles.device = "CPU"
+    render.on_card(scene)
     scene.cycles.samples = int(SAMPLES)
     scene.render.threads_mode = "FIXED"
     scene.render.threads = THREADS
