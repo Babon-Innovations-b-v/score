@@ -65,7 +65,7 @@ import trimesh
 from scipy.sparse import coo_matrix
 from scipy.sparse.csgraph import connected_components, dijkstra
 from scipy.spatial import cKDTree
-from skimage.color import rgb2lab
+from skimage.color import lab2rgb, rgb2lab
 
 HERE = pathlib.Path(__file__).resolve().parent
 REPO = HERE.parents[2]
@@ -391,6 +391,20 @@ def islands_joined(faces, found, free, least=ISLAND_FACES):
     return found
 
 
+def under_colours(person, kinds):
+    """The body under the clothes' colours, linear RGB (blender_cloth draws it where a gap shows it): the trunk the
+    shirt's paint (the jacket's where none shows), the legs the jeans'; each its kind's median paint (round 5,
+    2026-11-27: a fixed white T-shirt and blue denim showed as white and blue patches where the older woman's camel
+    coat and the hoodie man's overshirt, fused to their arms, opened at the side)."""
+    found = []
+    for wanted in (("shirt", "jacket"), ("jeans",)):
+        kind = next((kind for kind in wanted if (kinds == KINDS.index(kind)).any()), None)
+        lab = np.median(person["lab"][kinds == KINDS.index(kind)], axis=0) if kind else np.array([50.0, 0.0, 0.0])
+        srgb = np.clip(lab2rgb(lab[None, None])[0, 0], 0.0, 1.0)
+        found.append(np.where(srgb <= 0.04045, srgb / 12.92, ((srgb + 0.055) / 1.055) ** 2.4))
+    return np.array(found)
+
+
 # --- 3. the garments ------------------------------------------------------------------------------------------------
 
 def garment_of(person, kinds, kind):
@@ -713,7 +727,7 @@ def made(body_glb, rig_path, out, height, reach=None):
     saved = {"scale": scale, "kinds": kinds, "shell_points": person["points"], "shell_faces": person["faces"],
              "body_points": body[0], "body_faces": body[1], "body_weights": body[2],
              "joint_names": np.array(person["names"]), "kind_names": np.array(KINDS),
-             "simulated": np.array(worn(kinds))}
+             "simulated": np.array(worn(kinds)), "under_colours": under_colours(person, kinds)}
     record = {"body": str(body_glb), "height_m": height, "scale": round(scale, 4),
               "faces": {kind: int((kinds == number).sum()) for number, kind in enumerate(KINDS)},
               "tether_m": {kind: reach[kind] for kind in worn(kinds)}, "runs": {}}

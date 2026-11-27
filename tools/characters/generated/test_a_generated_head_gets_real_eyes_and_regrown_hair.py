@@ -118,7 +118,8 @@ returning zeros); the jacket allowed on a leg (`allowed` without `LEGS`: the sha
 at the hem). Round 5 (2026-11-27), each applied once, seen red, reverted: a long coat's hem read off every face of a
 band (`outer_share` the plain share: the hem stays at its start, 0.9 m); the scarf needing to stand 1 m forward
 (`SCARF_FORWARD_M` 1.0: no scarf found); the paint read at the file's places as stored (`file_places` returning its
-places: the top's red read as the bottom's blue).
+places: the top's red read as the bottom's blue); the under body's sRGB left unlinearised (`under_colours`: the
+shirt's grey 0.5, not 0.214).
 
 The colour (`colour.py`), on a toy front (a jacket painted dark grey-green with darker fold stripes over trousers
 painted black, boots at the bottom painted as black as the trousers with a trace of red) and its photo (a sage
@@ -1227,6 +1228,19 @@ def cloth_scarf_split():
             none == {}]
 
 
+def cloth_under_coloured():
+    """A person painted a camel jacket (CIELAB 58, 13, 24), a mid grey shirt (L 53.4: sRGB 0.5) and black trousers:
+    the body under them [the trunk the shirt's grey in linear RGB (0.214), the legs near black], and with no shirt
+    showing [the trunk the jacket's camel] (the trunk's and legs' fixed white and denim showed as patches)."""
+    kinds = np.array([cloth.KINDS.index(kind) for kind in ("jacket", "shirt", "jeans")])
+    person = {"lab": np.array([[58.0, 13.0, 24.0], [53.389, 0.0, 0.0], [3.0, 0.0, 0.0]])}
+    found = cloth.under_colours(person, kinds)
+    jacket_only = cloth.under_colours(person, np.where(kinds == cloth.KINDS.index("shirt"),
+                                                       cloth.KINDS.index("jacket"), kinds))
+    return [bool(np.allclose(found[0], 0.214, atol=0.003)), bool(found[1].max() < 0.01),
+            bool(jacket_only[0][0] > jacket_only[0][2] * 1.5)]
+
+
 def cloth_paint_read_from_top():
     """A picture red in its top half and blue in its bottom, read at a face whose glTF texture places lie near the
     top (v 0.1, glTF's v runs down): red, not blue (`file_places` left out: every face read its mirror row)."""
@@ -1510,6 +1524,7 @@ def tether_inside_read():
     ("a scarf standing forward of the shirt in the open front is its own garment; one depth is no scarf",
      cloth_scarf_split, [True, True, True]),
     ("a face's paint is read at its own row of the picture, glTF's v running down", cloth_paint_read_from_top, True),
+    ("the body under the clothes wears the person's own shirt and trousers", cloth_under_coloured, [True, True, True]),
     ("the paint is toned toward the photo garment by garment: the jacket's sage, the boots' brown under trousers "
      "painted as black, the folds kept", colour_toned, [True] * 4),
     ("the body is never toned: hair and a face painted half skin, half dark keep their paint, the jacket is toned",
