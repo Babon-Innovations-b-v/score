@@ -203,6 +203,8 @@ ignored (the hoodie man's chin and beard given to the body, whose own longer bea
 lump).
 The T-shirt, the garment under the jacket, may show round the neck off the arms (`cloth.allowed`, ROUND_NECK_M: a
 hoodie's hood). Break: `round_neck` left out (the hoodie man's grey hood read as the jacket, torn on its sim mesh).
+The jeans' own points ride no arm (`cloth.jeans_off_arms`). Break: the call left out of `made` and the row's
+zeroing skipped (the hoodie man's jeans fused to his hands ballooned out at the hips as his arms were kept out).
 A jeans hem resting on a shoe turns with the foot (`cloth.hem_on_shoes`). Break (applied once, seen red, reverted,
 2026-11-27): HEM_SHOE_M 0 (the hem left on the shin, sliding in and out of the shoe).
 still_rig's fan across the cut's loop (`person.neck_fans`) is found, the neck tube and a fan far under the cut kept.
@@ -1418,6 +1420,19 @@ def cloth_shirt_round_neck():
     return cloth.allowed(person, middles, np.array(["Chest", "Chest", "LeftArm", "Chest"]))["shirt"].tolist()
 
 
+def cloth_jeans_off_arms():
+    """A jeans face whose points ride the hand wholly, half and half with the thigh, and the thigh, beside a skin face
+    sharing the last two with the hand (`cloth.jeans_off_arms`): [the hand's share at each of the four points]."""
+    names = ["Hips", "LeftHand", "LeftLeg"]
+    points = np.array([[0.0, 0.9, 0.0], [0.02, 0.9, 0.0], [0.04, 0.9, 0.0], [0.03, 0.88, 0.0], [0.0, 0.85, 0.0]])
+    faces = np.array([[0, 1, 4], [1, 2, 3]])
+    weights = np.array([[0.0, 1.0, 0.0], [0.0, 0.5, 0.5], [0.0, 0.0, 1.0], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0]])
+    person = {"names": names, "points": points, "faces": faces, "weights": weights}
+    kinds = np.array([cloth.KINDS.index("jeans"), cloth.KINDS.index("skin")])
+    found = cloth.jeans_off_arms(person, kinds)
+    return [round(float(found[number, 1]), 6) for number in (0, 1, 3, 4)]
+
+
 def cloth_laid_hands_skin():
     """A person's laid hand (still_rig's hand part) whose wrist faces hang from the forearm and are painted the
     jacket's colour: [those faces' kinds are the skin's, the sleeve's are the jacket's] (`kinds_of` not taking the
@@ -2137,6 +2152,8 @@ def tether_inside_read():
      hood_kept, [True, True, False, False, True, False, False]),
     ("the garment under the jacket may show round the neck (a hood) off the arms, not behind the chest",
      cloth_shirt_round_neck, [True, False, False, True]),
+    ("the jeans' own points ride no arm, a point the hand's skin shares keeps its hand weights",
+     cloth_jeans_off_arms, [0.0, 0.5, 1.0, 0.0]),
     ("under a hood open in front (a hoodie's) the head keeps its whole front, chin and beard, down to the cut",
      lambda: hood_kept(open_front=True), [True, True, True, False, True, False, True]),
     ("still_rig's fan across the cut's loop and one out over it are found, the neck and an armpit's fan are kept",

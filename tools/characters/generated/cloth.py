@@ -563,6 +563,32 @@ def hem_on_shoes(person, kinds):
     return weights
 
 
+def jeans_off_arms(person, kinds):
+    """The person's weights with the jeans' own points (on no face of another kind) carrying none of the arms'
+    (ARMS' upper arm to hand): each such point's other weights scaled up to one, or, with nothing left, the nearest
+    such point's that has some. still_rig skins TRELLIS.2's hands fused to the thighs onto the hands, and with the
+    arms kept out (still_rig.arms_kept_out) 1736 of the hoodie man's jeans points rode them and ballooned out at the
+    hips beside the hands (2026-11-27)."""
+    weights = person["weights"].copy()
+    jeans = kinds == KINDS.index("jeans")
+    if not jeans.any():
+        return weights
+    own = np.zeros(len(person["points"]), bool)
+    own[person["faces"][jeans].ravel()] = True
+    own[person["faces"][~jeans].ravel()] = False
+    arms = np.isin(person["names"], ARMS[:6])
+    rows = weights[own]
+    rows[:, arms] = 0.0
+    left = rows.sum(1)
+    kept = left > 1e-6
+    rows[kept] /= left[kept, None]
+    if (~kept).any() and kept.any():
+        points = person["points"][own]
+        rows[~kept] = rows[kept][cKDTree(points[kept]).query(points[~kept])[1]]
+    weights[own] = rows
+    return weights
+
+
 def skirted(person, kinds, kind="jacket"):
     """The person's weights with a long garment's points under the hip joints hung as a skirt (module docstring;
     SKIRT_*): each point's thighs (the Leg joints) shared by where it lies between them across the body, the pelvis
@@ -928,6 +954,7 @@ def made(body_glb, rig_path, out, height, reach=None, neck=None):
     rig_weights = person["weights"]
     person = {**person, "weights": skirted(person, kinds)}
     person = {**person, "weights": hem_on_shoes(person, kinds)}
+    person = {**person, "weights": jeans_off_arms(person, kinds)}
     body = body_under(person, dict(np.load(rig_path)))
     scale = height / float(np.ptp(person["points"][:, 1]))
     saved = {"scale": scale, "kinds": kinds, "shell_points": person["points"], "shell_faces": person["faces"],
