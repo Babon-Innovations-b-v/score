@@ -12,8 +12,7 @@ and the jacket shredded; free cloth was stopped for the tether.
 2. `kinds_of`: each face's kind (KINDS). still_rig's head part (face, hair, neck) stays the head and its hand part
    (the relaxed hands laid in place of TRELLIS.2's, 2026-11-27) the skin, but for the faces round a swapped head's neck
    that are the body's own (`released`: its collar's top and its neck; still_rig's head part is a sphere round the
-   head) unless painted as the head's hair (`hair`, where it is read; the drawing takes that old hair off); every
-   other face is
+   head) unless painted as the head's hair (`hair`, where it is read); every other face is
    the kind whose colour, read off the person where only that kind can be (`seeds`: the upper sleeves the jacket, the
    shins the jeans, the soles' height the shoes, the chest's middle in front the T-shirt, the fingers the skin; a
    scarf and the shirt under it where the open front shows two colours, one standing forward: `scarf_split`), lies
@@ -24,6 +23,10 @@ and the jacket shredded; free cloth was stopped for the tether.
    hand under its wrist. Settled by its neighbours (SETTLE
    rounds of votes over the faces' edges, so a cut runs along the paint's edge) and a piece under ISLAND_FACES of a
    kind given to the kinds round it.
+2a. `painted_over`: that old hair round a swapped head's neck is the kind it lies on (the collar's, a neck's), its
+   points weighted as that kind's nearest, and saved (`painted_over`) for the drawing to wear that kind's paint on it
+   (`blender_cloth.painted_over`): taken off, it left the collar's top open over its hollow, drawn as black gaps
+   between the collar and the hair (whole person round 7, 2026-11-27).
 3. `riding_of`: which points of a garment ride the skin (the rest hang as cloth): the jacket's collar and shoulder
    yoke (YOKE_M over its surface from where it meets the neck, hair or scarf) and its elastic cuffs (CUFF_M from the
    hands), the jeans' waistband (WAISTBAND_M from the T-shirt and the jacket), a scarf round the neck (SCARF_NECK_M).
@@ -335,6 +338,27 @@ def kinds_of(person, released=None, hair=None):
     found[person["hand"]] = KINDS.index("skin")
     free = ~head & ~person["hand"]
     return islands_joined(faces, settled(faces, found, free), free)
+
+
+def painted_over(person, kinds, released):
+    """The body's own old hair round a swapped head's neck (the `released` faces `kinds_of` keeps the head: painted
+    as the hair) given the kind of the nearest face of another kind but the head (the collar it lies over, or the
+    neck), its own points the skin weights of the nearest point of such a face: (kinds, which faces, weights)."""
+    faces, head = person["faces"], KINDS.index("head")
+    over = released & (kinds == head)
+    target = ~over & (kinds != head)
+    kinds, weights = kinds.copy(), person["weights"].copy()
+    if not over.any() or not target.any():
+        return kinds, over, weights
+    middles = person["points"][faces].mean(1)
+    kinds[over] = kinds[target][cKDTree(middles[target]).query(middles[over])[1]]
+    own = np.zeros(len(person["points"]), bool)
+    own[faces[over].ravel()] = True
+    own[faces[~over].ravel()] = False
+    donors = np.unique(faces[target].ravel())
+    nearest = cKDTree(person["points"][donors]).query(person["points"][own])[1]
+    weights[own] = weights[donors[nearest]]
+    return kinds, over, weights
 
 
 def centre_spread(colours):
@@ -873,11 +897,18 @@ def made(body_glb, rig_path, out, height, reach=None, neck=None):
     long garment's middle between the legs also as the rig's own skinning (`rig_skinned`). `reach`: a garment's
     longest tether where the person's clothes want other than cloth_tether.TETHER_M (an open overshirt's fronts, a
     long coat's hem). `neck`: (the middles of the faces round a swapped head's neck that are the body's own, those of
-    the head's faces on its hair) from person.pieces_of, for `kinds_of`."""
+    the head's faces on its hair) from person.pieces_of, for `kinds_of` and `painted_over`."""
     reach = {**cloth_tether.TETHER_M, **(reach or {})}
     out.mkdir(parents=True, exist_ok=True)
     person = person_of(body_glb)
-    kinds = kinds_of(person, *(neck_faces(person, centres) for centres in neck)) if neck else kinds_of(person)
+    painted = np.zeros(len(person["faces"]), bool)
+    if neck:
+        released = neck_faces(person, neck[0])
+        kinds, painted, weights = painted_over(person, kinds_of(person, released, neck_faces(person, neck[1])),
+                                               released)
+        person = {**person, "weights": weights}
+    else:
+        kinds = kinds_of(person)
     rig_weights = person["weights"]
     person = {**person, "weights": skirted(person, kinds)}
     person = {**person, "weights": hem_on_shoes(person, kinds)}
@@ -886,7 +917,8 @@ def made(body_glb, rig_path, out, height, reach=None, neck=None):
     saved = {"scale": scale, "kinds": kinds, "shell_points": person["points"], "shell_faces": person["faces"],
              "body_points": body[0], "body_faces": body[1], "body_weights": body[2],
              "joint_names": np.array(person["names"]), "kind_names": np.array(KINDS),
-             "simulated": np.array(worn(kinds)), "under_colours": under_colours(person, kinds)}
+             "simulated": np.array(worn(kinds)), "under_colours": under_colours(person, np.where(painted, KINDS.index("head"), kinds)),
+             "painted_over": painted}
     record = {"body": str(body_glb), "height_m": height, "scale": round(scale, 4),
               "faces": {kind: int((kinds == number).sum()) for number, kind in enumerate(KINDS)},
               "tether_m": {kind: reach[kind] for kind in worn(kinds)}, "runs": {}}

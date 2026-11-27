@@ -275,8 +275,8 @@ own paint) and brings in only what the generator cannot make, from the repo's ow
   torn where the sphere cut it, and drawn as dark shards. The pieces step now runs before the cloth: `person.neck_roles`
   gives the rig's faces from RELEASE_BAND under the cut up that are the swapped body's own (nearer its points than
   the head's), and those the cloth reads by paint as every other face (the skin's anywhere), keeping the head only
-  where the paint is the hair's (read on the swap's head faces on the hair step's hair); `blender_person.old_hair_of`
-  takes those off, and a fan is also any face over FAN_BAND under the cut whose middle lies FAN_MIDDLE_M off the
+  where the paint is the hair's (read on the swap's head faces on the hair step's hair); round 6 took those off (round
+  7 paints them over instead, below), and a fan is also any face over FAN_BAND under the cut whose middle lies FAN_MIDDLE_M off the
   swapped model. The neck's mark just over the cut was the swap's seam: the throat's ragged two-walled cut edge laid
   point by point onto the body's nearest facing edge, neighbours' shifts 1.8 cm apart within 7 mm, folded 4.7% of the
   band's edges (averaging the shifts left 1.1 to 1.9% or opened the seam). `head_swap.seam_shifts` (on welded

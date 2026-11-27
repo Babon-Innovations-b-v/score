@@ -100,12 +100,41 @@ def tree_of(points):
     return tree
 
 
+def shell_faces_of(shell, data):
+    """Each polygon of the imported shell's face in cloth.npz: the nearest shell face middle."""
+    tree = tree_of(to_blender(data["shell_points"][data["shell_faces"]].mean(1)))
+    return np.array([tree.find(polygon.center)[1] for polygon in shell.data.polygons])
+
+
 def face_kinds(shell, data):
     """Each polygon of the imported shell's kind: the kind of the nearest shell face middle of cloth.npz."""
-    middles = to_blender(data["shell_points"][data["shell_faces"]].mean(1))
-    tree = tree_of(middles)
-    kinds = data["kinds"]
-    return np.array([kinds[tree.find(polygon.center)[1]] for polygon in shell.data.polygons])
+    return data["kinds"][shell_faces_of(shell, data)]
+
+
+def painted_over(shell, data):
+    """The shell's faces cloth.py painted over (cloth.npz's `painted_over`: the body's own old hair round a swapped
+    head's neck, now the collar's or the neck's) worn in the paint of the nearest face of their own kind not painted
+    over: each corner's texture place that face's middle's, its material that face's; how many."""
+    if "painted_over" not in data:
+        return 0
+    own = shell_faces_of(shell, data)
+    over = data["painted_over"][own]
+    kinds = data["kinds"][own]
+    mesh = shell.data
+    for kind in np.unique(kinds[over]):
+        donors = [polygon for polygon in mesh.polygons if kinds[polygon.index] == kind and not over[polygon.index]]
+        if not donors:
+            continue
+        tree = tree_of([polygon.center for polygon in donors])
+        for index in np.flatnonzero(over & (kinds == kind)):
+            polygon = mesh.polygons[int(index)]
+            donor = donors[tree.find(polygon.center)[1]]
+            polygon.material_index = donor.material_index
+            for layer in mesh.uv_layers:
+                place = sum((layer.data[loop].uv for loop in donor.loop_indices), Vector((0.0, 0.0))) / donor.loop_total
+                for loop in polygon.loop_indices:
+                    layer.data[loop].uv = place
+    return int(over.sum())
 
 
 def split_off(shell, kinds, kind, number):
@@ -222,7 +251,9 @@ def body_made(armature, shell, data):
 
 
 def garments_made(shell, data):
-    """{kind: (object, each Blender point's garment point)}; the skinned shell keeps the other kinds."""
+    """{kind: (object, each Blender point's garment point)}; the skinned shell keeps the other kinds, and the faces
+    cloth.py painted over wear their kind's paint (`painted_over`)."""
+    print(f"faces painted over: {painted_over(shell, data)}", flush=True)
     kinds = face_kinds(shell, data)
     found = {}
     for kind in simulated_of(data):

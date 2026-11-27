@@ -20,7 +20,8 @@ The steps, each on what the one before made (`--from` starts at one, the ones be
    cut's level, the hair step's removed triangles and its points laid onto the scalp, all in the head model's own
    frame, and the rig's faces round the neck by where they came from (`neck_roles`).
 6. cloth: `cloth.made` at her height, its film FILM_SECONDS long, into <out>/cloth; the rig's head part round the
-   neck that is the body's own (its collar, its neck) read by its paint as every other face (`released`).
+   neck that is the body's own (its collar, its neck) read by its paint as every other face (`released`), its old
+   hair there painted over as the collar or neck it lies on (`cloth.painted_over`).
 7. render: `blender_person.py` (Cycles on the graphics card) into <out>/renders.
 8. sheet: the turnaround sheet beside the close-up photo, the walking sheet and the film (ffmpeg) in <out>.
 """

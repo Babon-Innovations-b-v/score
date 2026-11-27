@@ -195,7 +195,10 @@ on the hair not read). Faces round the neck released from still_rig's head part 
 (`cloth.kinds_of`): one painted as the jacket the jacket, one as the skin the skin (skin's place or not), one as the
 hair the head, one never released the head. Breaks (each applied once, seen red, reverted, 2026-11-27): `released`
 left out of the head's mask (all four the head); the skin's place kept (the released skin face the jacket); no hair
-read (the old hair the jacket). The skin's matte is read over plain skin (`skin.plain_skin`) and a socket's shade deeper than the
+read (the old hair the jacket). That old hair is painted over as the kind it lies on (`cloth.painted_over`: taken
+off, it opened the collar's top over its black hollow), its own points weighted as that kind's nearest point. Breaks
+(each applied once, seen red, reverted, 2026-11-27): the head kept as a target (the second old hair the head); the
+weights left as they were. The skin's matte is read over plain skin (`skin.plain_skin`) and a socket's shade deeper than the
 fitted line is taken off (`skin.hollows`), a stain on open skin kept. Breaks (each applied once, seen red, reverted,
 2026-11-27): `skin.MATTE_DARK` 0 (the skin between a brow and the lashes pressed as a highlight); `skin.HOLLOW`'s
 `shut` (5, 6) (the socket left 18% dark); `shut` (-2, -1) with `MATTE_DARK` 0 (the stain lifted).
@@ -1830,6 +1833,24 @@ def cloth_neck_released():
     return [cloth.KINDS[kind] for kind in kinds[-4:]]
 
 
+def old_hair_painted_over():
+    """A jacket face and a neck's skin face, each with a face of the body's old hair beside it (released and kept the
+    head), and a head face never released nearer the second old hair than the skin face: [the old hair's and the head
+    face's kinds, which faces are painted over, the joint weighting the first old hair's own point]."""
+    points = np.array([[0.0, 0.0, 0.0], [0.01, 0.0, 0.0], [0.0, 0.01, 0.0],        # jacket
+                       [0.011, 0.011, 0.0], [0.02, 0.0, 0.0],                       # old hair on it (shares point 1)
+                       [0.47, 0.0, 0.0], [0.48, 0.0, 0.0], [0.47, 0.01, 0.0],      # skin
+                       [0.51, 0.011, 0.0], [0.52, 0.0, 0.0], [0.52, 0.01, 0.0],    # old hair beside it
+                       [0.52, 0.02, 0.0], [0.53, 0.02, 0.0], [0.52, 0.03, 0.0]])   # head
+    faces = np.array([[0, 1, 2], [1, 3, 4], [5, 6, 7], [8, 9, 10], [11, 12, 13]])
+    joint = np.array([0, 0, 0, 2, 2, 1, 1, 1, 2, 2, 2, 2, 2, 2])
+    head, jacket, skin = (cloth.KINDS.index(kind) for kind in ("head", "jacket", "skin"))
+    person = {"points": points, "faces": faces, "weights": np.eye(3)[joint]}
+    kinds, over, weights = cloth.painted_over(person, np.array([jacket, head, skin, head, head]),
+                                              np.array([True, True, True, True, False]))
+    return [cloth.KINDS[kind] for kind in kinds[[1, 3, 4]]], over.tolist(), int(weights[3].argmax())
+
+
 def hood_kept():
     """A body 1 high whose neck (4 cm radius) rises out of a high collar (a ring 10 to 12 cm out) above a cut at 0.80,
     the hood kept from 0.85 down (`head_swap.kept_region`): which of the head's faces under the hood's depth it keeps
@@ -2009,6 +2030,8 @@ def tether_inside_read():
      neck_roles_read, [True, False, False, True, False]),
     ("the body's own faces round the neck take their kind by paint, its old hair and the rest stay the head",
      cloth_neck_released, ["jacket", "head", "skin", "head"]),
+    ("the body's old hair round the neck is painted over as the kind it lies on, its own points weighted as it",
+     old_hair_painted_over, (["jacket", "skin", "head"], [False, True, False, True, False], 0)),
     ("a hollow the model shuts reads shut, the photo's darker, warmer light in it divided out", skin_hollow_light_off,
      [True, True]),
     ("the photo's fringe and lid openings are kept off, its brows and moustache kept; the model's painted fringe "
