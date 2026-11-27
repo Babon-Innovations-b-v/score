@@ -74,7 +74,7 @@ from blender_eyes import blender_face  # noqa: E402
 
 TO_BLENDER = Matrix(((1, 0, 0, 0), (0, 0, -1, 0), (0, 1, 0, 0), (0, 0, 0, 1)))  # glTF (y up) to Blender (z up)
 FAN_MATCH = 1e-4  # a shell face whose middle lies this near a fan's middle in pieces.npz (the rig's units) is that fan
-UNDER_NECK = 0.02  # the collision body is drawn only this far (body heights) under the cut and lower
+UNDER_NECK = 0.045  # the collision body is drawn only this far (body heights) under the cut (just under the chin) and lower
 COVER_M = 0.015  # a rig face above the cut this near the swap's head (the rig's metres) is the head's: taken off
 # A face of the swap's head whose nearest rig face is a cloth garment's and lies this near (the rig's metres; its
 # faces some 5 mm across) is that garment's: the cloth draws it (`garment_cut`). The head model's high puffer collar,

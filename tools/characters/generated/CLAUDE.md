@@ -94,10 +94,11 @@ own paint) and brings in only what the generator cannot make, from the repo's ow
   hair reads as hair, the hairline as skin and the beard as a beard.
 - **Head swap** (`head_swap.py`, inside Blender, CPU): the detailed head-and-shoulders model (made from a head
   close-up) put on the whole body. Its scale is scanned (a free-scale ICP slides along a long valley), at each scale a
-  rigid two-way trimmed ICP of the head above the body's chin onto the body's head, hair and all; one level cut low on
-  the neck or inside the collar, the head's cut edge laid onto the body's (`seam_shifts`, below), its paint
-  blended into the body's (read along each texel's normal) over a wider band, the shading normals averaged across.
-  The body below the cut is never changed; a body's own hood round the neck can be kept (the `<hood>` depth). Its JSON
+  rigid two-way trimmed ICP of the head above the body's chin onto the body's head, hair and all; one level cut just
+  under the chin and the jaw (a face and scalp cut, some 5 mm under the head model's chin; at the back it runs under
+  the hair), the head's cut edge laid onto the body's (`seam_shifts`, below), its paint blended into the body's (read
+  along each texel's normal) over a band of 2.5 cm, the shading normals averaged across. The body below the cut (its
+  neck, collar, scarf) is never changed; a collar rising above the cut can be kept (the `<hood>` depth). Its JSON
   holds the head-to-body matrix in the glTF frame: strand hair and eyes made on the head model follow onto the body
   with it. Run: `blender -b --python head_swap.py -- <body.glb> <head.glb> <cut depth> <out.glb> <out.json> [<hood>]`
   (about a minute, under 2 GB); look at the seam close up, front and back, before keeping a cut depth.
@@ -287,6 +288,18 @@ own paint) and brings in only what the generator cannot make, from the repo's ow
   on the stairwell and older women: new folds 0 (from 155 and 122 of the 1 cm band's edges), the older woman's outer
   edge 78% laid (gap max 1.6 mm). Open: the stairwell woman's body edge hooks back into her collar on her right of the
   throat 1.5 cm off the head's, so 23% is laid there and the head's edge stands up to 8 mm off the body's.
+  Round 8 (2026-11-27): three rounds of collar fixes under a cut low on the neck (0.17, 0.18 under the crown) each
+  fought the collar, the old hair resting on it and the seam at once (dark gaps in the collar, a dark line across the
+  neck). The cut now lies just under the chin (`person.PEOPLE`'s `cut_depth`, read off the head model's side profile:
+  0.145 and 0.14), so the body's own neck, collar and scarf stay as the body model made them and only the face,
+  scalp, ears and hair come from the head; `collar_depth` only where a collar rises above that cut (the stairwell
+  woman's puffer, to 0.13). There the two cut edges are one closed loop each: `laid_path` closes a body path whose
+  ends lie within SEAM_BODY_LINK and opens it where the head's starts (read as an open path, the isotonic fit pooled
+  the head's loop onto its ends: the older woman's edge 3.5% laid; closed, her outer wall all laid, no fold). The
+  release band reaches past still_rig's head sphere (RELEASE_BAND 0.09) and the collision body stays 4.5 cm under the
+  cut (UNDER_NECK). A released face outside still_rig's head part keeps its place's kinds (`cloth.kinds_of`): the
+  skin's anywhere made the older woman's cream scarf over her shoulders skin (3173 faces), drawn in the skin's finish
+  as brown blotches.
   Run: `python -m tools.characters.generated.person <name> <sources> <out> [--from <step> | --only <step>]` (head
   2 min, hair 5, swap 1.5, rig 3.5, cloth 5 to 10 at nice 19; the render some hours: 13 sheet frames and the 96-frame
   film with 240k strands, 5.7 GB).

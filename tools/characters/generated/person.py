@@ -50,13 +50,14 @@ DRESSED_LIBRARY = pathlib.Path(os.environ.get("SCORE_DRESSED_LIBRARY",
 CLIPS = pathlib.Path(os.environ.get("SCORE_PEOPLE_CLIPS",
                                     HOME / ".farm-factory-motion/candidates/prop-people/woman_stair/rig.npz"))
 # Each person's measures: her height (m), the head model's height as drawn (m), the swap's cut under the crown (body
-# heights), the depth under the crown from which down the body keeps its own collar round the neck (`head_swap`'s
-# hood: just under the chin; the head model's own collar, kept to the cut, stood in shards against the jacket's) and
-# the dressed body whose skeleton and clips she plays; `tether` a garment's longest tether where her clothes want other
-# than cloth_tether.TETHER_M (`cloth.made`'s reach: a long coat's hem).
-PEOPLE = {"a_stairwell_woman": {"height_m": 1.68, "head_m": 0.42, "cut_depth": 0.17, "collar_depth": 0.15,
+# heights: some 5 mm under the head model's chin, read off its side profile; the body's neck, collar and scarf under it
+# stay the body's), where a collar rises above that cut the depth under the crown from which down the body keeps it
+# (`collar_depth`, `head_swap`'s hood: the stairwell woman's puffer collar reaches 0.13), the dressed body whose
+# skeleton and clips she plays; `tether` a garment's longest tether where her clothes want other than
+# cloth_tether.TETHER_M (`cloth.made`'s reach: a long coat's hem).
+PEOPLE = {"a_stairwell_woman": {"height_m": 1.68, "head_m": 0.42, "cut_depth": 0.145, "collar_depth": 0.125,
                                 "dressed": "character/dress_woman_stair_made/1/body.glb"},
-          "c_older_woman": {"height_m": 1.64, "head_m": 0.42, "cut_depth": 0.18, "collar_depth": 0.16,
+          "c_older_woman": {"height_m": 1.64, "head_m": 0.42, "cut_depth": 0.14,
                             "dressed": "character/dress_woman_stair_made/1/body.glb", "tether": {"jacket": 0.10}}}
 STEPS = ("head", "hair", "swap", "rig", "pieces", "cloth", "render", "sheet")
 FILM_SECONDS = 4.0  # the walking film (cloth.SECONDS is the cloth sheet's 3 s)
@@ -83,11 +84,12 @@ FAN_MIDDLE_M = 0.008
 # hood: the collar's top drawn skinned beside the cloth's collar and torn where the sphere cut it, the old hair as
 # dark shards over the collar (whole person round 6, 2026-11-27, ray cast off the front close-up: of 15006 head-kind
 # pixels in the collar's zone, some 6400 the body's sage collar, 3885 its old hair, 2693 fans, 19 the swap's head).
-# A rig face nearer the swapped body's points than its head's, from RELEASE_BAND body heights under the cut up, is
+# A rig face nearer the swapped body's points than its head's, from RELEASE_BAND body heights under the cut up (the
+# cut just under the chin: down past the head part's sphere, some 0.22 under the crown), is
 # the body's (`neck_roles`): the cloth reads it by its paint as any other face, and keeps it the head (for the drawing
 # to take off) only where its paint is the hair's, read on the swap's head faces lying on the head model's hair
 # (within HAIR_ON_M of a hair-step hair face, nearer one than any skin face) up to HAIR_READ_BAND over the cut.
-RELEASE_BAND = 0.06
+RELEASE_BAND = 0.09
 HAIR_ON_M = 0.003
 HAIR_READ_BAND = 0.06
 SAMPLES, SIZE, FILM_SAMPLES, FILM_WIDTH = 64, 1200, 64, 720
@@ -143,8 +145,9 @@ def swap_step(given, out, person, name):
     folder.mkdir(parents=True, exist_ok=True)
     colour.toned(given["body"], given["body_cutout"], folder / "body_toned.glb", folder / "colour.json")
     head_alone(out / "head/head.glb", folder / "head.glb")
+    hood = [person["collar_depth"]] if "collar_depth" in person else []
     blender("head_swap.py", [folder / "body_toned.glb", folder / "head.glb", person["cut_depth"],
-                             folder / f"{name}.glb", folder / f"{name}.json", person["collar_depth"]], out / "swap.log")
+                             folder / f"{name}.glb", folder / f"{name}.json", *hood], out / "swap.log")
 
 
 def rig_step(out, person, name):

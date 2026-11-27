@@ -1,15 +1,19 @@
 """A generated person's detailed head put on its whole body: the head-and-shoulders model (made from a head close-up)
-fitted onto the whole clothed body's soft head, both cut at one level line low on the neck or inside the collar, the
-head's cut edge laid onto the body's, and the head's paint blended into the body's across a band above the cut.
-Everything of the body below the cut stays as it was.
+fitted onto the whole clothed body's soft head, both cut at one level line just under the chin and the jaw (a face and
+scalp cut: at the back it runs under the hair), the head's cut edge laid onto the body's, and the head's paint blended
+into the body's across a narrow band above the cut. Everything of the body below the cut (its neck, collar, scarf)
+stays as the body model made it; the head model gives only the face, scalp, ears and hair.
 
 Inside Blender (CPU):
     blender -b --python head_swap.py -- <body.glb> <head.glb> <cut depth> <out.glb> <out transform.json> [<hood>]
 
-<cut depth>: the cut's depth under the body's crown, in the body's heights (a head, crown to chin, is about 0.13;
-about 0.15 to 0.17 lands low on the neck or inside a collar). <hood>: when the body's own hood or high collar rises
-round the neck above the cut, the depth under the crown (body heights) from which down the body keeps everything round
-the neck but the neck itself and the throat: its hood stays, the head model's is dropped.
+<cut depth>: the cut's depth under the body's crown, in the body's heights (a head, crown to chin, is about 0.13; the
+cut lies some 5 mm under the head model's chin, 0.14 to 0.145, where the jaw's shade and the hair hide it). Cut low on
+the neck or inside the collar (0.15 to 0.18, whole person rounds 1 to 7, 2026-11-27), every fix fought the collar, the
+old hair lying on it and the seam at once: dark gaps in the collar and a dark line across the neck. <hood>: when the
+body's own hood or high collar rises round the neck above the cut, the depth under the crown (body heights) from which
+down the body keeps everything round the neck but the neck itself and the throat: its hood stays, the head model's is
+dropped.
 
 The transform JSON holds the head-to-body similarity (scale, rotation, translation) in the glTF frame of the two files,
 so anything made on the head model (hair strands, eyes) follows onto the body with the same matrix; the cut's level,
@@ -34,7 +38,8 @@ SCAN_ROUNDS = 25  # rigid rounds at each scanned scale
 HEAD_SPAN = 0.13  # crown to chin: the fit's part of both models
 TARGET_SPAN = 0.16  # the body's head and neck, for the swap's axis
 SNAP_REACH = 0.012  # a head cut-edge point is laid onto the body's cut edge only within this distance (2 cm)
-BAND = 0.02  # the shape's band above the cut (3.4 cm): the head's cut edge laid on the body's eases out across it
+BAND = 0.012  # the shape's band above the cut (2 cm): the head's cut edge laid on the body's eases out across it (the
+# cut just under the jaw: wider, the chin and the lips would move with the seam)
 # The seam (`seam_shifts`), in body heights: each side's cut edge read as its outer wall's paths (edges facing out from
 # the axis: the shells are two walls 3 to 4 mm apart, ragged), a body path's pieces joined across SEAM_BODY_LINK, a
 # head path's across SEAM_HEAD_LINK; a head path is laid along its nearest body path in order, its parameter there by
@@ -53,7 +58,8 @@ SEAM_RELEASES = 120  # rounds of easing the laid points nearest the band's new f
 RELEASED_PER_FOLD = 2  # laid points eased per new fold each round
 EASED_SHARE = 0.5  # an eased point keeps this share of its shift
 EASED_LEAST = 0.0005  # a shift eased under this (body heights, under 1 mm) lets the point go: it follows the band
-PAINT_BAND = 0.035  # the paint's band above the cut (6 cm): the head's paint blends from the body's across it
+PAINT_BAND = 0.015  # the paint's band above the cut (2.5 cm): the head's paint blends from the body's across it (wider,
+# the body's soft paint would reach the chin)
 NORMAL_AGREE = 0.3  # two surfaces face the same way when their normals' dot is over this (a neck and a collar's
 # inside do not)
 NORMAL_REACH = 0.004  # within this of the cut (7 mm) the two sides' shading normals are averaged: no shading line
@@ -264,22 +270,61 @@ def at_parameter(line, lengths, parameter):
     return line[step] + share[:, None] * (line[step + 1] - line[step])
 
 
-def laid_path(head_line, body_line, anchor, reach):
+def opened_at(loop, lengths, parameter):
+    """A closed polyline `loop` (its first point its last) opened again at arc parameter `parameter`: it starts and
+    ends there."""
+    point = at_parameter(loop, lengths, np.array([parameter]))
+    after = lengths > parameter
+    return np.vstack([point, loop[after][:-1], loop[~after][1:], point]) if after.any() else loop
+
+
+def unwrapped(parameter, head_lengths, length):
+    """Parameters on a closed body loop of `length`, opened at the head path's first point (parameter 0), each moved by
+    a whole loop to lie nearest where the head path's arc length says it runs, one way round or the other: (the
+    parameters, the way: 1 or -1)."""
+    best = None
+    for way in (1.0, -1.0):
+        expected = head_lengths if way > 0 else length - head_lengths
+        turns = np.round((expected - parameter) / length)
+        moved = parameter + turns * length
+        miss = float(np.abs(moved - expected).sum())
+        if best is None or miss < best[0]:
+            best = (miss, moved, way)
+    return best[1], best[2]
+
+
+def laid_path(head_line, body_line, anchor, reach, closing=0.0):
     """The head path's points laid along the body path keeping their order: each one's parameter on the body path by
     arc length between anchors (its points within `anchor` of the body path, held in order by an isotonic fit, and
-    its two ends). A point is laid when its target falls inside the body path's ends and within `reach`. Returns
-    (targets, laid)."""
+    its two ends). A point is laid when its target falls inside the body path's ends and within `reach`. A body path
+    whose ends lie within `closing` is a closed loop (a cut just under the jaw meets the neck as one loop each side),
+    closed and opened again where the head path starts, and
+    its parameters taken round the loop, never folded back at its ends (opened anywhere else, the isotonic fit pooled
+    half the head's loop onto one end: an older woman's edge 3.5% laid). Returns (targets, laid)."""
+    closed = len(body_line) > 3 and float(np.linalg.norm(body_line[0] - body_line[-1])) < closing
+    if closed:
+        body_line = np.vstack([body_line, body_line[:1]])
     lengths = along(body_line)
-    parameter, gaps = on_polyline(head_line, body_line, lengths)
     head_lengths = along(head_line)
+    if closed:
+        body_line = opened_at(body_line, lengths, on_polyline(head_line[:1], body_line, lengths)[0][0])
+        lengths = along(body_line)
+    parameter, gaps = on_polyline(head_line, body_line, lengths)
     weights = 1.0 / (gaps + 1e-4)
-    way = 1.0 if np.polyfit(head_lengths, parameter, 1, w=weights)[0] >= 0 else -1.0
+    if closed:
+        parameter, way = unwrapped(parameter, head_lengths, lengths[-1])
+    else:
+        way = 1.0 if np.polyfit(head_lengths, parameter, 1, w=weights)[0] >= 0 else -1.0
     anchors = gaps < anchor
     anchors[[0, -1]] = True
     held = np.flatnonzero(anchors)
     parameter = np.interp(head_lengths, head_lengths[held], way * isotonic(way * parameter[held], weights[held]))
+    if closed:
+        parameter = np.clip(parameter, 0.0, lengths[-1])
+        inside = np.ones(len(parameter), bool)
+    else:
+        inside = (parameter > 1e-9) & (parameter < lengths[-1] - 1e-9)
     targets = at_parameter(body_line, lengths, parameter)
-    inside = (parameter > 1e-9) & (parameter < lengths[-1] - 1e-9)
     return targets, inside & (np.linalg.norm(targets - head_line, axis=1) < reach)
 
 
@@ -336,7 +381,8 @@ def seam_laid(points, normals, edge_pairs, body_lines, axis, height, reach):
     for path in outer_paths(edge_pairs, points, normals, axis, SEAM_HEAD_LEAST * height, SEAM_HEAD_LINK * height):
         line = points[path]
         misses = [np.median(on_polyline(line, body, along(body))[1]) for body in body_lines]
-        targets, laid = laid_path(line, body_lines[int(np.argmin(misses))], SEAM_ANCHOR * height, reach)
+        targets, laid = laid_path(line, body_lines[int(np.argmin(misses))], SEAM_ANCHOR * height, reach,
+                                  SEAM_BODY_LINK * height)
         indices.append(path[laid])
         shifts.append((targets - line)[laid])
     if not indices:

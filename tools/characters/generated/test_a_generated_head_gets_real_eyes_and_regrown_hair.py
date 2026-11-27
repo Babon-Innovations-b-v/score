@@ -67,7 +67,10 @@ path, where each point's nearest body point does not (`head_swap.laid_path`); a 
 body cut edge 2 to 5 mm in front lays its outer wall's edge on the body's exactly and folds none of its faces
 (`head_swap.seam_shifts`). Breaks that turn their rows red (each applied once, seen red, reverted, 2026-11-27): the
 isotonic hold dropped (`isotonic` returning its values: the targets run back on the doubled leg); the outer wall not
-chosen (`outer_paths` taking every edge: both walls joined into one path, the outer edge laid off the body's).
+chosen (`outer_paths` taking every edge: both walls joined into one path, the outer edge laid off the body's). A
+cut just under the jaw meets the neck as one loop each side: the head's loop is laid all round the body's, once round
+(`laid_path`'s `closing`). Break (applied once, seen red, reverted, 2026-11-27): the loop read as an open path
+(`closing` 0: the isotonic fit pooled the head's loop onto the body path's ends, an older woman's edge 3.5% laid).
 
 The skin, on a flat front painted with soft blobs and a photo of it under a known map: the photo is found from a start
 4 px and 2% off to within a pixel (`skin.registered`); a shading that follows the normal is divided out, a highlight's
@@ -195,7 +198,8 @@ on the hair not read). Faces round the neck released from still_rig's head part 
 (`cloth.kinds_of`): one painted as the jacket the jacket, one as the skin the skin (skin's place or not), one as the
 hair the head, one never released the head. Breaks (each applied once, seen red, reverted, 2026-11-27): `released`
 left out of the head's mask (all four the head); the skin's place kept (the released skin face the jacket); no hair
-read (the old hair the jacket). That old hair is painted over as the kind it lies on (`cloth.painted_over`: taken
+read (the old hair the jacket); the skin's anywhere for every released face (the shoulder's scarf the skin, whole
+person round 7: brown blotches on the older woman's scarf). That old hair is painted over as the kind it lies on (`cloth.painted_over`: taken
 off, it opened the collar's top over its black hollow), its own points weighted as that kind's nearest point. Breaks
 (each applied once, seen red, reverted, 2026-11-27): the head kept as a target (the second old hair the head); the
 weights left as they were. The skin's matte is read over plain skin (`skin.plain_skin`) and a socket's shade deeper than the
@@ -1804,7 +1808,8 @@ def neck_roles_read():
 def cloth_neck_released():
     """Four faces of still_rig's head part at the chest's height (strongest on the Chest) and a few hair faces over
     them: released and painted as the jacket, as the hair and as the skin, and one painted as the jacket never
-    released: [their kinds]."""
+    released; and a face outside the head part on the upper arm painted as the skin, released (a scarf over the
+    shoulder): [their kinds]."""
     names = ["Hips", "Spine1", "Spine2", "Chest", "Neck2", "LeftArm", "LeftForeArm", "LeftHand", "LeftShin",
              "LeftFoot", "RightFoot", "RightArm", "RightForeArm", "RightHand", "RightShin"]
     bind = np.repeat(np.eye(4)[None], len(names), axis=0)
@@ -1818,7 +1823,8 @@ def cloth_neck_released():
               + [("Neck2", [0.0, 1.6 + 0.01 * k, -0.05], "hair", "hair") for k in range(3)]
               + [("Chest", [0.05 * k, 1.45, -0.05], kind, "released") for k, kind in
                  enumerate(("jacket", "hair", "skin"))]
-              + [("Chest", [0.15, 1.45, -0.05], "jacket", "head")])
+              + [("Chest", [0.15, 1.45, -0.05], "jacket", "head")]
+              + [("LeftArm", [0.3, 1.32, 0.0], "skin", "outside")])
     corner = np.array([[0.0, 0.0, 0.0], [0.004, 0.0, 0.0], [0.0, 0.004, 0.0]])
     points = np.concatenate([np.asarray(middle) + corner for _, middle, _, _ in places])
     faces = np.arange(len(points)).reshape(-1, 3)
@@ -1829,8 +1835,8 @@ def cloth_neck_released():
     person = {"names": names, "bind": bind, "points": points, "faces": faces, "weights": weights,
               "lab": np.array([colour[kind] for _, _, kind, _ in places]),
               "head": np.isin(role, ("hair", "released", "head")), "hand": role == "hand"}
-    kinds = cloth.kinds_of(person, role == "released", role == "hair")
-    return [cloth.KINDS[kind] for kind in kinds[-4:]]
+    kinds = cloth.kinds_of(person, np.isin(role, ("released", "outside")), role == "hair")
+    return [cloth.KINDS[kind] for kind in kinds[-5:]]
 
 
 def old_hair_painted_over():
@@ -1885,6 +1891,22 @@ def seam_order():
     placed, off = head_swap.on_polyline(targets[laid], body_line, lengths)
     return [bool((np.diff(nearest) >= -1e-12).all()), bool((np.diff(placed) >= -1e-12).all()),
             round(float(off.max()) * 1000, 6)]
+
+
+def seam_loop():
+    """A neck's cut just under the jaw: the body's edge a closed loop 5 cm round (its ends 3 mm apart, opened at the
+    back), the head's a loop 5.3 cm round run the other way and opened at the side (`head_swap.laid_path`, closing at
+    1 cm): (the head's share laid, whether every target lies within 0.5 mm of the body's loop, whether they run once
+    round)."""
+    body_angles = np.linspace(0.0, 2.0 * np.pi - 0.06, 120)
+    body_line = np.column_stack([0.05 * np.sin(body_angles), 0.05 * np.cos(body_angles), np.zeros(120)])
+    head_angles = np.pi / 2.0 - np.linspace(0.0, 2.0 * np.pi, 140)
+    head_line = np.column_stack([0.053 * np.sin(head_angles), 0.053 * np.cos(head_angles), np.zeros(140)])
+    targets, laid = head_swap.laid_path(head_line, body_line, 0.003, 0.012, 0.01)
+    radius = np.linalg.norm(targets[laid, :2], axis=1)
+    turn = np.unwrap(np.arctan2(targets[laid, 0], targets[laid, 1]))
+    return [round(float(laid.mean()), 2), bool(np.abs(radius - 0.05).max() < 0.0005),
+            bool(abs(abs(turn[-1] - turn[0]) - 2.0 * np.pi) < 0.2)]
 
 
 def seam_band():
@@ -2029,7 +2051,7 @@ def tether_inside_read():
     ("the body's own collar over the cut is released, the head's neck and the body under not; the hair read on it",
      neck_roles_read, [True, False, False, True, False]),
     ("the body's own faces round the neck take their kind by paint, its old hair and the rest stay the head",
-     cloth_neck_released, ["jacket", "head", "skin", "head"]),
+     cloth_neck_released, ["jacket", "head", "skin", "head", "jacket"]),
     ("the body's old hair round the neck is painted over as the kind it lies on, its own points weighted as it",
      old_hair_painted_over, (["jacket", "skin", "head"], [False, True, False, True, False], 0)),
     ("a hollow the model shuts reads shut, the photo's darker, warmer light in it divided out", skin_hollow_light_off,
@@ -2104,6 +2126,7 @@ def tether_inside_read():
      chin_read, [0.02, "refused"]),
     ("a head path that doubles back is laid along the body path in order, on the path", seam_order, [False, True, 0.0]),
     ("a ragged two-walled band is laid onto the body's cut edge with no fold", seam_band, [0, True, True]),
+    ("a head loop under the jaw is laid all round the body's closed loop", seam_loop, [1.0, True, True]),
 ])
 def test_a_generated_head_gets_real_eyes_and_regrown_hair(case, made_value, wanted):
     assert made_value() == wanted, case

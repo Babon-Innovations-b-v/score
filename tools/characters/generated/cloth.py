@@ -308,7 +308,9 @@ def kinds_of(person, released=None, hair=None):
     hands) the skin, every other face the kind its paint and place say, settled by its neighbours. The `released`
     faces of the head part (per face) take the kind their paint says too, the skin's anywhere, unless it is nearer
     the `hair` faces' read than every kind's: the kinds are read as without them (their old hair, read as a garment,
-    made a white T-shirt a scarf and the shirt black, whole person round 6, 2026-11-27)."""
+    made a white T-shirt a scarf and the shirt black, whole person round 6, 2026-11-27). A released face outside the
+    head part keeps its place's kinds: the skin's anywhere made an older woman's cream scarf over her shoulders skin
+    (3173 faces, drawn in the skin's finish as brown blotches, whole person round 7, 2026-11-27)."""
     faces = person["faces"]
     middles = person["points"][faces].mean(1)
     strongest = strongest_of(person)
@@ -326,7 +328,7 @@ def kinds_of(person, released=None, hair=None):
     for kind, centre in read.items():
         distance[:, KINDS.index(kind)] = np.where(places[kind], colour_distance(colour, centre), np.inf)
     if released is not None and "skin" in read:
-        distance[:, KINDS.index("skin")] = np.where(released, colour_distance(colour, read["skin"]),
+        distance[:, KINDS.index("skin")] = np.where(released & person["head"], colour_distance(colour, read["skin"]),
                                                     distance[:, KINDS.index("skin")])
     found = distance.argmin(1)
     head = person["head"].copy()
