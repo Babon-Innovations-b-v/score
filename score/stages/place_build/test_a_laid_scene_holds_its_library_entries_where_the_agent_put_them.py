@@ -48,6 +48,7 @@ Breaks that turn this red (each applied once and seen red, then reverted):
 - crowd.laid_removed: the column check left out -> the person laid in the wall stays
 - crowd.stood: left out -> the people laid on the dais stand 3 cm into it
 - crowd.stood_rows: the lift left off the rows -> the copies packed on the dais stand 3 cm into it
+- crowd.lanes_of: LANE_ANGLE alone tried -> the wall across one side's lane leaves the crowd a single lane
 - crowd.instanced: orientationsf left out -> a copy's turn reads stretched off even (the package converts each apart)
 - people.copies_posed: each copy's move left out -> every copy reads as its prototype at the origin, inside the stage
 - pieces.walks_of: the end left in the instancer's own frame -> the walker's far end is off by the crowd's offset
@@ -2721,7 +2722,8 @@ def crowded(folder):
     stage, one standing in the wall. Each kept person faces the leader by its toes within 3 degrees and the one in the
     wall is taken out (and those on a lane); every packed person stands on the floor clear of the stage, the wall and
     the house, outside it (its body's REACH round its middle), none two nearer than NEAREST, each facing the
-    leader; the walkers walk lanes whose every point lies on the floor clear of both, and the piece list's walks
+    leader; the walkers walk two lanes (the one the wall crosses at LANE_ANGLE turned in until clear) whose every
+    point lies on the floor clear of both, and the piece list's walks
     carry each walker's far end in the scene's frame."""
     from score.stages.place_build import crowd, pieces
     folder.mkdir(parents=True)
@@ -2755,7 +2757,7 @@ def crowded(folder):
         place_build.posed(person, at, (0.0, 37.0 * number, 0.0), (1.0, 1.0, 1.0))
     stage.GetRootLayer().Save()
     done = crowd.crowd(folder, "leader")
-    assert "person44" in done["removed"] and done["faced"] == 45 - len(done["removed"]) >= 35, done
+    assert "person44" in done["removed"] and done["faced"] == 45 - len(done["removed"]) >= 30, done  # two lanes' seeds out
     stage = Usd.Stage.Open(str(place_build.scene_path(folder)))
     toward = np.array([0.0, 1.0, 0.0])
     tiled = crowd.Solids(stage, "sq", np.array([-20.0, -10.0]), np.array([20.0, 30.0]))
@@ -2804,7 +2806,7 @@ def crowded(folder):
     walkers = stage.GetPrimAtPath(f"{objects}/crowd_walkers")
     starts = UsdGeom.PointInstancer(walkers).GetPositionsAttr().Get()
     ends = walkers.GetAttribute("score:walks_to").Get()
-    assert done["walkers"] >= 1 and len(starts) == len(ends) == done["walkers"]
+    assert len(done["lanes"]) == 2 and done["walkers"] >= 2 and len(starts) == len(ends) == done["walkers"], done["lanes"]
     for start, end in zip(starts, ends):
         for share in np.linspace(0.0, 1.0, 40):
             x, _, z = np.asarray(start) + (np.asarray(end) - np.asarray(start)) * share

@@ -11,7 +11,8 @@ each spot kept only where its body's column is clear: rays straight down at its 
 floor, facing up, with no solid within HEADROOM over it (a stage's top, a stair, a wall, a lamp), and level rays
 from its middle at REACH_HEIGHTS meet no solid within its body's reach (REACH, or the most the prototypes' posed
 skins reach round their feet) nor, all eight ways at one height, one object (inside a hollow building). Two lanes run out
-from `toward` through the crowd (LANE_ANGLE either side of the way to its middle, from LANES_FROM), each as long as
+from `toward` through the crowd (either side of the way to its middle at the widest of LANE_ANGLES that runs clear
+LANE_LEAST, from LANES_FROM), each as long as
 its LANE_WIDTH corridor finds the same clear floor every LANE_STEP; no one stands on a lane, and WALKERS_EVERY metres of
 lane gets a walker. Every person faces `toward` by its toes (score_lib's people face their model's -Z), and stands
 on its floor by its feet as the check reads them (ready.person_faults: each foot's lowest skin, rays down from
@@ -54,7 +55,9 @@ REACH_HEIGHTS = (0.25, 0.6, 0.95, 1.3, 1.65)  # metres over a spot's floor its b
 LEAST = 40  # a floor is a crowd's when at least this many of its people stand on it
 AREA_ROUND = 4.5  # metres round its own people a floor is packed
 LANES_FROM = 7.0  # metres from `toward` a lane may start
-LANE_ANGLE = 0.42  # radians either side of the way to the crowd's middle the two lanes run
+LANE_ANGLE = 0.42  # radians either side of the way to the crowd's middle the two lanes run, when clear
+LANE_ANGLES = (LANE_ANGLE, 0.36, 0.30, 0.24, 0.18, 0.12)  # the headings a lane is tried at, widest first (at 0.12
+# the two lanes stand apart from their start; 2099 #161: the square's bollard lines crossed both 0.42 lanes)
 LANE_WIDTH = 1.5  # metres a lane is kept clear of standing people
 LANE_STEP = 0.25  # metres between the lane's corridor reads
 LANE_REACH = 70.0  # metres from `toward` a lane runs at most
@@ -401,33 +404,43 @@ def faced(prim, toward):
 
 
 def lanes_of(solids, middle, toward, levels, top):
-    """The two lanes out from `toward` through the crowd's `middle`, LANE_ANGLE either side, each from where its
-    corridor first finds a clear crowd floor to where it stops finding that one (at least LANE_LEAST long)."""
+    """The two lanes out from `toward` through the crowd's `middle`, one either side of the way to it, each at the
+    widest of LANE_ANGLES whose corridor runs clear far enough (lane_at)."""
     outward = np.array([middle[0] - toward[0], middle[2] - toward[2]])
     outward /= np.linalg.norm(outward)
     found = []
-    for angle in (-LANE_ANGLE, LANE_ANGLE):
-        along = np.array([outward[0] * math.cos(angle) - outward[1] * math.sin(angle),
-                          outward[0] * math.sin(angle) + outward[1] * math.cos(angle)])
-        across = np.array([-along[1], along[0]])
-        steps = np.arange(LANES_FROM, LANE_REACH, LANE_STEP)
-        centres = np.array([toward[0], toward[2]]) + steps[:, None] * along
-        reads = (centres[:, None, :] + np.array([-1.0, 0.0, 1.0])[None, :, None] * (LANE_WIDTH / 2.0) * across).reshape(-1, 2)
-        floors = column_floors(solids, reads, levels, top)
-        level, start, length = None, None, 0.0
-        for number, metres in enumerate(steps):
-            row = set(floors[number * 3:number * 3 + 3])
-            clear = len(row) == 1 and None not in row
-            if level is None:
-                if clear:
-                    level, start = row.pop(), metres
-                continue
-            if not clear or row.pop() != level:
-                break
-            length = metres - start
-        if level is not None and length >= LANE_LEAST:
-            found.append(Lane(np.array([toward[0], toward[2]]) + start * along, along, length, level))
+    for side in (-1.0, 1.0):
+        lane = next((lane for lane in (lane_at(solids, outward, side * angle, toward, levels, top)
+                                       for angle in LANE_ANGLES) if lane is not None), None)
+        if lane is not None:
+            found.append(lane)
     return found
+
+
+def lane_at(solids, outward, angle, toward, levels, top):
+    """The lane `angle` off the unit way `outward` from `toward`: from where its corridor first finds a clear crowd
+    floor to where it stops finding that one, or None when that run is shorter than LANE_LEAST."""
+    along = np.array([outward[0] * math.cos(angle) - outward[1] * math.sin(angle),
+                      outward[0] * math.sin(angle) + outward[1] * math.cos(angle)])
+    across = np.array([-along[1], along[0]])
+    steps = np.arange(LANES_FROM, LANE_REACH, LANE_STEP)
+    centres = np.array([toward[0], toward[2]]) + steps[:, None] * along
+    reads = (centres[:, None, :] + np.array([-1.0, 0.0, 1.0])[None, :, None] * (LANE_WIDTH / 2.0) * across).reshape(-1, 2)
+    floors = column_floors(solids, reads, levels, top)
+    level, start, length = None, None, 0.0
+    for number, metres in enumerate(steps):
+        row = set(floors[number * 3:number * 3 + 3])
+        clear = len(row) == 1 and None not in row
+        if level is None:
+            if clear:
+                level, start = row.pop(), metres
+            continue
+        if not clear or row.pop() != level:
+            break
+        length = metres - start
+    if level is None or length < LANE_LEAST:
+        return None
+    return Lane(np.array([toward[0], toward[2]]) + start * along, along, length, level)
 
 
 def prototypes_of(stage, place, people, count=PROTOTYPES):
