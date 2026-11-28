@@ -1,7 +1,8 @@
 """Invariant: a made shape that reads wrong is told for a remake, by object: a crop-built pipe whose section swells
 along its run is `a sausage` while a straight one, or one whose section swells as much as NVIDIA's socketed grey
 pipe, passes, and so does an arc of pipe of one section (read along its own centreline: sliced across its chord it
-swells 0.12), while an arc that swells is still a sausage; a picture-made console of bumps with no flat face is
+swells 0.12), while an arc that swells is still a sausage, and a made thing that is no pipe (a banner shaped as a
+swelling tube) is never read along its centreline, the read that held 10 GB on a made flag; a picture-made console of bumps with no flat face is
 `a lump` while a box console passes; the same bumps as a library kit, or as a made seat, are not judged.
 
 Breaks that turn this red (each applied once and seen red, then reverted):
@@ -15,6 +16,8 @@ Breaks that turn this red (each applied once and seen red, then reverted):
 - shapes.shape_faults: the centreline read left out (`and (shape.along is None or shape.along > SWELL)` dropped) ->
   the arc of one section is a sausage
 - shapes.along: no swell found (`return 0.0` first) -> the swelling arc passes
+- shapes.shape_of: the centreline read on every long swelling thing (`if pipe and run` -> `if run`) -> the banner
+  is read along its centreline
 - shapes.along: a mesh wound outward-in never cast again (`if np.isnan(widths).mean() > 0.5:` -> `if False:`) -> the
   swelling arc, wound so, passes
 """
@@ -99,6 +102,7 @@ CASES = [
     ("socketed", "grey_pipes_1.hangar", pipe(0.12), CROP, set()),
     ("arc", "pipe_1.lab", arc(0.0), CROP, set()),
     ("swelling_arc", "bent_pipe_1.lab", arc(0.25), CROP, {"a sausage"}),
+    ("banner", "red_banners_1.stairwell", pipe(0.25), PIXAL, set()),
     ("lumpy", "pilot_console_1.cockpit", lump(), PIXAL, {"a lump"}),
     ("boxed", "comms_console_1.cockpit", box(), PIXAL, set()),
     ("kit", "console_kit", lump(), KIT, set()),
@@ -122,5 +126,8 @@ def test_a_made_shape_that_reads_wrong_is_told_for_a_remake(tmp_path, monkeypatc
     prim.GetReferences().AddReference(str(tmp_path / "model.usda"))
     prim.CreateAttribute("score:library", Sdf.ValueTypeNames.String).Set(f"model/{entry_id}@1")
     found = shapes.faults(scene, "camp")
-    assert {fault["kind"] for fault in found.get(name, ())} == told, (shapes.measured(finished.model_file(prim)),
-                                                                      found)
+    pipe_read = shapes.is_pipe({"id": entry_id})
+    shape = shapes.measured(finished.model_file(prim), pipe_read)
+    read_along = shape is not None and shape.along is not None
+    assert ({fault["kind"] for fault in found.get(name, ())}, read_along and not pipe_read) == (told, False), (
+        shape, found)

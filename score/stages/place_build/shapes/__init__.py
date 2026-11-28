@@ -4,8 +4,8 @@ geometry that does not read as its thing is remade, never kept). Judged from eac
 frame, never from a mark the agent sets.
 
     faults(stage, place) -> {object: [fault]}       every made object whose shape reads wrong
-    measured(asset) -> Shape                         a model file's flat share and its section's swell
-    shape_of(points, faces) -> Shape                 the same of triangles in hand
+    measured(asset, pipe) -> Shape                   a model file's flat share and its section's swell
+    shape_of(points, faces, pipe) -> Shape           the same of triangles in hand (a pipe's centreline read too)
 
 Only a made shape is judged: an entry whose shape a picture made (a take, Pixal3D, TRELLIS.2: finished.picture_made)
 or that code built from its concept crop (CROP_WORDS in its provenance). A library kit or a scan is what it is. What a
@@ -149,19 +149,22 @@ def section(points):
     return float(length / (2 * widths.mean())), float(widths.std() / widths.mean())
 
 
-MEASURED = {}  # {model file: its Shape}
+MEASURED = {}  # {(model file, pipe): its Shape}
 
 
-def measured(asset):
-    """The model file's Shape (cached by its path), or None when it shows no triangle."""
-    asset = str(pathlib.Path(asset).resolve())
-    if asset not in MEASURED:
-        MEASURED[asset] = shape_of(*triangles(asset))
-    return MEASURED[asset]
+def measured(asset, pipe=True):
+    """The model file's Shape (cached by its path and `pipe`), or None when it shows no triangle."""
+    key = (str(pathlib.Path(asset).resolve()), pipe)
+    if key not in MEASURED:
+        MEASURED[key] = shape_of(*triangles(asset), pipe=pipe)
+    return MEASURED[key]
 
 
-def shape_of(points, faces):
-    """The Shape of triangles (points (N, 3), faces (T, 3)), or None when none has an area."""
+def shape_of(points, faces, pipe=True):
+    """The Shape of triangles (points (N, 3), faces (T, 3)), or None when none has an area. Only a `pipe` (by default
+    any) is read along its centreline (`along`, read by the one rule that judges a pipe: a sausage): on a made flag of
+    500,000 faces that read held 10 GB for 46 s, and a place of forty such models overran the check's 20 GB (the
+    stairwell, 2026-11-28)."""
     corners = points[faces]
     crossed = np.cross(corners[:, 1] - corners[:, 0], corners[:, 2] - corners[:, 0])
     doubled = np.linalg.norm(crossed, axis=1)
@@ -171,7 +174,7 @@ def shape_of(points, faces):
     areas = doubled[kept] / 2
     run, swell = section(surface_points(corners[kept], areas))
     shape = Shape(flat=flat_share(crossed[kept] / doubled[kept, None], areas), run=run, swell=swell)
-    if run >= LONG and swell > SWELL:
+    if pipe and run >= LONG and swell > SWELL:
         shape.along = along(points, faces)
     return shape
 
@@ -237,10 +240,15 @@ def entry_words(record):
     return str((record or {}).get("id", "")).lower()
 
 
+def is_pipe(record):
+    """Whether the entry is a pipe by its id (PIPE_WORDS): the things the sausage rule judges."""
+    return any(word in entry_words(record) for word in PIPE_WORDS)
+
+
 def shape_faults(record, shape):
     """The faults of a made entry's Shape: a pipe that swells, a hard thing with too few flat faces."""
     words, found = entry_words(record), []
-    if (any(word in words for word in PIPE_WORDS) and shape.run >= LONG and shape.swell > SWELL
+    if (is_pipe(record) and shape.run >= LONG and shape.swell > SWELL
             and (shape.along is None or shape.along > SWELL)):
         found.append({"fault": FAULT, "kind": "a sausage",
                       "why": (f"a pipe whose section swells along its run ({shape.swell:.2f} of its width, "
@@ -262,7 +270,7 @@ def faults(stage, place):
         asset = finished.model_file(prim)
         if not made(record) or not asset or not asset.exists():
             continue
-        shape = measured(asset)
+        shape = measured(asset, is_pipe(record))
         told = shape_faults(record, shape) if shape else []
         if told:
             found[prim.GetName()] = [dict(fault, model=finished.text(prim, "score:library")) for fault in told]
