@@ -16,7 +16,7 @@ stands where its points say. `spec`:
   `flat` a strap or band (`wide`, `thick`); `box` a square or flat bar, a stringer, a rib (`wide`, `deep`);
   `channel` an open cable tray (`wide`, `deep`, `thick`); `railing` posts under rails (`high`, `rails` the heights
   of the rails under the top one, `posts` the most metres between posts, `post` and `rail` their radii, `infill`
-  none, `bars` or `glass`);
+  none, `bars` (balusters, `bar` their radius, BAR_RADIUS by default) or `glass`);
 - `sag` metres a flexible run hangs between each two of its points (a catenary: an overhead cable, a lantern
   string, a cord between a lamp and its socket);
 - `bend` the bend radius at each corner (BEND_RADII of its radius by default; a cable's wider, FLEXIBLE_RADII);
@@ -26,11 +26,13 @@ stands where its points say. `spec`:
   bracket every `brackets` metres (BRACKET_GAP), each a clamp round the run on a stand-off and a plate on the wall;
 - `joints` metres between a rigid run's collars (a drainpipe's sockets; none by default), `caps` its ends closed by
   a cap, `clamps` metres between a bundle's ties (TIE_GAP), `buckles` [[x, y, z]] a strap's buckles;
-- `hang` metres between the spots answered along the run (where a string's lanterns or a cable's tags hang).
+- `hang` metres between the spots answered along the run (where a string's lanterns or a cable's tags hang);
+  `pennants` {`wide`, `drop`, `thick`} a bunting's flags, one hanging from a flexible run at each of those spots:
+  a triangle `wide` along the run under it and `drop` deep, `thick` through (PENNANT's sizes by default).
 
 Parts: the run's own (RUN_PART: `pipe`, `hose`, `cable`, `strap`, `bar`, `tray`, `rail`), `fitting` (a rigid run's
 elbow sleeve at each bend over ELBOW_TURN, its collars and caps, a hose's cuffs), `bracket` (wall clamps, a bundle's
-ties, a railing's base plates), `post` (a railing's posts), `infill` (its bars or glass) and `buckle`. Each wears
+ties, a railing's base plates), `post` (a railing's posts), `infill` (its bars or glass), `buckle` and `pennant`. Each wears
 its own library surface when laid (place_build.pipe).
 """
 import json
@@ -60,6 +62,8 @@ LEAST_TURN = 1.0  # degrees: a corner turning less is no bend
 BAR_GLASS = 0.012  # metres: a railing's glass infill's thickness
 INFILL_LOW = 0.1  # metres over the floor a railing's infill starts
 BARS_GAP = 0.12  # metres between a railing's bars (a building code's 0.1 m sphere does not pass)
+BAR_RADIUS = 0.008  # metres: a railing's bar's radius, when none is given
+PENNANT = {"wide": 0.2, "drop": 0.25, "thick": 0.002}  # metres: a bunting flag's, when its sizes are not given
 
 
 def segments_of(radius):
@@ -372,6 +376,7 @@ def railing_run(points, spec):
     rail = float(spec.get("rail") or 0.02)
     gap = float(spec.get("posts") or POST_GAP)
     infill = spec.get("infill") or "none"
+    bar = float(spec.get("bar") or BAR_RADIUS)
     if infill not in ("none", "bars", "glass"):
         raise ValueError(f"a railing's infill is none, bars or glass, not {infill}")
     heights = sorted({float(height) for height in spec.get("rails") or (high * 0.5,)} | {high})
@@ -394,7 +399,7 @@ def railing_run(points, spec):
             for share in np.linspace(0.0, 1.0, max(2, math.ceil(span / BARS_GAP)) + 1)[1:-1]:
                 foot = start + (end - start) * share
                 found += swept("infill", np.asarray([foot + up * INFILL_LOW, foot + up * (high - rail)]),
-                               round_section(0.008))
+                               round_section(bar))
         elif infill == "glass":
             found += pane(start, end, post, high - rail * 1.5)
     return found, max(post, rail)
@@ -451,6 +456,28 @@ def one_run(points, spec):
     return found, laid, reach
 
 
+def pennants(laid, spec, radius):
+    """A bunting's flags along the hanging centreline `laid`: at each spot `hang` metres apart a closed triangular
+    sheet in the run's upright plane, its top edge along the run's underside (`radius` under its centreline), its
+    tip `drop` under that (part `pennant`)."""
+    if not spec.get("hang"):
+        raise ValueError("a bunting's pennants hang at its `hang` spots: give it a `hang`")
+    if spec["profile"] in RIGID:
+        raise ValueError(f"pennants hang from a flexible run, not a {spec['profile']} one")
+    sizes = {**PENNANT, **spec["pennants"]} if isinstance(spec["pennants"], dict) else dict(PENNANT)
+    wide, drop, thick = (float(sizes[key]) for key in ("wide", "drop", "thick"))
+    if min(wide, drop, thick) <= 0 or wide > float(spec["hang"]):
+        raise ValueError(f"a pennant is over 0 in every size and no wider than its `hang` ({sizes})")
+    found = []
+    for centre, way in along(laid, float(spec["hang"])):
+        level = unit([way[0], 0.0, way[2]]) if np.hypot(way[0], way[2]) > 1e-6 else np.array([1.0, 0.0, 0.0])
+        across = np.cross(level, [0.0, 1.0, 0.0])
+        sheet = np.asarray([centre - across * thick / 2, centre + across * thick / 2])
+        outline = [(-wide / 2, -radius), (0.0, -radius - drop), (wide / 2, -radius)]
+        found += swept("pennant", sheet, outline, face=(0.0, 1.0, 0.0), sharp=True)
+    return found
+
+
 def pieces_of(spec):
     """Every piece of the runs `spec` names and their laid centrelines."""
     if spec.get("profile") not in PROFILES:
@@ -463,6 +490,8 @@ def pieces_of(spec):
         pieces, laid, reach = one_run(points, spec)
         found += pieces
         centrelines.append(laid)
+        if spec.get("pennants"):
+            found += pennants(laid, spec, float(spec.get("radius") or 0.02))
         if spec.get("wall") is not None and spec["profile"] != "railing":
             stand = float(spec.get("stand") or reach + 0.02)
             if stand <= reach:

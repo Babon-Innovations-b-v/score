@@ -56,6 +56,8 @@ Breaks that turn this red (each applied once and seen red, then reverted):
 - pipe_run.round_run: the elbow sleeves left out -> the drainpipe's bend carries no elbow
 - pipe_run.wall_way: the round wall's side ignored -> the silo pipe's brackets stand off away from the silo
 - pipe_run.catenary: the hang's sign turned -> the lantern string's middle rises over its ends
+- pipe_run.pennants: the drop left off its tip -> the bunting's flags are slivers along its string, none hanging
+- pipe_run.railing_run: `bar` ignored -> the stair's balusters stand 16 mm thick where the row says 20
 - place_build.pipe: the missing looks check left out -> a run with bare parts is laid
 - place_build.pipe: a look given as {address, colour} read as an address -> the drain's run is refused, its brackets bare
 - place_build.snap: `on_grid` on the height too -> the lifted piece drops to the grid
@@ -866,6 +868,21 @@ def test_a_laid_scene_holds_its_library_entries_where_the_agent_put_them(tmp_pat
     silo_stage = Usd.Stage.Open(str(tmp_path / "silo.usda"))
     silo_points = np.asarray(UsdGeom.Mesh(silo_stage.GetPrimAtPath("/piece/geo")).GetPointsAttr().Get())
     assert silo["parts"] == ["bracket", "pipe"] and np.isclose(silo_points[:, 0].min(), 2.0, atol=1e-3)  # on the silo
+    bunting = pipe_run.write(tmp_path / "bunting.usda", {"profile": "cord", "radius": 0.004, "path": [[0, 4, 0], [4, 4, 0]],
+                                                         "sag": 0.2, "hang": 0.5, "pennants": {"drop": 0.25}})
+    balusters = pipe_run.write(tmp_path / "balusters.usda", {"profile": "railing", "high": 0.9, "rails": [], "posts": 3.0,
+                                                             "infill": "bars", "bar": 0.01, "path": [[0, 0, 0], [2, 0, 0]]})
+    run_stages = {name: Usd.Stage.Open(str(tmp_path / f"{name}.usda")) for name in ("bunting", "balusters")}
+    run_meshes = {name: UsdGeom.Mesh(opened.GetPrimAtPath("/piece/geo")) for name, opened in run_stages.items()}
+    def part_points(mesh, part):
+        faces = [subset for subset in UsdGeom.Subset.GetAllGeomSubsets(mesh) if subset.GetPrim().GetName() == part][0]
+        triangles = np.asarray(mesh.GetFaceVertexIndicesAttr().Get()).reshape(-1, 3)
+        return np.asarray(mesh.GetPointsAttr().Get())[np.unique(triangles[np.asarray(faces.GetIndicesAttr().Get())])]
+    flags = part_points(run_meshes["bunting"], "pennant")
+    bars = part_points(run_meshes["balusters"], "infill")
+    assert bunting["parts"] == ["cable", "pennant"] and len(bunting["spots"]) == 8 \
+        and abs(flags[:, 1].min() - (4 - 0.2 - 0.004 - 0.25)) < 0.01  # a flag at each spot, hanging its drop under the sag
+    assert balusters["parts"] == ["bracket", "infill", "post", "rail"] and np.isclose(np.abs(bars[:, 2]).max(), 0.01, atol=1e-4)
     del pipe_stage
     place_build.remove(folder, "drain")
     place_build.remove(folder, "string")
