@@ -20,6 +20,12 @@ score_lib as a draft `model/<name>_trellis.<place>` entry. `__init__.py` is the 
   card (CARD_GB), about two minutes. `make --card-only` runs only that card step (kept in made/<entry>/), the same make after it finishing on the processor, so a queue starts the next card step meanwhile (2026-11-26). Its TRELLIS.2 models are built without torch's random fills (generate.unfilled, the
   load 38 s to 4 to 12 s) and each flow model read when its stage asks (generate.OnUse, 11.0 GB at the most); two makes
   side by side were slower, 2 to 3 times each (#159). A made model is kept under `<folder>/made/<entry>/` and not made again.
+- **A remake takes new seeds** (2099's prologue, 2026-11-28: seven remakes at the failed make's seed 42 and close-up
+  came back as the failed models, and were marked gaps for a second fail never tried): a first make is at SEED, its
+  record's `seed` says so; `cloud.remade(pairs, who, attempt)` makes TAKES takes a picture at `generate.seeds_for(attempt)`
+  (never SEED nor another attempt's) in one job, keeps each under `<out folder>/takes/seed<n>/`, and lays the take whose
+  outline from the close-up's camera best overlaps the close-up's (`best_take`, fit.headed) at out, its stats naming
+  every take's seed and overlap.
 - **Fits this PC's card, the model unchanged** (#169: a printer box and a fridge stopped with 'CUDA driver error:
   device not ready', WSL's answer to a card overrun): `generate.lean` runs the sparse convs on FlexGEMM's implicit
   GEMM, LayerNorm32 and the decoders' last norm a block of rows at a time, and the remesh on `remesh.py` (CuMesh's,

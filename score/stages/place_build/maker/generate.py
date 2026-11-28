@@ -1,8 +1,9 @@
 """Runs in the model maker's own Python (setup.sh): one TRELLIS.2 model from one cut-out picture, its paint baked.
 
-    <env>/venv/bin/python -I generate.py <env folder> <picture.png (RGBA, its alpha the cut-out)> <out.glb> [faces]
+    <env>/venv/bin/python -I generate.py <env folder> <picture.png (RGBA, its alpha the cut-out)> <out.glb> [faces [seed]]
 
-TRELLIS.2's 1024 cascade at seed 42, its texture 2048 and at most 500k faces (the maker's defaults; quality is never
+TRELLIS.2's 1024 cascade at seed 42 for a first make (a remake's seeds are `seeds_for` its attempt, never 42: the same
+seed and picture give the same model, so 2099's prologue's seven remakes came back as the failed makes, 2026-11-28), its texture 2048 and at most 500k faces (the maker's defaults; quality is never
 cut): `faces` is the count its size in the place needs (maker.faces_for), the same faces a square metre for every
 model, so a 0.3 m sprout is not made at a building's 500k (2026-11-21: 168 crops at 462,710 faces each).
 No RMBG-2.0 (the picture's own alpha is the cut-out: an all-opaque picture is refused), no flash-attn and no NVIDIA
@@ -21,6 +22,7 @@ import types
 
 HERE = pathlib.Path(__file__).resolve().parent
 SEED = 42
+TAKES = 3  # a remake's takes, each at its own seed, made in one card run; the best matched to its close-up is kept
 TEXTURE = 2048
 FACES = 500000
 # to_glb's remesh contours the surface lying `band` voxels off TRELLIS.2's own (band_for), then moves each vertex
@@ -284,15 +286,24 @@ def band_for(clear):
     return (BAND, PROJECT) if clear >= SEE_THROUGH else (1, 0.0)
 
 
-def made(pipeline, picture, out, faces=FACES):
-    """The model of `picture` written as `out` (GLB), its decoded mesh beside it (decoded_written); its counts."""
+def seeds_for(attempt):
+    """The seeds a make of `attempt` is made at: SEED for the first make (attempt 0), TAKES seeds for remake `attempt`
+    (1, 2, ...), none of them SEED nor another attempt's: a remake at the failed make's seed reproduces it."""
+    if attempt == 0:
+        return [SEED]
+    return [SEED + (attempt - 1) * TAKES + take for take in range(1, TAKES + 1)]
+
+
+def made(pipeline, picture, out, faces=FACES, seed=SEED):
+    """The model of `picture` at `seed` written as `out` (GLB), its decoded mesh beside it (decoded_written); its
+    counts."""
     import torch
     import o_voxel.postprocess  # imported by name: the meshparts image's o_voxel leaves it out of its __init__
     from PIL import Image
     image = Image.open(picture)
     if image.mode != "RGBA" or image.getchannel("A").getextrema()[0] == 255:
         raise SystemExit(f"{picture}: not a cut-out (no transparent background); the maker reads its alpha")
-    mesh = pipeline.run(image, seed=SEED, pipeline_type="1024_cascade")[0]
+    mesh = pipeline.run(image, seed=seed, pipeline_type="1024_cascade")[0]
     mesh.simplify(16777216)
     torch.cuda.empty_cache()  # the decoders' cached blocks back to the card: the remesh starts from what is in use
     clear = see_through(mesh)
@@ -311,6 +322,7 @@ def made(pipeline, picture, out, faces=FACES):
 def main():
     env, picture, out = pathlib.Path(sys.argv[1]), sys.argv[2], pathlib.Path(sys.argv[3])
     faces = int(sys.argv[4]) if len(sys.argv) > 4 else FACES
+    seed = int(sys.argv[5]) if len(sys.argv) > 5 else SEED
     sys.path[:0] = [str(HERE / "shim"), str(env / "src/TRELLIS.2")]
     sys.path.append(str(HERE))  # remesh.py, last so its neighbours shadow nothing (-I leaves the script's folder out)
     os.environ.setdefault("PYTORCH_CUDA_ALLOC_CONF", "expandable_segments:True")
@@ -322,8 +334,8 @@ def main():
     lean()
     pipeline = loaded(env)
     loaded_at = time.time()
-    counts = made(pipeline, picture, out, faces)
-    stats = {"picture": str(picture), "seed": SEED, "texture": TEXTURE, "faces_target": faces, **counts,
+    counts = made(pipeline, picture, out, faces, seed)
+    stats = {"picture": str(picture), "seed": seed, "texture": TEXTURE, "faces_target": faces, **counts,
              "load_s": round(loaded_at - began, 1), "make_s": round(time.time() - loaded_at, 1),
              "card_peak_mib": round(torch.cuda.max_memory_reserved() / 2**20),
              "made_with": json.loads((env / "ready.json").read_text())}

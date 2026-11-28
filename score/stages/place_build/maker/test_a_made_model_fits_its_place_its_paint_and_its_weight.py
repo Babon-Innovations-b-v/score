@@ -64,7 +64,10 @@ Breaks that turn this red (each applied once and seen red, then reverted):
   (generate.py drops its flow models after one), a picture's output not brought back where its out.glb lies, or a
   pair's faces not passed to generate.py (the cloud make at 500k whatever its size);
   cloud.brought_back leaving the decoded mesh behind -> its folder is not removed (rmdir refuses) and no
-  trellis-decoded.glb lies beside the model (#209)
+  trellis-decoded.glb lies beside the model (#209); generate.seeds_for: a remake at SEED, or one take's seed for all
+  -> the remake reproduces the failed make (2099's prologue, 2026-11-28: seven remakes the failed models again);
+  cloud.job_of: a take's seed not passed -> made at 42; cloud.best_take: the first take kept, not the best outline ->
+  the rod laid for the cube's close-up
 - shim/flash_attn: the padded batch's key mask dropped -> padded keys are attended (checked where torch is, as in
   the maker's own Python, with the three below)
 - generate.chunked_layer_norm: a block normalised in float16 -> the norm is not LayerNorm32's bit for bit;
@@ -535,6 +538,31 @@ def test_a_made_model_fits_its_place_its_paint_and_its_weight(tmp_path, monkeypa
             (back / name).write_text(json.dumps({"from": name}))
         assert cloud.brought_back(back, out) == {"from": "model.json"} and not back.exists()
         assert (out.is_file(), generate.decoded_path(out).is_file()) == (True, decoded)
+    remake_seeds = generate.seeds_for(1)  # 2099's prologue: remade at the failed make's seed 42, the same model again
+    assert generate.seeds_for(0) == [generate.SEED] and generate.SEED not in remake_seeds
+    assert len(set(remake_seeds) | set(generate.seeds_for(2))) == 2 * generate.TAKES == 2 * len(remake_seeds)
+    job = cloud.job_of([("/pictures/a.png", cloud.take_path("/made/a/a.glb", remake_seeds[0]), None, remake_seeds[0])])
+    assert job["command"][-1].endswith(f"/0/model.glb {generate.FACES} {remake_seeds[0]}")
+    cube_up = (([0.0, 0.0, 0.0], [1.0, 1.0, 1.0]),)  # the close-up: a cube; the takes a rod, the cube and a plate
+    shapes = dict(zip(remake_seeds, ([3.0, 0.3, 0.3], [1.0, 1.0, 1.0], [1.0, 0.05, 1.0])))
+    sent = []
+
+    def cloud_made(pairs, who):
+        for picture, out, faces, seed in pairs:
+            sent.append(seed)
+            trimesh.creation.box(extents=shapes[seed]).export(str(out))
+            out.with_suffix(".json").write_text(json.dumps({"seed": seed}))
+    monkeypatch.setattr(cloud, "made", cloud_made)
+    from PIL import Image
+    turn, down = maker.close_up_view([1.0, 1.0, 1.0])
+    cut = Image.fromarray((drawn(cube_up, turn, down) * 255).astype(np.uint8))
+    close_up = Image.new("RGBA", cut.size)
+    close_up.putalpha(cut)
+    close_up.save(tmp_path / "cube.png")
+    remade_out = tmp_path / "remade" / "trellis.glb"
+    stats = cloud.remade([(tmp_path / "cube.png", remade_out, None)], "test", 1, [[1.0, 1.0, 1.0]])[str(remade_out)]
+    assert sent == remake_seeds and stats["seed"] == remake_seeds[1] and len(stats["takes"]) == generate.TAKES
+    assert all(cloud.take_path(remade_out, seed).is_file() for seed in remake_seeds) and remade_out.is_file()
 
     points, faces, normals, inside_out = mended_fixture()  # #167: the mesh repaired, its shape kept
     sources, kept, mended, counts = repair.repaired(points, faces, normals)
