@@ -28,6 +28,16 @@ fewer than MIN_PIXELS front pixels, or landing mostly on the photo's specks, kee
 stays its own (a generated model keeps its own paint: data/checks/library-exceptions.json); only its colour is
 brought back to its photo's. Run it on the raw model, before the head swap, the hair and still_rig's grade.
 
+A texel the front sees (its surface facing it, `seen_places`) on a garment's place takes only that garment's
+clusters (`seen_allowed`), never the kept body's by colour alone (2026-11-28: the older woman's cream scarf, shaded by
+her neck and down its edges, fell in her grey hair's cluster by colour and height and kept its paint, grey-brown
+streaks on a scarf lifted to L 84 round them). A place is a photo garment's piece (inside or under the photo's body
+zone, two places: grey hair and a white scarf can be one colour piece), and its clusters are those of the garments
+landing on at least LANDED_SHARE of its front pixels (`place_clusters`); a place the kept body lands on says nothing,
+so a place only ever gives a texel a garment's move, never takes one away. A texel whose colour is like none of its
+place's clusters (`alike`: the front is laid on the photo by the boxes, an edge may land on its neighbour), and one the
+front does not see, is clustered as before.
+
 Garments only: the person's body (skin, hair, beard, brows, lips, eyes) keeps its paint. A paint cluster landing
 mostly on the photo's body (`body_zone`: its skin pieces, the head, the hands) has no garment (`bodily`), and a
 garment whose paint clusters differ past a photo garment's limits is split before its move (`split`: the hollow head's
@@ -42,6 +52,7 @@ import json
 import pathlib
 
 import numpy as np
+import trimesh
 from PIL import Image
 from scipy import ndimage
 from scipy.cluster.vq import kmeans2
@@ -72,6 +83,8 @@ BAND_ROWS = 128  # texture rows toned at once
 FACE_LEAST = 0.005  # the face is the highest photo skin piece with at least this share of the person's pixels
 HAND_SHARE = 0.4  # a skin piece under the head is a hand when no larger than this share of the head's largest
 BODY_SHARE = 0.5  # a paint cluster with this share of its front pixels on the photo's body is the body's: kept
+SEEN_DEPTH = 0.004  # share of the model's height a point may lie behind its front cell's front-most and be seen
+SEEN_FACING = 0.25  # ... and its surface must face the front this squarely (|normal z|; the sheet is wound either way)
 
 
 def parts_of(document, views):
@@ -94,6 +107,23 @@ def parts_of(document, views):
             uv = np.column_stack([uv[:, 0], 1.0 - uv[:, 1]]).astype(float)
             parts.append((points, uv, document["textures"][base["index"]]["source"]))
     return parts
+
+
+def faces_of(document, views):
+    """Each textured primitive's triangles (rows of its own point indices), in `parts_of`'s order."""
+    faces = []
+    for mesh in document["meshes"]:
+        for primitive in mesh["primitives"]:
+            material = document["materials"][primitive["material"]] if "material" in primitive else {}
+            if material.get("pbrMetallicRoughness", {}).get("baseColorTexture") is None:
+                continue
+            if "indices" in primitive:
+                faces.append(glb_file.accessor_array(document, views, primitive["indices"]).astype(np.int64)
+                             .reshape(-1, 3))
+            else:
+                count = document["accessors"][primitive["attributes"]["POSITION"]]["count"]
+                faces.append(np.arange(count - count % 3, dtype=np.int64).reshape(-1, 3))
+    return faces
 
 
 def picture_of(document, views, image):
@@ -119,14 +149,21 @@ def features(lab, height):
     return np.column_stack([lab, height * HEIGHT_LAB])
 
 
-def front_view(points, values, pixels):
-    """The points seen from the front (glTF: y up, looking along -z), each grid cell holding the front-most point's
-    `values` row; (image rows down, seen mask). The grid spans the points' box, `pixels` rows high."""
+def front_cells(points, pixels):
+    """Each point's cell in the front view (glTF: y up, looking along -z) over the points' box, `pixels` rows high:
+    (rows down, columns, the grid's width)."""
     low, high = points[:, :2].min(0), points[:, :2].max(0)
     step = (high[1] - low[1]) / pixels
     width = int(np.ceil((high[0] - low[0]) / step)) + 1
     cols = np.clip(((points[:, 0] - low[0]) / step).astype(int), 0, width - 1)
     rows = np.clip(((high[1] - points[:, 1]) / step).astype(int), 0, pixels - 1)
+    return rows, cols, width
+
+
+def front_view(points, values, pixels):
+    """The points seen from the front (glTF: y up, looking along -z), each grid cell holding the front-most point's
+    `values` row; (image rows down, seen mask). The grid spans the points' box, `pixels` rows high."""
+    rows, cols, width = front_cells(points, pixels)
     cell = rows * width + cols
     order = np.lexsort((-points[:, 2], cell))  # by cell, the front-most (largest z) first
     first = order[np.r_[True, cell[order][1:] != cell[order][:-1]]]
@@ -324,9 +361,72 @@ def moves(paint_lab, paint_labels, photo_lab, photo_labels, chosen):
     return table
 
 
-def toned_lab(lab, height, centres, table):
-    """Each Lab colour moved by every cluster's move, weighted by its soft share in that cluster."""
+def photo_places(regions, zone):
+    """The photo's places: each garment piece (`photo_regions`) split into its part inside the body zone and its part
+    outside (grey hair and a white scarf can be one colour piece); -1 off them."""
+    return np.where(regions >= 0, 2 * regions + zone, -1)
+
+
+def place_clusters(pixel_places, paint_labels, chosen, count):
+    """Per place (rows up to the largest place), the paint clusters a texel on it may take: those of the garments'
+    moves (`chosen`) landing on at least LANDED_SHARE of its front pixels (the largest when none does). A place says
+    nothing (no row) when the kept body (-1: every cluster with no move) is among them or it has fewer than MIN_PIXELS
+    front pixels: a place only ever gives a texel a garment's move, never takes one away (taken away, the stairwell
+    woman's puffer cuffs on the photo's hands and its collar top under the photo's hair kept their dark grey)."""
+    allowed = np.zeros((max(int(pixel_places.max()) + 1, 1), count), bool)
+    groups = chosen[paint_labels]
+    for place in np.unique(pixel_places[pixel_places >= 0]):
+        members = groups[pixel_places == place]
+        if len(members) < MIN_PIXELS:
+            continue
+        found, counts = np.unique(members, return_counts=True)
+        worn = found[counts >= min(LANDED_SHARE * len(members), counts.max())]
+        if -1 not in worn:
+            allowed[place] = np.isin(chosen, worn)
+    return allowed
+
+
+def seen_places(points, normals, frame, place_grid):
+    """Each point's place (`photo_places` on the front view's cropped grid) when the front sees it (within
+    SEEN_DEPTH of the model's height behind its cell's front-most point, its surface facing the front by SEEN_FACING:
+    the top of a puffer's collar behind the shoulders, seen edge on over them, landed on the photo's hair hanging
+    there and kept its grey), else -1. `frame` is the front view's (pixels, row slice, column slice)."""
+    pixels, rows, cols = frame
+    row, col, width = front_cells(points, pixels)
+    cell = row * width + col
+    front = np.full(cell.max() + 1, -np.inf)
+    np.maximum.at(front, cell, points[:, 2])
+    facing = np.abs(normals[:, 2]) >= SEEN_FACING
+    seen = facing & (points[:, 2] >= front[cell] - SEEN_DEPTH * np.ptp(points[:, 1]))
+    row, col = row - rows.start, col - cols.start
+    inside = seen & (row >= 0) & (row < place_grid.shape[0]) & (col >= 0) & (col < place_grid.shape[1])
+    places = np.full(len(points), -1)
+    places[inside] = place_grid[row[inside], col[inside]]
+    return places
+
+
+def seen_allowed(points, normals, frame, place_grid, allowed):
+    """The clusters each point may take (points x clusters): a point the front sees on a place with clusters
+    (`seen_places`, `place_clusters`) its place's, every cluster elsewhere. A point the front does not see is clustered
+    by colour and height alone (2026-11-28, tried: reached along the surface from the seen points, the stairwell
+    woman's puffer collar under her hair took the hair's place and kept its grey, the older woman's coat by her hands
+    the hands')."""
+    places = seen_places(points, normals, frame, place_grid)
+    known = (places >= 0) & allowed[np.maximum(places, 0)].any(1)
+    return np.where(known[:, None], allowed[np.maximum(places, 0)], True)
+
+
+def toned_lab(lab, height, centres, table, allowed=None):
+    """Each Lab colour moved by every cluster's move, weighted by its soft share in that cluster; only among the
+    clusters it is `allowed` (colours x clusters, `seen_allowed`) when its colour is like one of them (`alike`:
+    within GARMENT_AB in a and b and GARMENT_L in lightness), else among all (the front is laid on the photo by the
+    boxes, so a neck can land on a turtleneck)."""
     distance = nearest(features(lab, height), centres)
+    if allowed is not None:
+        chroma = np.linalg.norm(lab[:, None, 1:] - centres[None, :, 1:3], axis=-1)
+        like = (chroma < GARMENT_AB) & (np.abs(lab[:, None, 0] - centres[None, :, 0]) < GARMENT_L)
+        fits = (allowed & like).any(1)
+        distance = np.where(allowed | ~fits[:, None], distance, np.inf)
     weight = np.exp(-(distance - distance.min(1, keepdims=True)) / (2.0 * SOFT_LAB ** 2))
     weight /= weight.sum(1, keepdims=True)
     out = np.zeros_like(lab)
@@ -336,9 +436,10 @@ def toned_lab(lab, height, centres, table):
     return out
 
 
-def toned_texture(texture, heights, uv, centres, table):
+def toned_texture(texture, heights, uv, centres, table, allowed=None):
     """The texture's RGB toned in Lab, its alpha kept; toned BAND_ROWS rows at a time to keep memory small. `heights`
-    are the UV points' heights over the whole model (`heights_of` of all its parts)."""
+    are the UV points' heights over the whole model (`heights_of` of all its parts), `allowed` the clusters each UV
+    point may take (`seen_allowed`; None: every cluster everywhere)."""
     out = texture.copy()
     tree_heights = heights
     tree = cKDTree(uv)
@@ -347,16 +448,17 @@ def toned_texture(texture, heights, uv, centres, table):
         band = texture[top:top + BAND_ROWS, :, :3] / 255.0
         grid_v, grid_u = np.mgrid[top:top + band.shape[0], 0:width]
         queries = np.column_stack([grid_u.ravel() / (width - 1), 1.0 - grid_v.ravel() / (height - 1)])
-        heights = tree_heights[tree.query(queries)[1]]
+        found = tree.query(queries)[1]
         lab = rgb2lab(band).reshape(-1, 3)
-        rgb = lab2rgb(toned_lab(lab, heights, centres, table).reshape(band.shape))
+        own = None if allowed is None else allowed[found]
+        rgb = lab2rgb(toned_lab(lab, tree_heights[found], centres, table, own).reshape(band.shape))
         out[top:top + band.shape[0], :, :3] = np.round(np.clip(rgb, 0.0, 1.0) * 255.0).astype(np.uint8)
     return out
 
 
 def fitted(points, colours, photo_rgba):
     """The colour fit from the model's points and their paint (RGB 0 to 1): (paint cluster centres, per-cluster moves,
-    report rows)."""
+    report rows, places: the front view's frame, its photo places and each place's clusters, for `seen_allowed`)."""
     values = np.column_stack([colours, heights_of(points)])
     view, seen = front_view(points, values, GRID_PIXELS)
     rows, cols = view_box(seen)
@@ -372,7 +474,8 @@ def fitted(points, colours, photo_rgba):
     photo_labels = regions[both]
     photo_grid = np.zeros(person.shape + (3,))
     photo_grid[person] = rgb2lab(photo[person])
-    body = bodily(paint_labels, (body_zone(regions, photo_grid) & person)[both], len(centres))
+    zone = body_zone(regions, photo_grid) & person
+    body = bodily(paint_labels, zone[both], len(centres))
     chosen = np.where(body, -1, garments(paint_labels, photo_labels, len(centres)))
     chosen = merged(chosen, centres, paint_labels, photo_lab, photo_labels)
     table = moves(paint_lab, paint_labels, photo_lab, photo_labels, chosen)
@@ -382,7 +485,10 @@ def fitted(points, colours, photo_rgba):
                "paint_srgb": srgb255(move[0]) if move is not None else srgb255(centres[cluster, :3]),
                "photo_srgb": srgb255(move[2]) if move is not None else None}
               for cluster, move in enumerate(table)]
-    return centres, table, report
+    place_grid = photo_places(regions, zone)
+    clusters = place_clusters(place_grid[both], paint_labels, chosen, len(centres))
+    places = ((GRID_PIXELS, rows, cols), place_grid, clusters)
+    return centres, table, report, places
 
 
 def srgb255(lab):
@@ -401,9 +507,9 @@ def written(document, views, pictures, out):
     glb_file.write(document, views, out)
 
 
-def toned_pictures(textures, parts, centres, table):
-    """Each base colour image (index: RGBA picture) toned through its own primitives' UVs, the points' heights taken
-    over the whole model."""
+def toned_pictures(textures, parts, centres, table, allowed):
+    """Each base colour image (index: RGBA picture) toned through its own primitives' UVs, the points' heights and
+    clusters (`allowed`, `seen_allowed`) taken over the whole model."""
     heights = heights_of(np.vstack([part[0] for part in parts]))
     starts = np.cumsum([0] + [len(part[0]) for part in parts])
     pictures = {}
@@ -411,7 +517,8 @@ def toned_pictures(textures, parts, centres, table):
         members = [index for index, part in enumerate(parts) if part[2] == image]
         uv = np.vstack([parts[index][1] for index in members])
         own_heights = np.concatenate([heights[starts[index]:starts[index + 1]] for index in members])
-        pictures[image] = toned_texture(texture, own_heights, uv, centres, table)
+        own_allowed = np.vstack([allowed[starts[index]:starts[index + 1]] for index in members])
+        pictures[image] = toned_texture(texture, own_heights, uv, centres, table, own_allowed)
     return pictures
 
 
@@ -424,8 +531,12 @@ def toned(model, photo_path, out, report_path):
     points = np.vstack([part[0] for part in parts])
     colours = np.vstack([texel_colours(textures[image], uv) for _, uv, image in parts])
     photo = np.asarray(Image.open(photo_path).convert("RGBA"))
-    centres, table, report = fitted(points, colours, photo)
-    written(document, views, toned_pictures(textures, parts, centres, table), out)
+    centres, table, report, (frame, place_grid, clusters) = fitted(points, colours, photo)
+    starts = np.cumsum([0] + [len(part[0]) for part in parts])
+    faces = np.vstack([own + start for own, start in zip(faces_of(document, views), starts)])
+    normals = trimesh.Trimesh(points, faces, process=False).vertex_normals
+    allowed = seen_allowed(points, normals, frame, place_grid, clusters)
+    written(document, views, toned_pictures(textures, parts, centres, table, allowed), out)
     pathlib.Path(report_path).write_text(json.dumps({"model": str(model), "photo": str(photo_path),
                                                      "clusters": report}, indent=1))
     return report

@@ -176,6 +176,15 @@ photo's skin, the dark half cream, as on b_hoodie_man's head). A swapped model (
 on its own picture) is toned through the file: each picture keeps its size and each half's jacket reaches the photo's
 sage. Break that turns its row red (applied once, seen red, reverted, 2026-11-26): the model read through trimesh's
 `force="mesh"` (the old `model_of`: one 512 x 256 atlas written over the first picture, both jackets off the sage).
+By place (2026-11-28): a shaded scarf texel seen on the scarf's place is lifted with the scarf though its colour and
+height lie nearer the grey hair's kept cluster, the hair seen on its own place keeps its paint, a neck seen on a
+turtleneck's place, like none of its clusters, keeps its paint; a point behind the front one, or seen edge on, is on
+no place. Breaks
+that turn its row red (each applied once, seen red, reverted, 2026-11-28): no place (`toned_lab` without `allowed`:
+the shade kept grey); no fit (`alike` passed over: the neck took the turtleneck's move); no depth (`SEEN_DEPTH`
+unbounded: the point behind on the place); no facing (`SEEN_FACING` 0: the point seen edge on on the place); the kept
+body taking a place too (`place_clusters` without its `-1 not in worn`: the hair's place takes both clusters, and a
+puffer's cuffs on the photo's hands kept their dark grey).
 
 The tethered cloth (`cloth_tether.py`), on a curtain swung toward and away from a ball behind it, its top row riding,
 feeling g toward the ball: the riding row stays on its targets, every point within its tether, none deeper toward the
@@ -1995,7 +2004,7 @@ def colour_body_kept():
     the jacket within 6 of the photo's sage."""
     from skimage.color import rgb2lab
     points, uv, paint, photo, height = colour_body_toy()
-    centres, table, _ = colour.fitted(points, colour.texel_colours(paint, uv), photo)
+    centres, table, _, _ = colour.fitted(points, colour.texel_colours(paint, uv), photo)
     before = rgb2lab(paint[..., :3] / 255.0)
     after = rgb2lab(colour.toned_texture(paint, colour.heights_of(points), uv, centres, table)[..., :3] / 255.0)
     face = (height < 0.88) & (height > 0.62)
@@ -2015,7 +2024,7 @@ def colour_toned():
     boots' trace of red never lost to the trousers), and the jacket's fold stripes keeping over half their depth."""
     from skimage.color import rgb2lab
     points, uv, paint, photo = colour_toy()
-    centres, table, _ = colour.fitted(points, colour.texel_colours(paint, uv), photo)
+    centres, table, _, _ = colour.fitted(points, colour.texel_colours(paint, uv), photo)
     toned = rgb2lab(colour.toned_texture(paint, colour.heights_of(points), uv, centres, table)[..., :3] / 255.0)
     height = 1.0 - (np.arange(128) + 0.5) / 128
     fold = (np.arange(128) // 6) % 2 == 1
@@ -2031,6 +2040,31 @@ def colour_toned():
     depth_after = toned[flat].reshape(-1, 3)[:, 0].mean() - toned[jacket & fold].reshape(-1, 3)[:, 0].mean()
     return [off(jacket, (131, 137, 123)) < 6.0, off((height < 0.45) & (height > 0.15), (15, 15, 21)) < 6.0,
             off(height < 0.06, (89, 51, 41)) < 6.0, bool(depth_after > 0.5 * depth_before)]
+
+
+def colour_placed():
+    """Clusters taken by the photo's place a seen texel lies on: [a shaded scarf texel seen on the scarf's place takes
+    the scarf's lift though its colour and height lie nearer the grey hair's kept cluster, a hair texel seen on the
+    hair's place keeps its paint, a neck texel seen on the turtleneck's place (like none of its clusters) is clustered
+    by colour and keeps its paint, points' places read off the front: the front ones facing it (wound either way) on
+    their cells' place, one behind them and one seen edge on on none, a scarf's place takes the scarf's clusters
+    alone and a place the kept hair is worn on says nothing]."""
+    centres = np.array([[62.0, 6.0, 10.0, 41.0], [53.0, 3.5, 4.6, 56.0], [4.0, 0.5, -1.0, 30.0],
+                        [59.5, 16.0, 22.0, 54.0]])
+    table = [(centres[0, :3], np.ones(3), np.array([85.0, 2.0, 8.0])), None,
+             (centres[2, :3], np.ones(3), np.array([6.0, 1.0, -4.0])), None]
+    allowed = np.array([[True, False, False, False], [False, True, True, False], [False, False, True, False]])
+    lab = np.array([[54.0, 4.0, 6.0], [53.0, 3.5, 4.6], [60.0, 15.0, 21.0]])
+    toned = colour.toned_lab(lab, np.array([0.85, 0.93, 0.86]), centres, table, allowed)
+    moved = np.linalg.norm(toned - lab, axis=1)
+    points = np.array([[0.0, 0.0, 0.0], [1.0, 1.0, 0.0], [0.5, 0.5, 0.0], [0.5, 0.5, -0.1]])
+    normals = np.array([[0.0, 0.0, 1.0], [0.0, 0.0, -1.0], [0.0, 0.0, 1.0], [0.0, 0.0, 1.0], [1.0, 0.0, 0.0]])
+    points = np.vstack([points, [[1.0, 0.0, 0.0]]])
+    places = colour.seen_places(points, normals, (2, slice(0, 2), slice(0, 3)), np.full((2, 3), 7))
+    pixel_places = np.repeat([0, 1], 200)
+    paint = np.concatenate([np.repeat([0, 1], [180, 20]), np.repeat([1, 0], [150, 50])])
+    rows = colour.place_clusters(pixel_places, paint, np.array([2, -1]), 2)
+    return [bool(moved[0] > 15.0), bool(moved[1] < 0.5), bool(moved[2] < 0.5), places.tolist(), rows.tolist()]
 
 
 def colour_two_parts():
@@ -2701,6 +2735,9 @@ def hair_over_plate():
      colour_body_kept, [True] * 4),
     ("a swapped model's head and body pictures are each toned through their own UVs and kept at their own size",
      colour_two_parts, [[(128, 64), (256, 128)], [True, True]]),
+    ("a seen texel takes the clusters of the photo's place it lies on: a shaded scarf is lifted with the scarf, the "
+     "hair and a neck on a turtleneck keep their paint; a point behind the front one or seen edge on is on no place",
+     colour_placed, [True, True, True, [7, 7, 7, -1, -1], [[True, False], [False, False]]]),
     ("tethered cloth: riding points on their targets, every point within its tether, never deeper than its target, "
      "the loose cloth swinging, the edges held", tether_curtain, [True] * 5),
     ("tethered cloth feels only the gravity its turn adds to its rest hang", tether_gravity, [0.0, 13.87, 19.62]),

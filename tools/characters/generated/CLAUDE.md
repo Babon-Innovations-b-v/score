@@ -186,6 +186,16 @@ own paint) and brings in only what the generator cannot make, from the repo's ow
   cluster landing mostly on the photo's body (`colour.body_zone`: its skin pieces, the head down to its skin's lowest
   row, the hands) keeps its paint, and a garment whose paint clusters differ past a photo garment's limits is split
   (round 1, 2026-11-26: a bearded man's skin, hair and beard moved as one to his photo's skin, ears and neck cream).
+  **A seen texel on a garment's place takes that garment's move** (`colour.seen_allowed`, 2026-11-28): the older
+  woman's cream scarf, shaded by her neck and down its edges, fell in her grey hair's kept cluster by colour and height
+  and kept its paint while the scarf round it was lifted to L 84 (grey-brown streaks; the raw scarf is even). A texel
+  the front sees (its surface facing it) takes only the clusters of the garments landing on the photo place under it
+  (a garment piece, split at the body zone's edge), unless its colour is like none of them (the boxes' misfit). A
+  place the kept body lands on says nothing: a place only gives a move, never takes one away (taking it, the stairwell
+  woman's puffer cuffs on the photo's hands and her collar top under the photo's hair kept their grey). An unseen
+  texel is clustered as before (reached along the surface from the seen points, her collar's back under her hair took
+  the hair's place). Open: the back of the older woman's scarf ring under her bob, unseen, still falls in her hair's
+  cluster by height (over half its texels 12 L under the lifted scarf's median).
 - Test: one file for the module (`test_a_generated_head_gets_real_eyes_and_regrown_hair.py`), a row per step
   (`marks.py` reads a real photo with MediaPipe and has no row; `lids.py` reads its JSON).
 - **Cloth** (`cloth.py`, drawn by `blender_cloth.py`, the sheet and film by `cloth_sheet.py`; owner 2026-11-26 of the
