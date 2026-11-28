@@ -4,10 +4,10 @@ TRELLIS.2 makes a beard and stubble as lumpy solid skin painted dark. Its triang
 (`labels.py`'s colour vote, settled by neighbours, kept where it joins the chin, the beard's and the skin's colours
 read again on what was labelled, so the shaded neck reads as skin), its colour read first on the chin in front
 (CHIN), within the jaw's region: under the nose, over the throat (THROAT_M under the eyes), in front of the ears.
-Under it the skin is the same triangles smoothed (Taubin's, TAUBIN rounds, the beard's edge held, so the lumps go and
-the jaw keeps its size), painted the model's skin darkened towards the beard's colour (STUBBLE_DARK) away from its
-edge. The strands are rooted on that skin at a beard's density (DENSITY: some 60 to 100 hairs a cm2 on a full beard's
-cheeks and chin), the style's stubble at the beard's edge rising to its full length inside (`beard_lengths`: the
+Under it the skin is the same triangles smoothed in place (Taubin's, TAUBIN rounds, the beard's edge held, so the
+lumps go and the jaw keeps its size): the head's own faces, wearing the photo's own beard (`skin.photo_beard`). The
+strands are rooted on that skin at a beard's density (DENSITY: some 60 to 100 hairs a cm2 on a full beard's cheeks and
+chin), the style's stubble at the beard's edge rising to its full length inside (`beard_lengths`: the
 model's lumps stand only a millimetre or two, far short of the hairs the close-up shows), leaving the skin out at
 OUT_ANGLE and lying down the jaw (gravity along the skin), curled a little each its own way (CURL), a beard hair's
 thickness (RADIUS). Under the chin (NECK_UNDER_NOSE_M under the nose) the roots thin out towards the beard's edge
@@ -37,8 +37,6 @@ OVER_NOSE_M = 0.004  # and up to just over the nose's tip (the moustache under i
 # At (400, 0.5, -0.53) (pass band 0.11) and (1200, 0.5, -0.51) (0.04) the hoodie man's chin knobs, 1.5 to 2 cm across
 # and some 5 mm high, passed and stood through his beard as pale lumps (2026-11-28)
 TAUBIN = (4000, 0.5, -0.5025)
-STUBBLE_DARK = 0.5  # the skin under the beard this far toward its colour (the close-up: dark between the jaw's hairs)
-STUBBLE_EDGE_M = 0.006
 DENSITY = 0.8e6  # hairs a m2 (a full beard; a style's `beard_density_m2`, read off the close-up, before it)
 FULL_FROM_EDGE_M = 0.012  # a beard hair's length rises from stubble at the beard's edge to full this far in
 DARKEST = 30  # the beard's colour read on its darkest this percent (the paint mixes the skin between its hairs)
@@ -169,16 +167,6 @@ def oriented(normals, places, frame):
     away = places - frame["centre"]
     away[:, 1] *= 0.3
     return normals * np.sign(np.einsum("pi,pi->p", normals, away) + 1e-12)[:, None]
-
-
-def stubble_colours(points, faces, beard, skin_srgb, beard_srgb):
-    """The smoothed skin's colours per point (sRGB): the skin's, darker towards the beard's away from its edge."""
-    edge = points[np.unique(faces[~beard])]
-    inner = np.unique(faces[beard])
-    distance = np.zeros(len(points))
-    distance[inner] = cKDTree(edge).query(points[inner], workers=-1)[0]
-    share = STUBBLE_DARK * np.clip(distance / STUBBLE_EDGE_M, 0.0, 1.0)
-    return skin_srgb * (1.0 - share[:, None]) + beard_srgb * share[:, None]
 
 
 def beard_lengths(places, smooth, faces, beard, style):

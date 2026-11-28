@@ -115,7 +115,7 @@ def strand_pieces(name, counts, points, radius, block, holder):
 
 
 def groomed(groom, fibre, holder):
-    """The model without its hair (and beard), its scalp (the neck's back, the skin under the beard) and its strands:
+    """The model without its hair (its beard's faces smoothed in place), its scalp (the neck's back) and its strands:
     the objects."""
     items = imported(pathlib.Path(GROOM) / "kept.glb", holder)
     scalp = mesh_of("scalp", groom["scalp_points"], groom["scalp_triangles"], holder)
@@ -127,9 +127,6 @@ def groomed(groom, fibre, holder):
         items.append(neck)
     items += strand_pieces("hair", groom["counts"], groom["points"], groom["radius"], fibre["hair"], holder)
     if len(groom["beard_skin_points"]):
-        skin = mesh_of("beard_skin", groom["beard_skin_points"], groom["beard_skin_triangles"], holder)
-        painted(skin, groom["beard_skin_colours"])
-        items.append(skin)
         items += strand_pieces("beard", groom["beard_counts"], groom["beard_points"], groom["beard_radius"],
                                fibre["beard"], holder)
     return items

@@ -372,8 +372,7 @@ under his beard's underside). There the two cut edges are one closed loop each: 
   (`cloth.fused_to_leg`) and wears the trousers' paint round it (`cloth.fused_trousers`, `painted_over`); the jacket
   keeps the arm at the points it shares with them (with the jeans' weights there, two slivers stretched hem to
   wrist). The chin's pale knobs were the beard skin itself, 1.5 to 2 cm across, passed by Taubin's pass band
-  (0.11): beard.TAUBIN's is 0.01 now. The beard skin's faces are welded and turned out (`blender_person.faced_out`)
-  and its open edge laid on the head's (`beard_closed`); the beard's density is read off the close-up into the style
+  (0.11): beard.TAUBIN's is 0.01 now. The beard's density is read off the close-up into the style
   (`beard_density_m2`), and the neck under it wears a stubble shadow fading over NECK_STUBBLE_M (`neck_stubbled`).
   The hood's rim by the jaw lost faces to the cut (only the cloth's garments were kept; now every clothes kind,
   `clothes_of`) and an 858-face piece of its shaded inside, read as the plaid, hung on the jacket's sim mesh
@@ -388,9 +387,26 @@ under his beard's underside). There the two cut edges are one closed loop each: 
   took paint at a median 0.27 sRGB against the collar's 0.45. The shell's materials share one picture: kept per material, the last
   unpainted copy was written back over the paint. Left: the hood's geometry lumps, one dark shard at its lower rim,
   and the stairwell woman's jaw flap (old hair hanging 3 cm off the collar, now in its sage; a quarter of her
-  painted collar faces hang as far, so taking such faces off is not a safe rule). (2) A dark jagged line under the
-  beard: the beard skin is the sheet's two walls (two open rims 3 to 4 mm apart, smoothed apart); taking the inner
-  wall off (56363 faces) opened cracks where the smoothed walls cross (tried, reverted). (3) The body's own neck
+  painted collar faces hang as far, so taking such faces off is not a safe rule). (2) The dark jagged line under the
+  beard (the separate beard skin's open rims): gone with that skin, below. (3) The body's own neck
   under the cut paler and pinker than the head's. (4) Dark trouser lumps at the thighs where the hands' lumps were.
+- **A man's beard is the photo's own** (b_hoodie_man, 2026-11-28; two rounds of strand tuning on a separate smoothed
+  beard skin, its points painted, read as a flat brown mat with a hard edge and a dark line under it). The skin step
+  of a man whose style says `beard` (`head.made(beard=True)`, `--beard`) lays the photo over his beard too: its share
+  (`skin.hair_share`) is where the photo's lightness spreads over 0.7 mm and it is coloured (his beard 6 to 10, his
+  neck's stubble 4.4, his lips, cheeks lit and shaded and the hood 3 to 4: read by darkness, his shaded cheek was
+  beard), the beard round the face opened over 3 mm (the neck's edge against the hood laid its shade on the neck),
+  closed over 5 mm and joined to it (`photo_beard`: `face_mask` drops a beard's cheeks as head hair), the model's
+  painted beard no head hair (`model_hair_free`), the lumps' slope read smoothed (`beard_facing`: point by point the
+  moustache wore the photo in specks). The photo's light is fitted off the skin round the beard (read on its hairs,
+  the beard was taken for a hollow's shade: the texture's chin L 40 against the photo's 25), its gloss is never
+  pressed (`beard_kept`: deep in the beard no plain skin gave a matte and a cheek went black), its paint is never
+  toned (the hair step reads the beard off it), and it takes no light under the skin and no oil (`thin_dark`,
+  `tzone`); the head's beard faces all wear the skin's material (`blender_person.beard_skinned`). The hair step
+  smooths the head's own beard faces in place (`__main__.beard_laid`, through kept.glb and pieces.npz's `hair_laid`)
+  instead of laying a separate skin; the strands root on them as before, and the neck's stubble shade wears the photo
+  beard's flattened colour (`skin.beard_colour`; its lowest centimetre on the model's front is the photo's neck skin,
+  L 65: the photo's jaw is smaller). Look at the 900 px close-up beside the photo: only it says whether the beard
+  reads trimmed with the skin through it.
 - **head.glb's paint is the skin step's sRGB paint as written** (`head.paint_picture`): encoded again, it came out a
   washed copy (L 0.30 to 0.55), and the hair's labels and the swap's head wore it until 2026-11-27.

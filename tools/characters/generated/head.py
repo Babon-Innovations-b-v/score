@@ -78,10 +78,11 @@ def head_scene(mended, texture, eyes_npz, iris):
     return scene
 
 
-def made(model, cutout, photo_path, marks_path, out, height, toning=True):
+def made(model, cutout, photo_path, marks_path, out, height, toning=True, beard=False):
     """The whole ordered run for one head into `out`; each step's stats by its name. Without `toning` the model keeps
     its paint as made (round 1, 2026-11-26: on a bearded man's head `colour.py` joined his skin, hair and beard into
-    one garment and moved its dark median to the photo's skin, the ears and neck cream)."""
+    one garment and moved its dark median to the photo's skin, the ears and neck cream). A `beard`ed man's face wears
+    the photo's own beard (`skin.photo_beard`)."""
     out.mkdir(parents=True, exist_ok=True)
     toned = out / "colour.glb" if toning else model
     if toning:
@@ -109,7 +110,7 @@ def made(model, cutout, photo_path, marks_path, out, height, toning=True):
     pupils_at = np.array(eye_result["stats"]["pupils_m"])
     _, _, _, raw = eyes.loaded(model)
     skin_stats, toned = skin.repainted_written(mesh, painted, texture, photo, pupils_at, np.zeros((0, 3)),
-                                               out / "skin", scale, raw, marks)
+                                               out / "skin", scale, raw, marks, beard)
     head_scene((lid_result["points"] / scale, lid_result["triangles"], lid_result["uv"]), toned, eyes_npz,
                iris).export(out / "head.glb")
     return {"eyes": eye_result["stats"], "iris": iris_stats, "lids": lid_result["stats"], "skin": skin_stats}
@@ -124,13 +125,14 @@ def arguments():
     parser.add_argument("out", type=pathlib.Path)
     parser.add_argument("--height", type=float, required=True, help="the model's height in metres as drawn")
     parser.add_argument("--keep-paint", action="store_true", help="skip the colour step (the paint as made)")
+    parser.add_argument("--beard", action="store_true", help="the face wears the photo's own beard")
     return parser.parse_args()
 
 
 def main():
     options = arguments()
     stats = made(options.model, options.cutout, options.photo, options.marks, options.out, options.height,
-                 not options.keep_paint)
+                 not options.keep_paint, options.beard)
     (options.out / "stats.json").write_text(json.dumps(stats, indent=1))
     print(f"head: {options.out}/head.glb, eyes {stats['eyes']['eye_diameter_mm']} mm, pupil share "
           f"{stats['iris']['pupil_share']}, lashes {stats['lids']['lashes']} (share {stats['lids']['lash_share']}), "

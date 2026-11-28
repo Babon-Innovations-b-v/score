@@ -118,29 +118,38 @@ def scalp_hair(points, faces, paint, frame, labelled, style):
             "radius": radius}
 
 
-def facial_hair(points, faces, colours, frame, labelled, skin_srgb, style):
-    """The beard split off and regrown: {labels, smooth (points), colours (per point), counts, points, radius,
-    srgb, lab}."""
+def facial_hair(points, faces, colours, frame, labelled, style):
+    """The beard's faces smoothed in place and regrown: {labels, smooth (points), counts, points, radius, srgb,
+    lab}."""
     bearded, model = beard.beard_labels(points, faces, colours, frame, labelled)
     smooth, normals = beard.beard_split(points, faces, bearded)
     beard_srgb = lab2rgb(model[0][None, None])[0, 0]
     counts, strand_points, radius = beard.beard_strands(smooth, faces, bearded, normals, frame, style)
     return {"labels": bearded, "smooth": smooth, "counts": counts, "points": strand_points, "radius": radius,
-            "colours": beard.stubble_colours(smooth, faces, bearded, skin_srgb, beard_srgb), "srgb": beard_srgb,
-            "lab": model[0]}
+            "srgb": beard_srgb, "lab": model[0]}
 
 
 def beard_record(points, faces, grown):
-    """The beard's arrays for groom.npz (empty without a beard)."""
+    """The beard's arrays for groom.npz (empty without a beard): its skin (the head's own beard faces as smoothed in
+    kept.glb; drawn there, read here for where the beard lies) and its strands."""
     if grown is None:
         return {"beard_skin_points": np.zeros((0, 3)), "beard_skin_triangles": np.zeros((0, 3), np.int64),
-                "beard_skin_colours": np.zeros((0, 3)), "beard_counts": np.zeros(0, np.int64),
+                "beard_counts": np.zeros(0, np.int64),
                 "beard_points": np.zeros((0, 3), np.float32), "beard_radius": np.zeros(0, np.float32)}
     triangles = faces[grown["labels"]]
     used, renumbered = np.unique(triangles, return_inverse=True)
     return {"beard_skin_points": grown["smooth"][used], "beard_skin_triangles": renumbered.reshape(-1, 3),
-            "beard_skin_colours": grown["colours"][used], "beard_counts": grown["counts"],
+            "beard_counts": grown["counts"],
             "beard_points": grown["points"].astype(np.float32), "beard_radius": grown["radius"].astype(np.float32)}
+
+
+def beard_laid(points, laid, bearded):
+    """The model's points as the scalp laid them (`laid`), the beard's moved to its smoothed skin: the head's own
+    faces carry the beard (the face texture wears the photo's, `skin.photo_beard`). A separate beard skin, the sheet's
+    two walls smoothed apart, drew as a flat brown mat with a dark line under it (b_hoodie_man, 2026-11-28)."""
+    if bearded is None:
+        return laid
+    return laid + (bearded["smooth"] - points)
 
 
 def kept_written(path, points, faces, uv, removed, out):
@@ -184,7 +193,7 @@ def main():
     style = curl.styled(style, read_curl)
     skin_srgb = lab2rgb(models["skin"][0][None, None])[0, 0]
     hair_srgb = lab2rgb(models["hair"][0][None, None])[0, 0]
-    bearded = facial_hair(points, faces, colours, frame, labelled, skin_srgb, style) if style.get("beard") else None
+    bearded = facial_hair(points, faces, colours, frame, labelled, style) if style.get("beard") else None
     shown = labelled | (bearded["labels"] if bearded is not None else False)
     pictures.label_picture(points, faces, colours, shown, frame, out / "labels.png")
     grown = scalp_hair(points, faces, (colours, uv, texture), frame, labelled, style)
@@ -196,7 +205,7 @@ def main():
     finish = {"hair": fibre.fibre_of(closeup["srgb"], closeup["lab"], closeup["spread"])}
     if bearded is not None:
         finish["beard"] = fibre.fibre_of(bearded["srgb"], bearded["lab"])
-    kept_written(args.model, grown["laid"], faces, uv, shown, out)
+    kept_written(args.model, beard_laid(points, grown["laid"], bearded), faces, uv, labelled, out)
     patch, neck = grown["patch"], grown["neck"]
     np.savez_compressed(
         out / "groom.npz", scalp_points=patch["points"], scalp_triangles=patch["triangles"],

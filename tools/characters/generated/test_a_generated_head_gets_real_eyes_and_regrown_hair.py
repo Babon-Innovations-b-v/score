@@ -126,6 +126,12 @@ turn their rows red (each applied once, seen red, reverted): the old clip (`skin
 hollow kept its shade); no occlusion term (`occlusion` all 0); every place hair (`skin.hair_zone` always true: the
 moustache left out); no hair taken out (`hair` none: the fringe kept); no lid openings (`EYE_GROW_M` and the polygon
 dropped); no feather (`EDGE_FEATHER_M` 1e-9: the edge at full share).
+A bearded man wears the photo's own beard (b_hoodie_man, 2026-11-28): where its lightness spreads (hairs against the
+skin between them) and it is coloured, under the pupils (`skin.hair_share`), with the skin it closes round, joined to
+the face (`skin.photo_beard`), and his model's painted cheeks are no head hair (`skin.model_hair_free` with `beard`).
+Breaks that turn its row red (each applied once, seen red, reverted): no chroma bar (`skin.BEARD` chroma 0: the
+hood's grey folds joined); no texture bar (`texture` (0, 1e-6): the shaded cheek is beard); the beard's rows still
+head hair (`hair_zone`'s `beard_under` ignored).
 
 The cloth (`cloth.py`), on toys: a grid painted jacket over jeans with a fleck of T-shirt and stray jeans faces in the
 jacket comes out clean after the vote and the islands; a tube's distance over its surface from its top loop is its
@@ -1044,6 +1050,32 @@ def skin_photo_kept_off():
             bool(opening[100, 60] and not opening[120, 60]),
             bool(free[190, 100] == 0 and free[100, 100] == 1 and free[20, 100] == 1),
             bool(share[100, 22] < 0.3 and share[100, 40] > 0.95)]
+
+
+def skin_photo_beard_worn():
+    """A bearded man's photo beard (his hairs against the skin between them) joins his face, the hood's grey folds
+    under it and the backdrop beside it never; a shaded cheek as dark is no beard; his model's beard painted on
+    the cheeks is head hair to a shaven man's step, never to his."""
+    rows, cols = np.indices((200, 200))
+    photo = np.ones((200, 200, 3)) * 0.85
+    photo[(np.abs(cols - 100) < 60) & (rows > 30) & (rows < 135)] = [0.85, 0.65, 0.55]
+    beard = (np.abs(cols - 100) < 60) & (rows >= 135) & (rows < 175)
+    photo[beard] = [0.25, 0.17, 0.12]
+    photo[beard & (rows % 4 == 0) & (cols % 4 == 0)] = [0.85, 0.65, 0.55]  # the skin between the hairs
+    photo[beard & (cols >= 135)] = [0.45, 0.32, 0.26]  # a cheek in shade, its pores faint
+    photo[beard & (cols >= 135) & ((rows + cols) % 2 == 0)] = [0.47, 0.34, 0.28]
+    photo[(np.abs(cols - 100) < 80) & (rows >= 175)] = np.where((cols[rows >= 175] % 3 == 0)[:, None], 0.3, 0.45)[
+        np.abs(cols[rows >= 175] - 100) < 80]  # the hood's folds
+    pupils = np.array([[70.0, 100.0], [130.0, 100.0]])
+    found = skin.photo_beard(photo, 1000.0, pupils)
+    share = skin.hair_share(photo, 1000.0, pupils)
+    grid = skin_flat_grid(lambda x, y: np.ones(x.shape + (3,)) * [0.85, 0.65, 0.55])
+    grid["colour"][(grid["ys"] < -0.035)[:, None] & (np.abs(grid["xs"]) > 0.042)[None, :]] = [0.2, 0.15, 0.1]
+    model_pupils = np.array([[-0.03, 0.0], [0.03, 0.0]])
+    shaven, bearded = (skin.model_hair_free(grid, model_pupils, beard) for beard in (False, True))
+    return [bool(found[150, 100] and found[152, 104]), bool(not found[185, 100]), bool(not found[150, 20]),
+            bool(share[155, 100] > 0.9 and share[155, 150] < 0.1),
+            bool(shaven[10, 192] == 0 and bearded[10, 192] == 1)]
 
 
 def skin_shares():
@@ -2432,6 +2464,8 @@ def tether_inside_read():
      [True, True]),
     ("the photo's fringe and lid openings are kept off, its brows and moustache kept; the model's painted fringe "
      "wears no photo, its beard's middle may; the share rises from its outer edge", skin_photo_kept_off, [True] * 6),
+    ("a bearded man's photo beard joins his face, the hood's folds and the backdrop never, a shaded cheek is no beard; "
+     "his model's painted cheeks are no head hair", skin_photo_beard_worn, [True] * 5),
     ("a point wears the photo only facing forward, on the front, in the photo's face, clear of the eye; the T-zone "
      "holds the nose", skin_shares, [True] * 7),
     ("the photo's iris is unrolled onto the eyeball: its pupil's share read, the catchlight gone, the white outside",

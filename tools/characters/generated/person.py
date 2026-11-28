@@ -152,8 +152,9 @@ def blender(script, arguments, log, card=False):
 
 
 def head_step(given, out, person):
+    beard = bool(json.loads(pathlib.Path(given["style"]).read_text()).get("beard"))
     stats = head.made(given["head"], given["head_cutout"], given["closeup"], given["marks"], out / "head",
-                      person["head_m"])
+                      person["head_m"], beard=beard)
     (out / "head" / "stats.json").write_text(json.dumps(stats, indent=1))
 
 
