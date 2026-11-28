@@ -63,9 +63,10 @@ score_lib as a draft `model/<name>_trellis.<place>` entry. `__init__.py` is the 
   (meshopt_simplifyWithAttributes, MIT, an absolute error) so the surface moves by no more than a pixel of 2099's walker
   camera (70 degrees on 1080 rows) subtends at the nearest a walker's eye comes, never less than LEAST_ERROR (0.5 mm):
   TRELLIS.2's uniform triangles on a flat panel go, an edge, a ridge or a knob keeps its own; each vertex's smooth
-  normal is a weighted attribute (NORMAL_CHANGE: without it the wardrobe's flat door drew a crease along a long
+  normal is a weighted attribute (NORMAL_CHANGE, a fixed weight: without it the wardrobe's flat door drew a crease along a long
   triangle tilted within the bound). Open edges are locked
-  (the outline, each part's and moving part's split: a primitive each), a UV seam is kept, only existing vertices are
+  (the outline, each part's and moving part's split: a primitive each), a UV seam's vertices too under SEAM_FREE
+  (1 cm: collapsed along, a chart's edge crossed its atlas gutter, dark specks on a lamp), only existing vertices are
   kept with every attribute, no face is added; only each primitive's indices and vertex attributes change, every
   node, matrix, moving part and picture kept. `make` knows no distance and cuts at NEAREST; once a place is laid,
   `budget <folder>` gives each laid made entry's nearest eye and `budget <folder> --entry <e> --near <m>` cuts it

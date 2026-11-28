@@ -18,7 +18,8 @@ Breaks that turn this red (each applied once and seen red, then reverted):
   without its LEAST_ERROR floor -> the panel's cut at 0.3 m is held to 0.34 mm; SIMPLIFY_LOCK_BORDER dropped -> the
   panel's outline loses its corners' edge vertices; a cut taken whole without the bound (target_error 1.0) -> the 3 mm
   ridge goes flat and its points stand 3 mm off the cut; budget.smooth_normals summed per vertex, not per position ->
-  the bent knob's seam vertices take half a fan's normal
+  the bent knob's seam vertices take half a fan's normal; budget.simplified's seam lock dropped -> the plate's UV seam
+  is collapsed along to a few vertices (the capsule's indicator lamp drew its atlas gutter as dark specks)
 - reach.surface_chunks reading the mesh's own face_normals and area (trimesh keeps them) -> a mesh read for the
   walkers' floor keeps its corners, cross products, normals and areas, about 200 bytes a face more, every mesh
   of the place at once (2099's square, 2026-11-28: budget's nears of 73 million faces killed at 12 GB)
@@ -382,7 +383,7 @@ def test_a_made_model_fits_its_place_its_paint_and_its_weight(tmp_path, monkeypa
             assert np.abs(np.einsum("ij,ij->i", smooth, bent))[inside].min() > np.cos(0.0005)
         uv = repair.accessor_array(document, binary, found["attributes"]["TEXCOORD_0"])
         seam = np.isclose(points[:, 0], 0.5 * edge.max())
-        assert len(np.unique(np.round(uv[seam, 0], 6))) == 2, name  # the seam's two sides kept apart
+        assert seam.sum() == 2 * 101 and len(np.unique(np.round(uv[seam, 0], 6))) == 2, name  # the seam whole, 2 sides
     plate = [node for node, _ in budget.mesh_frames(document) if document["nodes"][node]["name"] == "plate"][0]
     found = budget.primitive(document, plate)
     ridge = repair.accessor_array(document, binary, found["attributes"]["POSITION"])
