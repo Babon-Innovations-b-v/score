@@ -28,6 +28,7 @@ import bmesh
 import bpy
 import numpy as np
 from mathutils import Matrix, Vector
+from mathutils.bvhtree import BVHTree
 from mathutils.kdtree import KDTree
 
 ARGS = sys.argv[sys.argv.index("--") + 1:]
@@ -93,6 +94,11 @@ STUBBLE = "stubble"  # its paint (rgb, alpha the share) as a point attribute; ST
 NECK_TONE = "neck_tone"  # each point's share of the neck's move (`head_swap.neck_share`); NECK_TONE + "_rest" its rest
 NECK_SEAM = "neck_seam"  # each shell neck point's linear offset onto the head's colour (`head_swap.seam_offsets`)
 NECK_OVER = 0.01  # a body skin face this little over the cut (body heights) is the neck's; higher, the old hair's
+# The swap eases the head's edge in onto the body's slimmer neck over its band, and neither the groom's neck tube (laid
+# TUCK_M under the head model's skin) nor the body's own skin faces over the cut that lie past COVER_M from the head
+# follow it: on the hoodie man they stood in front of his throat and jaw's corner as pale pink flaps with torn edges, up
+# to 5 cm out (2026-11-28, ray cast off his close-ups). Whatever of them stands outside the head (`outside_head`: the
+# head met looking in, level, toward the neck's axis) is taken off; the head's own skin lies behind it.
 TONE_ROWS = 256  # image rows toned at once
 
 
@@ -218,6 +224,57 @@ def shell_cut(shell, head, pieces, garment):
     edit.to_mesh(shell.data)
     edit.free()
     shell.data.update()
+    return len(doomed)
+
+
+def neck_axis(shell, head, pieces, garment):
+    """The body's neck axis (its x and z in the body's heights, `in_body`): the middle of the shell's own neck (every
+    face but the clothes', `garment`) within the swap's band under the cut, whole all round where the head's is not."""
+    to_head = head.matrix_world.inverted() @ shell.matrix_world
+    centres = np.array([(to_head @ polygon.center)[:] for polygon in shell.data.polygons])
+    heights = over_cut(centres, pieces)
+    ring = in_body(centres[~garment & (heights < 0.0) & (heights > -head_swap.BAND)])
+    return np.median(ring[:, [0, 2]], 0)
+
+
+def outside_head(head, local, pieces, axis):
+    """Which head-model points (`local`, Blender's frame, the model's units) stand outside the head: its faces are met
+    on the way from each, level in the body's frame, to the neck's `axis` (`neck_axis`)."""
+    points = coordinates(head.data)
+    tree = BVHTree.FromPolygons(points.tolist(), [polygon.vertices[:] for polygon in head.data.polygons])
+    images = in_body(np.vstack([np.eye(3), np.zeros(3)]))
+    to_local = np.linalg.inv((images[:3] - images[3]).T)  # a step in body heights in the model's units
+    body = in_body(np.asarray(local, float))
+    inward = np.zeros_like(body)
+    inward[:, 0], inward[:, 2] = axis[0] - body[:, 0], axis[1] - body[:, 2]
+    inward = inward @ to_local.T
+    found = np.zeros(len(body), bool)
+    for index, (start, way) in enumerate(zip(local, inward)):
+        reach = float(np.linalg.norm(way))
+        if reach > 0.0:
+            found[index] = tree.ray_cast(Vector(start), Vector(way / reach), reach)[0] is not None
+    return found
+
+
+def faces_deleted(mesh, doomed):
+    """`mesh`'s faces whose indices are in `doomed` deleted."""
+    edit = bmesh.new()
+    edit.from_mesh(mesh)
+    edit.faces.ensure_lookup_table()
+    bmesh.ops.delete(edit, geom=[edit.faces[int(index)] for index in sorted(doomed)], context="FACES")
+    edit.to_mesh(mesh)
+    edit.free()
+    mesh.update()
+
+
+def shell_outside(shell, head, pieces, garment, axis):
+    """The shell's own faces over the cut (every kind but the clothes', `garment`) standing outside the head with its
+    painted hair taken off (`outside_head`) taken off; how many."""
+    to_head = head.matrix_world.inverted() @ shell.matrix_world
+    centres = np.array([(to_head @ polygon.center)[:] for polygon in shell.data.polygons])
+    over = np.flatnonzero(~garment & (over_cut(centres, pieces) > 0.0))
+    doomed = over[outside_head(head, centres[over], pieces, axis)]
+    faces_deleted(shell.data, doomed)
     return len(doomed)
 
 
@@ -397,11 +454,12 @@ def riding(armature, matrix):
     return frame
 
 
-def groomed(frame, pieces):
+def groomed(frame, pieces, head, axis):
     """The scalp, the neck's back and the strands (the hair step's, in its metres: hair and beard, as
-    `blender_sheet.groomed` lays them) under the groom's space under `frame`; the objects. A man's beard is the head's
-    own faces, smoothed in place by the hair step and wearing the photo's beard: a separate beard skin drew as a flat
-    brown mat with a dark line under it (b_hoodie_man, 2026-11-28)."""
+    `blender_sheet.groomed` lays them) under the groom's space under `frame`; the objects. The neck's back is never
+    under the cut (inside the collar) or outside the `head` (`outside_head` round the neck's `axis`). A man's beard is
+    the head's own faces, smoothed in place by the hair step and wearing the photo's beard: a separate beard skin drew
+    as a flat brown mat with a dark line under it (b_hoodie_man, 2026-11-28)."""
     groom = dict(np.load(MADE / "hair/groom.npz"))
     fibre = json.loads((MADE / "hair/fibre.json").read_text())
     space = bpy.data.objects.new("groom_space", None)
@@ -414,6 +472,11 @@ def groomed(frame, pieces):
     if len(groom["neck_points"]):
         neck = blender_sheet.mesh_of("neck", groom["neck_points"], groom["neck_triangles"], space)
         blender_sheet.painted(neck, np.tile(groom["skin_colour"], (len(groom["neck_points"]), 1)))
+        local = np.array([(Matrix.Diagonal((*space.scale, 1.0)) @ vertex.co)[:] for vertex in neck.data.vertices])
+        outside = outside_head(head, local, pieces, axis)
+        doomed = [polygon.index for polygon in neck.data.polygons if outside[list(polygon.vertices)].any()]
+        faces_deleted(neck.data, doomed)
+        print(f"neck tube faces outside the head taken off: {len(doomed)}", flush=True)
         items.append(neck)
     for item in items:  # never below the cut, inside the collar
         local = np.array([(Matrix.Diagonal((*space.scale, 1.0)) @ vertex.co)[:] for vertex in item.data.vertices])
@@ -760,6 +823,8 @@ def head_dressed(armature, shell, pieces, data):
     garment = clothes_of(shell, data)
     print(f"head faces the clothes draw taken off: {garment_cut(head, shell, garment)}", flush=True)
     print(f"rig faces under the head taken off: {shell_cut(shell, head, pieces, garment)}", flush=True)
+    garment = clothes_of(shell, data)  # the shell's faces as they are now
+    axis = neck_axis(shell, head, pieces, garment)
     print(f"skirt faces under the head's edge at the cut: {skirted(head, pieces)}", flush=True)
     blender_skin.attributes(head, skin)
     blender_skin.face_uv(head, skin["box"])
@@ -775,6 +840,8 @@ def head_dressed(armature, shell, pieces, data):
     blender_skin.skin_material(head, LIBRARY, folder, space)
     print(f"hair faces taken off, skin points laid: {hair_taken_off(head, pieces)}", flush=True)
     print(f"beard faces in the skin's material: {beard_skinned(head, pieces)}", flush=True)
+    print(f"rig faces over the cut outside the head taken off: {shell_outside(shell, head, pieces, garment, axis)}",
+          flush=True)
     rigid, chin = rigid_share(coordinates(head.data), pieces)
     print(f"the head rides the Head alone from its chin, {chin:.4f} body heights over the cut", flush=True)
     weights_copied(head, weights, armature, rigid)
@@ -786,7 +853,7 @@ def head_dressed(armature, shell, pieces, data):
     fibres = json.loads((HEAD_DIR / "lids/fibre.json").read_text())
     lashes = blender_sheet.strand_pieces("lashes", lids["lashes.counts"], lids["lashes.points"],
                                          lids["lashes.radius"], fibres["lashes"], frame)
-    print(f"lashes {len(lashes)} pieces, hair {len(groomed(frame, pieces))} pieces", flush=True)
+    print(f"lashes {len(lashes)} pieces, hair {len(groomed(frame, pieces, head, axis))} pieces", flush=True)
     return head, frame, space, eyes
 
 
