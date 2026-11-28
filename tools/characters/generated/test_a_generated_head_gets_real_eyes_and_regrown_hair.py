@@ -209,6 +209,12 @@ A face no kind's place allows takes the nearest paint's kind (`cloth.kinds_of`).
 out (argmin over no allowed kind gave the head: the hoodie man's trousers fused to his forearms drawn as wedges).
 The beard takes the mouth's piece under the lower lip down to the chin (`beard.holes_in`, LIP_UNDER_NOSE_M). Break:
 the `chin` term left out (the hoodie man's pale chin lumps, joined to his lips, showed bare under his beard).
+An arm's face under the jacket's hem within LEG_FUSED_M of a thigh's is the trousers (`cloth.fused_to_leg`). Break
+(applied once, seen red, reverted, 2026-11-28): LEG_FUSED_M 0.2 (the hand held out beside the thigh taken too).
+A jacket piece wholly round the neck and bordered by the T-shirt kind is the hood's (`cloth.hood_inside`). Break
+(applied once, seen red, reverted, 2026-11-28): the `outside` term left out (the collar reaching down taken too).
+A beard is as dense as its style's `beard_density_m2` (`beard.beard_strands`). Break (applied once, seen red,
+reverted, 2026-11-28): the style's density unread (beard.DENSITY alone: ratio 1.0).
 A jeans hem resting on a shoe turns with the foot (`cloth.hem_on_shoes`). Break (applied once, seen red, reverted,
 2026-11-27): HEM_SHOE_M 0 (the hem left on the shin, sliding in and out of the shoe).
 still_rig's fan across the cut's loop (`person.neck_fans`) is found, the neck tube and a fan far under the cut kept.
@@ -1526,6 +1532,55 @@ def cloth_nowhere_kind():
     return [cloth.KINDS[kind] for kind in kinds[-3:]]
 
 
+def cloth_hood_inside():
+    """A sheet round the neck (40 x 40 cells, 1.2 to 1.6 m, hanging from the Chest; Neck2 at 1.5 m) of the T-shirt's
+    kind with two jacket pieces of 200 faces in it: one wholly round the neck (over 1.38 m) and one reaching down to
+    1.2 m: [the first is the T-shirt's, the second stays the jacket's] (`cloth.hood_inside`: the hood's shaded inside
+    hung on the jacket's sim mesh)."""
+    names = ["Hips", "Chest", "Neck2", "LeftArm", "RightArm"]
+    bind = np.repeat(np.eye(4)[None], len(names), axis=0)
+    bind[:, 1, 3] = [1.0, 1.3, 1.5, 1.4, 1.4]
+    grid = np.array([[0.01 * col, 1.2 + 0.01 * row, 0.0] for row in range(41) for col in range(41)])
+    cells = [(row, col) for row in range(40) for col in range(40)]
+    faces = np.array([face for row, col in cells for face in
+                      ([row * 41 + col, row * 41 + col + 1, (row + 1) * 41 + col],
+                       [row * 41 + col + 1, (row + 1) * 41 + col + 1, (row + 1) * 41 + col])])
+    weights = np.zeros((len(grid), len(names)))
+    weights[:, names.index("Chest")] = 1.0
+    person = {"names": names, "bind": bind, "points": grid, "faces": faces, "weights": weights}
+    kinds = np.full(len(faces), cloth.KINDS.index("shirt"))
+    inside = np.array([(25 <= row < 35) and (5 <= col < 15) for row, col in cells for _ in range(2)])
+    reaching = np.array([(row < 30) and (25 <= col < 29) and row >= 5 for row, col in cells for _ in range(2)])
+    kinds[inside | reaching] = cloth.KINDS.index("jacket")
+    found = cloth.hood_inside(person, kinds)
+    return [cloth.KINDS[found[np.flatnonzero(inside)[0]]], cloth.KINDS[found[np.flatnonzero(reaching)[0]]]]
+
+
+def cloth_fused_to_leg():
+    """Faces hanging from a forearm under a jacket's hem at 0.8 m beside a thigh's face at 0.1 m across: one 7 cm
+    from it, one 15 cm out (a hand held out beside the thigh), one over the hem: [True, False, False]
+    (`cloth.fused_to_leg`; the hoodie man's lump faces before his thighs took the jacket and stretched to his hands
+    as straps)."""
+    middles = np.array([[0.1, 0.7, 0.0], [0.15, 0.7, 0.05], [0.25, 0.7, 0.0], [0.15, 0.85, 0.05]])
+    strongest = np.array(["LeftLeg", "LeftForeArm", "LeftForeArm", "LeftForeArm"])
+    return cloth.fused_to_leg(middles, strongest, 0.8)[1:].tolist()
+
+
+def beard_density_read():
+    """A 4 cm beard square's strands at the style's `beard_density_m2` (0.4e6) over those at beard.DENSITY: about
+    their ratio, 0.5 (the style's density left unread: 1.0)."""
+    square = np.array([[0.0, -0.1, 0.05], [0.04, -0.1, 0.05], [0.04, -0.06, 0.05], [0.0, -0.06, 0.05],
+                       [1.0, 1.0, 1.0]])
+    faces = np.array([[0, 1, 2], [0, 2, 3], [4, 4, 4]])
+    bearded = np.array([True, True, False])
+    normals = np.tile([0.0, 0.0, 1.0], (5, 1))
+    frame = {"centre": np.zeros(3), "nose": np.array([0.0, 0.0, 0.1])}
+    style = {"beard_length_m": 0.006, "beard_stubble_m": 0.002}
+    counts = [len(beard.beard_strands(square, faces, bearded, normals, frame, given)[0])
+              for given in ({**style, "beard_density_m2": 0.4e6}, style)]
+    return round(counts[0] / counts[1], 1)
+
+
 def cloth_hem_found():
     """A coat (a ring of radius 20 cm from 0.6 to 1.2 m, its paint the jacket's) over two legs (rings of 7 cm either
     side, from the floor to 1.0 m, their paint the jeans', so inside the coat they outnumber it): the hem read from
@@ -2257,6 +2312,11 @@ def tether_inside_read():
      cloth_shirt_round_neck, [True, False, False, True]),
     ("the jeans' points ride no arm, a point a laid hand shares keeps its hand weights",
      cloth_jeans_off_arms, [0.0, 0.5, 1.0, 0.0]),
+    ("a jacket piece wholly round the neck inside the hood is the hood's, a collar reaching down stays the jacket's",
+     cloth_hood_inside, ["shirt", "jacket"]),
+    ("an arm's face under the jacket's hem before a thigh is the trousers, a hand held out beside it is not",
+     cloth_fused_to_leg, [True, False, False]),
+    ("a beard grows as dense as its style reads off the close-up", beard_density_read, 0.5),
     ("a face no kind's place allows takes the nearest paint's kind, never the head", cloth_nowhere_kind,
      ["jeans", "jeans", "jeans"]),
     ("the beard takes a pale chin joined to the lips, never the lips", beard_chin_under_lip, [False, True, False]),

@@ -33,10 +33,13 @@ GREY_UNDER_NOSE_M = 0.085  # over this (the chin's bottom), a triangle the cloth
 # hairs (a grey hood's colour took the grey of a beard's chin, 2026-11-26)
 EARS_BEHIND_M = 0.01  # the beard reaches back to this far behind the head's middle (the ears' front)
 OVER_NOSE_M = 0.004  # and up to just over the nose's tip (the moustache under it)
-TAUBIN = (400, 0.5, -0.53)  # rounds, shrink, swell (the lumps stand 1 to 2 mm)
-STUBBLE_DARK = 0.35
+# rounds, shrink, swell: the pass band (1/shrink + 1/swell, 0.01) keeps only the jaw's broad shape, some 5 cm and up.
+# At (400, 0.5, -0.53) (pass band 0.11) and (1200, 0.5, -0.51) (0.04) the hoodie man's chin knobs, 1.5 to 2 cm across
+# and some 5 mm high, passed and stood through his beard as pale lumps (2026-11-28)
+TAUBIN = (4000, 0.5, -0.5025)
+STUBBLE_DARK = 0.5  # the skin under the beard this far toward its colour (the close-up: dark between the jaw's hairs)
 STUBBLE_EDGE_M = 0.006
-DENSITY = 0.8e6  # hairs a m2
+DENSITY = 0.8e6  # hairs a m2 (a full beard; a style's `beard_density_m2`, read off the close-up, before it)
 FULL_FROM_EDGE_M = 0.012  # a beard hair's length rises from stubble at the beard's edge to full this far in
 DARKEST = 30  # the beard's colour read on its darkest this percent (the paint mixes the skin between its hairs)
 LENGTH_SPREAD = 0.3
@@ -203,7 +206,8 @@ def beard_strands(smooth, faces, beard, normals, frame, style):
     triangles = faces[beard]
     corners = smooth[triangles]
     area = np.linalg.norm(np.cross(corners[:, 1] - corners[:, 0], corners[:, 2] - corners[:, 0]), axis=1).sum() / 2.0
-    places, picked, weights = hair.on_triangles(smooth, triangles, int(area * DENSITY), rng)
+    places, picked, weights = hair.on_triangles(smooth, triangles, int(area * style.get("beard_density_m2", DENSITY)),
+                                                rng)
     kept = neck_kept(places, smooth, faces, beard, frame, rng)
     places, picked, weights = places[kept], picked[kept], weights[kept]
     normal = hair.unit(np.einsum("pc,pcd->pd", weights, normals[triangles[picked]]))

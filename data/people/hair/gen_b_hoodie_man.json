@@ -2,7 +2,7 @@
  "look": "b_hoodie_man",
  "read_from": "the generated person's head close-up (b_hoodie_man, gen2 close-ups, 2026-11-26)",
  "read_by": "Claude (claude-opus-5-5), looking at the close-up, 2026-11-26 (#223)",
- "length": "short dark brown hair swept up and back from the forehead, no parting showing; a trimmed full beard, about 7 mm on the chin, stubble on the neck",
+ "length": "short dark brown hair swept up and back from the forehead, no parting showing; a short trimmed beard, about 6 mm on the chin and jaw and shorter on the lip, the skin showing between its hairs, stubble on the neck",
  "length_m": 0.08,
  "reach_m": 0.25,
  "parting": "back",
@@ -10,6 +10,8 @@
  "parting_side": "left",
  "fringe_side": "none",
  "beard": true,
- "beard_length_m": 0.007,
- "beard_stubble_m": 0.003
+ "beard_length_m": 0.006,
+ "beard_stubble_m": 0.002,
+ "beard_density_m2": 350000.0,
+ "beard_read": "2026-11-28, the close-up again (b_hoodie_man, gen2): the skin shows between the hairs on the chin and cheeks (some 35 a cm2, not a full beard's 80), the lip clear under a short moustache"
 }

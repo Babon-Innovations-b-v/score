@@ -354,8 +354,25 @@ under his beard's underside). There the two cut edges are one closed loop each: 
   laid hands' own points keep the hands'). **A face no kind's place allows takes the nearest paint's kind**
   (`kinds_of`): argmin over all-infinite distances gave KINDS' first, the head, and those faces were drawn skinned
   to the forearms as black wedges. The beard takes the mouth's piece under the lower lip down to the chin
-  (`beard.holes_in`, LIP_UNDER_NOSE_M): a pale chin joined to the lips stayed skin. Open (2026-11-28, the hoodie
-  man): thin jacket-coloured straps from the hem to the hands, torn bits on the hood's rim by the jaw, the body's
-  own neck under the cut paler and pinker than the head's, some lumps still on the chin's front.
+  (`beard.holes_in`, LIP_UNDER_NOSE_M): a pale chin joined to the lips stayed skin.
+  Round 2 (2026-11-28, the hoodie man, ray cast off the standing views and the close-ups): the brown straps from his
+  hips to his hands were 459 rig faces before his thighs (the hand lumps' leftover paint, hanging from the forearms,
+  under the jacket's hem): no kind's place allowed them, they took the jacket's paint and rode the forearm and the
+  hem at once. An arm's face under the jacket's hem within LEG_FUSED_M of a leg's is the trousers
+  (`cloth.fused_to_leg`) and wears the trousers' paint round it (`cloth.fused_trousers`, `painted_over`); the jacket
+  keeps the arm at the points it shares with them (with the jeans' weights there, two slivers stretched hem to
+  wrist). The chin's pale knobs were the beard skin itself, 1.5 to 2 cm across, passed by Taubin's pass band
+  (0.11): beard.TAUBIN's is 0.01 now. The beard skin's faces are welded and turned out (`blender_person.faced_out`)
+  and its open edge laid on the head's (`beard_closed`); the beard's density is read off the close-up into the style
+  (`beard_density_m2`), and the neck under it wears a stubble shadow fading over NECK_STUBBLE_M (`neck_stubbled`).
+  The hood's rim by the jaw lost faces to the cut (only the cloth's garments were kept; now every clothes kind,
+  `clothes_of`) and an 858-face piece of its shaded inside, read as the plaid, hung on the jacket's sim mesh
+  (`cloth.hood_inside`). Open: (1) the hood's inside still shows light and dark shards: 22658 of its 51378 pixels
+  in the front close-up are the body's old hair painted over (`blender_cloth.painted_over`), each face wearing one
+  donor's flat paint; each corner its own donor's place streaked it with the texture's seams (tried, reverted), and
+  the stairwell woman (16200 such faces) and the older woman wear the same code. (2) A dark jagged line under the
+  beard: the beard skin is the sheet's two walls (two open rims 3 to 4 mm apart, smoothed apart); taking the inner
+  wall off (56363 faces) opened cracks where the smoothed walls cross (tried, reverted). (3) The body's own neck
+  under the cut paler and pinker than the head's. (4) Dark trouser lumps at the thighs where the hands' lumps were.
 - **head.glb's paint is the skin step's sRGB paint as written** (`head.paint_picture`): encoded again, it came out a
   washed copy (L 0.30 to 0.55), and the hair's labels and the swap's head wore it until 2026-11-27.

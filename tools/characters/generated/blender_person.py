@@ -84,6 +84,12 @@ STANDING = {"front": 180.0, "three_quarter": 215.0, "side": 270.0, "back": 0.0} 
 FACE_FRAME_M = render.FACE_FRAME_M  # the close-ups: the head and the neck's top
 FACE_UNDER_EYES_M = 0.07  # the close-up aimed this far under the eyes
 CLOSE = {"front": 180.0, "three_quarter": 215.0}
+BEARD_SNAP_M = 0.008  # a beard skin's open edge point this near the swap head's open edge (metres) is laid onto it
+NECK_STUBBLE_M = 0.06  # the neck's stubble shadow fades out this far (metres) from the beard
+NECK_STUBBLE_SHARE = 0.55  # at the beard its paint this far toward the beard skin's darkest
+STUBBLE_UNDER_EYES_M = 0.12  # only this far under the eyes and lower (never the lips or the cheeks over the beard)
+STUBBLE_GRAIN_M = 0.0012  # the stubble's dots (a noise this fine on the rest points)
+STUBBLE = "stubble"  # its paint (rgb, alpha the share) as a point attribute; STUBBLE + "_rest" its rest points
 
 
 def matrix_of(array):
@@ -184,8 +190,8 @@ def above_cut(local, pieces):
 
 
 def shell_cut(shell, head, pieces, garment):
-    """The rig's faces above the cut that the swap's head covers taken off the shell, never a cloth garment's
-    (`garment`, per polygon: the jacket's collar round the neck is the body's, drawn by the cloth), and still_rig's
+    """The rig's faces above the cut that the swap's head covers taken off the shell, never the clothes' (`garment`,
+    per polygon, `clothes_of`: the jacket's collar round the neck is the body's, drawn by the cloth), and still_rig's
     fans across the cut's loops (pieces.npz's `fan_centres`, `person.neck_fans`: wedges reaching across the neck's
     hollow and out under the hair, drawn as dark shards between the neck and the collar); how many. The body's own
     old hair round the neck is not taken off: cloth.py paints it over as the collar or neck it lies on
@@ -242,8 +248,17 @@ def skirted(head, pieces):
     return len(faces)
 
 
+def clothes_of(shell, data):
+    """Which of the shell's polygons are clothes (every kind but the head and the skin): the cloth's garments and the
+    skinned ones, a hoodie's hood round the neck among them. Only the cloth's were kept from the cut until 2026-11-28:
+    495 faces of the hoodie man's hood rim, within COVER_M of his beard, were taken off and the rim stood torn by his
+    jaw, its inner wall seen from behind and a hole at the jaw's corner."""
+    names = cloth.kinds_of(data)
+    return ~np.isin(cloth.face_kinds(shell, data), [names.index("head"), names.index("skin")])
+
+
 def garment_cut(head, shell, garment):
-    """The swap head's faces that are a cloth garment's (`garment`, per shell polygon) taken off the head: those whose
+    """The swap head's faces that are the clothes' (`garment`, per shell polygon) taken off the head: those whose
     nearest rig face is a garment's within GARMENT_MATCH_M (both at the bind; the rig is the thinned swap, so each of
     the head's faces has its copy there); how many."""
     centres = [shell.matrix_world @ polygon.center for polygon in shell.data.polygons]
@@ -400,6 +415,145 @@ def groomed(frame, pieces):
     return items
 
 
+def welded_index(points):
+    """Each point's number among the `points` welded where they coincide (the groom's beard skin splits them along
+    the head model's texture seams)."""
+    _, index = np.unique(np.round(points / 1e-7).astype(np.int64), axis=0, return_inverse=True)
+    return index.ravel()
+
+
+def open_edge(points, faces):
+    """Which `points` lie on the open edge of `faces`, the points welded where they coincide (glTF and the groom
+    split them along texture seams)."""
+    welded = welded_index(points)
+    edges = np.sort(welded[np.concatenate([faces[:, [0, 1]], faces[:, [1, 2]], faces[:, [2, 0]]])], axis=1)
+    unique, counts = np.unique(edges, axis=0, return_counts=True)
+    return np.isin(welded, unique[counts == 1].ravel())
+
+
+def beard_closed(beard_skin, head):
+    """The beard skin's open edge laid onto the swap head's open edge round it within BEARD_SNAP_M (both at the bind;
+    the beard skin's own units are the groom's metres). The swap shifted the head's points
+    near its cut onto the body's (`head_swap.seam_shifts`) and the hair step took the beard's faces off the head by
+    their nearest middles, so the beard skin, made on the head model before both, stood up to some millimetres off the
+    head's edge under the chin, the hollow showing through as a dark jagged line under the beard (the hoodie man,
+    2026-11-28). How many points were laid."""
+    to_local = beard_skin.matrix_world.inverted() @ head.matrix_world
+    head_points = np.array([(to_local @ vertex.co)[:] for vertex in head.data.vertices])
+    head_faces = np.array([polygon.vertices[:3] for polygon in head.data.polygons])
+    head_rim = head_points[open_edge(head_points, head_faces)]
+    points = coordinates(beard_skin.data)
+    rim = open_edge(points, np.array([polygon.vertices[:3] for polygon in beard_skin.data.polygons]))
+    distance, closest = nearest(head_rim, points[rim])
+    near = distance < BEARD_SNAP_M
+    moved = points.copy()
+    moved[np.flatnonzero(rim)[near]] = head_rim[closest[near]]
+    beard_skin.data.vertices.foreach_set("co", moved.ravel())
+    beard_skin.data.update()
+    return int(near.sum())
+
+
+def faced_out(item, middle):
+    """`item`'s mesh welded where its points coincide and its faces turned one way, out from `middle` (its own
+    coordinates): the generated sheet's are wound either way, and smooth shaded the turned ones of the beard skin drew
+    as dark specks over the hoodie man's chin (2026-11-28)."""
+    edit = bmesh.new()
+    edit.from_mesh(item.data)
+    bmesh.ops.remove_doubles(edit, verts=edit.verts, dist=1e-7)
+    bmesh.ops.recalc_face_normals(edit, faces=edit.faces)
+    if sum(face.normal.dot(face.calc_center_median() - middle) for face in edit.faces) < 0.0:
+        bmesh.ops.reverse_faces(edit, faces=edit.faces)
+    edit.to_mesh(item.data)
+    edit.free()
+    item.data.update()
+
+
+def head_middle_of(head):
+    """The middle of the head mesh's points (its own coordinates)."""
+    return sum((vertex.co for vertex in head.data.vertices), Vector()) / len(head.data.vertices)
+
+
+def nearest(points, wanted):
+    """Each of `wanted`'s nearest of `points` (Blender's KDTree; no scipy inside Blender): (distances, indices)."""
+    tree = tree_of(points)
+    found = [tree.find(Vector(point)) for point in wanted]
+    return np.array([item[2] for item in found]), np.array([item[1] for item in found], np.int64)
+
+
+def stubble_shares(points, beard, eyes_height):
+    """Each point's neck stubble share (points in the groom's z-up metres): NECK_STUBBLE_SHARE at the beard fading to
+    nothing NECK_STUBBLE_M from it, only on points lower than their nearest beard point and STUBBLE_UNDER_EYES_M or
+    more under the eyes."""
+    distance, closest = nearest(beard, points)
+    under = (points[:, 2] < beard[closest, 2]) & (points[:, 2] < eyes_height - STUBBLE_UNDER_EYES_M)
+    fade = np.clip(1.0 - distance / NECK_STUBBLE_M, 0.0, 1.0)
+    return np.where(under, NECK_STUBBLE_SHARE * fade * fade * (3.0 - 2.0 * fade), 0.0)
+
+
+def stubble_painted(item, shares, colour, rest):
+    """`item`'s materials mix its base colour toward the stubble `colour` (linear) by each point's share (`shares`),
+    broken into fine dots (STUBBLE_GRAIN_M on its `rest` points, metres) as stubble shows; points with no share keep
+    their paint (other objects wearing the same materials have no such attribute: nought)."""
+    attribute = item.data.color_attributes.new(STUBBLE, "FLOAT_COLOR", "POINT")
+    rgba = np.concatenate([np.tile(colour, (len(shares), 1)), shares[:, None]], axis=1).astype(np.float32)
+    attribute.data.foreach_set("color", rgba.ravel())
+    places = item.data.attributes.new(STUBBLE + "_rest", "FLOAT_VECTOR", "POINT")
+    places.data.foreach_set("vector", rest.astype(np.float32).ravel())
+    for material in {slot.material for slot in item.material_slots if slot.material is not None}:
+        tree = material.node_tree
+        base = blender_face.principled_of(material).inputs["Base Color"]
+        reader = tree.nodes.new("ShaderNodeAttribute")
+        reader.attribute_name = STUBBLE
+        where = tree.nodes.new("ShaderNodeAttribute")
+        where.attribute_name = STUBBLE + "_rest"
+        grain = tree.nodes.new("ShaderNodeTexNoise")
+        grain.inputs["Scale"].default_value = 1.0 / STUBBLE_GRAIN_M
+        grain.inputs["Detail"].default_value = 0.0
+        tree.links.new(where.outputs["Vector"], grain.inputs["Vector"])
+        dots = tree.nodes.new("ShaderNodeMapRange")
+        dots.inputs["From Min"].default_value, dots.inputs["From Max"].default_value = 0.4, 0.6
+        dots.inputs["To Min"].default_value = 0.5
+        tree.links.new(grain.outputs["Fac"], dots.inputs["Value"])
+        share = blender_face.times(tree, reader.outputs["Alpha"], dots.outputs["Result"])
+        mix = tree.nodes.new("ShaderNodeMix")
+        mix.data_type = "RGBA"
+        if base.is_linked:
+            tree.links.new(base.links[0].from_socket, mix.inputs["A"])
+        else:
+            mix.inputs["A"].default_value = base.default_value
+        tree.links.new(reader.outputs["Color"], mix.inputs["B"])
+        tree.links.new(share, mix.inputs["Factor"])
+        tree.links.new(mix.outputs["Result"], base)
+
+
+def neck_stubbled(head, shell, data, beard_skin, groom):
+    """The beard's stubble shadow down the neck under it (the close-up shows it to the hood; the hoodie man's neck
+    stood bare and pink under his beard, 2026-11-28): the swap's head and the shell's skin points (at the bind) under
+    the beard painted toward the beard skin's darkest quarter (its paint) by `stubble_shares`, never the clothes.
+    Points per object."""
+    to_groom = beard_skin.matrix_world.inverted()  # the groom's z-up metres
+    beard = coordinates(beard_skin.data)
+    paint = np.asarray(groom["beard_skin_colours"], float)
+    dark = paint[paint.sum(1) <= np.percentile(paint.sum(1), 25)].mean(0)
+    colour = np.where(dark <= 0.04045, dark / 12.92, ((dark + 0.055) / 1.055) ** 2.4)
+    eyes_height = float(np.mean(blender_face.z_up(np.asarray(groom["eyes"], float))[:, 2]))
+    skin = np.zeros(len(shell.data.vertices), bool)
+    kinds = cloth.face_kinds(shell, data)
+    for polygon in shell.data.polygons:
+        if cloth.kinds_of(data)[kinds[polygon.index]] in ("skin", "head"):  # the body's own neck under the cut
+            skin[list(polygon.vertices)] = True
+    found = {}
+    for item, allowed in ((head, None), (shell, skin)):
+        world = [item.matrix_world @ vertex.co for vertex in item.data.vertices]
+        points = np.array([(to_groom @ point)[:] for point in world])
+        shares = stubble_shares(points, beard, eyes_height)
+        if allowed is not None:
+            shares = np.where(allowed, shares, 0.0)
+        stubble_painted(item, shares, colour, points)
+        found[item.name] = int((shares > 0.0).sum())
+    return found
+
+
 def head_dressed(armature, shell, pieces, data):
     """The swap's head on the rig with its face, eyes, lashes and hair; (head, the Head joint's frame)."""
     eyes = dict(np.load(HEAD_DIR / "eyes/eyes.npz", allow_pickle=False))
@@ -411,9 +565,8 @@ def head_dressed(armature, shell, pieces, data):
     head.matrix_world = matrix
     bpy.context.view_layer.update()
     weights = weights_held(shell, armature)
-    simulated = [cloth.kinds_of(data).index(kind) for kind in cloth.simulated_of(data)]
-    garment = np.isin(cloth.face_kinds(shell, data), simulated)
-    print(f"head faces the cloth draws taken off: {garment_cut(head, shell, garment)}", flush=True)
+    garment = clothes_of(shell, data)
+    print(f"head faces the clothes draw taken off: {garment_cut(head, shell, garment)}", flush=True)
     print(f"rig faces under the head taken off: {shell_cut(shell, head, pieces, garment)}", flush=True)
     print(f"skirt faces under the head's edge at the cut: {skirted(head, pieces)}", flush=True)
     blender_skin.attributes(head, skin)
@@ -441,6 +594,13 @@ def head_dressed(armature, shell, pieces, data):
     lashes = blender_sheet.strand_pieces("lashes", lids["lashes.counts"], lids["lashes.points"],
                                          lids["lashes.radius"], fibres["lashes"], frame)
     print(f"lashes {len(lashes)} pieces, hair {len(groomed(frame, pieces))} pieces", flush=True)
+    beard_skin = bpy.data.objects.get("beard_skin")
+    if beard_skin is not None:
+        bpy.context.view_layer.update()
+        print(f"beard skin edge points laid on the head: {beard_closed(beard_skin, head)}", flush=True)
+        faced_out(beard_skin, beard_skin.matrix_world.inverted() @ head.matrix_world @ head_middle_of(head))
+        print(f"neck stubble points: {neck_stubbled(head, shell, data, beard_skin, np.load(MADE / 'hair/groom.npz'))}",
+              flush=True)
     return head, frame, space, eyes
 
 

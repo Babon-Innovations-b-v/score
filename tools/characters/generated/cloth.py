@@ -113,6 +113,7 @@ SHIRT_SEED = {"half_m": 0.035, "front_m": 0.03}  # the T-shirt's colour: this ne
 SHIRT_HALF_M = 0.11  # the T-shirt shows only this near the chest's middle in front (the open jacket's gap): the
 # glossy jacket's highlights read as white elsewhere
 FINGER_SEED_M = 0.05  # the skin's colour: the hand faces this near the hand's furthest point
+LEG_FUSED_M = 0.09  # an arm's face under the jacket's hem this near a leg's is the trousers (`fused_to_leg`)
 TUCKED_M = 0.12  # the T-shirt reaches this far under the Hips joint (tucked in)
 # The garment under the jacket shows round the neck too, from this far under the Neck2 joint up off the arms: a
 # hoodie's hood over the overshirt's collar (the hoodie man, 2026-11-27: the shirt only in front, his grey hood was
@@ -287,9 +288,31 @@ def allowed(person, middles, strongest, hem=None):
     return {"skin": np.isin(strongest, SKIN_JOINTS),
             "jacket": (middles[:, 1] > hem) & (~np.isin(strongest, LEGS) | (hem < short)) & ~hand,
             "shirt": (front & ~on_arms & (middles[:, 1] > hips - TUCKED_M) & (middles[:, 1] < neck)) | round_neck,
-            "jeans": ~on_arms & (middles[:, 1] < waist),
+            "jeans": (~on_arms | fused_to_leg(middles, strongest, hem)) & (middles[:, 1] < waist),
             "shoes": middles[:, 1] < ankle + ANKLE_OVER_M,
             "scarf": ~on_arms & (middles[:, 1] > hips - TUCKED_M) & (middles[:, 1] < neck)}
+
+
+def fused_to_leg(middles, strongest, hem):
+    """Which faces hang from an arm under the jacket's `hem` within LEG_FUSED_M of a face hanging from a leg: the
+    thigh TRELLIS.2 fused a hand to, labelled down to the fingertips with the arm (still_rig.fused_landmarks) and left
+    by the hand cut where its paint lay nearer the cloth than the skin. No kind's place allowed them, so they took the
+    nearest paint's, the jacket's, rode the forearm and the hem at once and stretched as brown straps from the hips to
+    the hands (the hoodie man, 2026-11-28: 459 faces, 2 to 8 cm before his thighs); the trousers are what lies there.
+    A hand held out beside the thigh (the stairwell woman's, 10 cm or more off it) is left to the arm."""
+    found = np.zeros(len(middles), bool)
+    legs = np.isin(strongest, LEGS)
+    under = np.isin(strongest, ARMS) & (middles[:, 1] < hem)
+    if legs.any() and under.any():
+        found[under] = cKDTree(middles[legs]).query(middles[under])[0] < LEG_FUSED_M
+    return found
+
+
+def fused_trousers(person, kinds):
+    """The trousers' faces hanging from an arm (`fused_to_leg` gave them the jeans): a hand lump's leftover paint
+    (reddish brown, the hoodie man's) on the thigh, so drawn in the trousers' own paint about them
+    (`blender_cloth.painted_over`): worn as its own, it stood on his black trousers as brown blobs by the hands."""
+    return (kinds == KINDS.index("jeans")) & np.isin(strongest_of(person), ARMS)
 
 
 def seeds(person, middles, strongest):
@@ -356,6 +379,32 @@ def kinds_of(person, released=None, hair=None):
     found[person["hand"]] = KINDS.index("skin")
     free = ~head & ~person["hand"]
     return islands_joined(faces, settled(faces, found, free), free)
+
+
+def hood_inside(person, kinds):
+    """`kinds` with each piece of the jacket (ISLAND_FACES or more) lying wholly round the neck (ROUND_NECK_M under
+    Neck2, off the arms) and bordered mostly by the T-shirt kind given to it: a hood's shaded inside, read nearer
+    the plaid's dark stripes than the hood's grey, hung on the jacket's sim mesh and stood in the hood's rim by the
+    jaw as dark torn bits (the hoodie man, 2026-11-28: one piece of 858 faces). A jacket's own collar reaches down
+    into the jacket."""
+    faces = person["faces"]
+    middles = person["points"][faces].mean(1)
+    strongest = strongest_of(person)
+    jacket, shirt = KINDS.index("jacket"), KINDS.index("shirt")
+    zone = (middles[:, 1] > joint_at(person, "Neck2")[1] - ROUND_NECK_M) & ~np.isin(strongest, ARMS[:6])
+    pairs = face_neighbours(faces)
+    worn = kinds == jacket
+    same = pairs[worn[pairs[:, 0]] & worn[pairs[:, 1]]]
+    _, piece = connected_components(coo_matrix((np.ones(len(same)), (same[:, 0], same[:, 1])),
+                                               shape=(len(kinds), len(kinds))), directed=False)
+    outside = np.bincount(piece[worn & ~zone], minlength=piece.max() + 1) > 0
+    border = np.zeros((piece.max() + 1, len(KINDS)))
+    for first, second in (pairs.T, pairs[:, ::-1].T):
+        leaving = worn[first] & ~worn[second]
+        np.add.at(border, (piece[first[leaving]], kinds[second[leaving]]), 1)
+    big = np.bincount(piece[worn], minlength=piece.max() + 1) >= ISLAND_FACES  # smaller: `islands_joined`'s
+    hood = worn & ~outside[piece] & big[piece] & (border.argmax(1)[piece] == shirt) & (border.sum(1)[piece] > 0)
+    return np.where(hood, shirt, kinds)
 
 
 def painted_over(person, kinds, released):
@@ -781,15 +830,17 @@ def garment_made(person, kinds, kind):
             "riding": riding_of(person, kinds, kind, used, faces), "normals": person["normals"][used]}
 
 
-def garments_of(person, kinds, body, scale, reach):
+def garments_of(person, kinds, body, scale, reach, own=None):
     """{kind: (garment, sim)} for the simulated garments the person wears (GARMENT_FACES or more; `garment_made`),
-    each sim mesh with its tethers (`reach`: each kind's longest, cloth_tether.TETHER_M's unless given)."""
+    each sim mesh with its tethers (`reach`: each kind's longest, cloth_tether.TETHER_M's unless given), a garment in
+    `own` ({kind: weights}) skinned by its own weights there."""
     shoes_used, _ = garment_of(person, kinds, "shoes")
     shoes = person["points"][shoes_used] * scale
     garments = {}
     for kind in worn(kinds):
-        garment = garment_made(person, kinds, kind)
-        sim = sim_of(person, kinds, kind, body, scale, garment)
+        wearer = {**person, "weights": (own or {})[kind]} if kind in (own or {}) else person
+        garment = garment_made(wearer, kinds, kind)
+        sim = sim_of(wearer, kinds, kind, body, scale, garment)
         held = cloth_tether.pinned(sim["points"], sim["riding"], shoes)
         sim["tether"] = cloth_tether.tethers(reach[kind], over_surface(sim["points"], sim["faces"],
                                                                          np.flatnonzero(held)))
@@ -957,10 +1008,18 @@ def made(body_glb, rig_path, out, height, reach=None, neck=None):
         person = {**person, "weights": weights}
     else:
         kinds = kinds_of(person)
+    kinds = hood_inside(person, kinds)  # read after the old hair round the neck is painted over as what it lies on
+    painted = painted | fused_trousers(person, kinds)
     rig_weights = person["weights"]
     person = {**person, "weights": skirted(person, kinds)}
     person = {**person, "weights": hem_on_shoes(person, kinds)}
+    before_jeans = person["weights"]
+    # the points the jacket shares with the trousers fused to the arm keep the arm in the jacket: taken off it there
+    # with the trousers, its faces by the hands stretched from the hips to the wrists (the hoodie man, 2026-11-28)
+    jacket_seam = np.unique(person["faces"][fused_trousers(person, kinds)])
     person = {**person, "weights": jeans_off_arms(person, kinds)}
+    jacket_weights = person["weights"].copy()
+    jacket_weights[jacket_seam] = before_jeans[jacket_seam]
     body = body_under(person, dict(np.load(rig_path)))
     scale = height / float(np.ptp(person["points"][:, 1]))
     saved = {"scale": scale, "kinds": kinds, "shell_points": person["points"], "shell_faces": person["faces"],
@@ -971,7 +1030,7 @@ def made(body_glb, rig_path, out, height, reach=None, neck=None):
     record = {"body": str(body_glb), "height_m": height, "scale": round(scale, 4),
               "faces": {kind: int((kinds == number).sum()) for number, kind in enumerate(KINDS)},
               "tether_m": {kind: reach[kind] for kind in worn(kinds)}, "runs": {}}
-    garments = garments_of(person, kinds, body, scale, reach)
+    garments = garments_of(person, kinds, body, scale, reach, {"jacket": jacket_weights})
     legs = (joint_at(person, "LeftLeg") + joint_at(person, "RightLeg")) * scale / 2.0
     for clip in ("walking", "standing"):
         timing = timing_of(person, clip, scale)
