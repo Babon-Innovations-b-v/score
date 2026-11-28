@@ -65,10 +65,10 @@ MARKS = {
                          [((x * 0.28 - y * 0.12 * side, y * 0.28 + x * 0.12 * side), (x * 0.5, y * 0.5))]]},
     "stability": {"circles": [(0.0, 0.0, 0.06)], "strokes": [((-0.5, 0.0), (-0.18, 0.0)), ((-0.18, 0.0), (0.0, -0.18)),
                                                            ((0.0, -0.18), (0.18, 0.0)), ((0.18, 0.0), (0.5, 0.0))]},
-    "off": {"arcs": [(0.0, -0.04, 0.36, 130.0, 410.0)], "strokes": [((0.0, 0.5), (0.0, 0.05))]},
+    "off": {"arcs": [(0.0, -0.04, 0.36, 310.0, 590.0)], "strokes": [((0.0, 0.5), (0.0, 0.05))]},
     "frame": {"ellipses": [(0.0, 0.0, 0.52, 0.24)], "circles": [(0.0, 0.0, 0.12)]},
 }
-MARK_STROKE = 0.08  # a mark's line width, of its square
+MARK_STROKE = 0.11  # a mark's line width, of its square (as heavy as the bold words beside it)
 
 
 def ink(text, look, vertical=False):
