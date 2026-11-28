@@ -135,6 +135,9 @@ SETTLE_TURN = 8.0  # degrees
 CAST_AT_ONCE = 2 ** 15  # rays a query casts at once, each batch against the faces its own box meets (2099's square,
 # 2026-11-22: its looks, cast all at once against the whole plaza's faces, held past 12 GB)
 COLLECTED = 200_000  # faces of a cast past which its ray structure is collected at once (`cast`)
+FACES_AT_ONCE = 2_000_000  # faces one ray structure is built over at most, a larger cast taken a part at a time
+# (2099 pad, 2026-11-28: its made poles and legs, ~500k faces each, 19.8 million in all, met by one far look, built
+# one structure past 20 GB)
 RAYS = 32  # rays the exact intersector casts at once (each holds every face its box meets: 30 000 in the hangar)
 PAST = 1e-3  # metres past a ray's last kept hit embree is asked again whether it meets anything more
 NEAR = 0.15  # how far past a loose object's box its statics reach in the settle (metres)
@@ -306,6 +309,22 @@ def ray_box(origins, directions, length=np.inf):
     return low, high
 
 
+def cast_in_parts(triangles, origins, directions, multiple_hits):
+    """`cast` over FACES_AT_ONCE triangles at a time, the parts' hits joined (their faces numbered as in `triangles`);
+    without `multiple_hits` each ray keeps only the nearest of its parts' first hits."""
+    parts = [cast(triangles[start:start + FACES_AT_ONCE], origins, directions, multiple_hits)
+             for start in range(0, len(triangles), FACES_AT_ONCE)]
+    where = np.concatenate([part[0].reshape(-1, 3) for part in parts])
+    rays = np.concatenate([part[1] for part in parts]).astype(int)
+    faces = np.concatenate([part[2] + start for part, start in zip(parts, range(0, len(triangles), FACES_AT_ONCE))])
+    if multiple_hits or not len(rays):
+        return where, rays, faces
+    along = np.einsum("ij,ij->i", where - origins[rays], trimesh.util.unitize(directions)[rays])
+    order = np.lexsort((along, rays))
+    nearest = order[np.r_[True, rays[order][1:] != rays[order][:-1]]]
+    return where[nearest], rays[nearest], faces[nearest]
+
+
 def cast(triangles, origins, directions, multiple_hits=True):
     """Where rays meet triangles (n, 3, 3): (where, which ray, which triangle). Embree (trimesh's mesh.ray) casts them,
     and every ray it gave up on is cast again by trimesh's exact ray_triangle, RAYS at a time: trimesh drops a ray whose
@@ -314,6 +333,8 @@ def cast(triangles, origins, directions, multiple_hits=True):
     core_frame's 45-degree face edge on and kept none of the 13 faces it crosses). A ray was given up on when embree
     still meets a face past the last hit kept of it (from its origin when none was kept)."""
     origins, directions = np.asarray(origins, float), np.asarray(directions, float)
+    if len(triangles) > FACES_AT_ONCE:
+        return cast_in_parts(triangles, origins, directions, multiple_hits)
     local = trimesh.Trimesh(triangles.reshape(-1, 3), np.arange(3 * len(triangles)).reshape(-1, 3), process=False)
     where, rays, faces = local.ray.intersects_location(origins, directions, multiple_hits=multiple_hits)
     ways = trimesh.util.unitize(directions)

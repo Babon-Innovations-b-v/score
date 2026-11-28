@@ -32,7 +32,8 @@ in its area beside a neighbour holding its back wall (the doorway its door fills
 alone, its door in no wall and open; seated among that neighbour (check's `neighbours`) it is told just what the
 room built whole is (nothing; the alcove on the neighbour's floor left to the neighbour's own check), the
 neighbour's post 150 m off, past the room's sight, never lent into it, and the same room cut open in front still open; its looks are cast a batch at a time (CAST_AT_ONCE), each batch meeting what
-all of them at once meet, and a large cast's ray structure is freed when it is done.
+all of them at once meet, and a large cast's ray structure is freed when it is done; a cast over more faces than
+FACES_AT_ONCE is cast a part at a time, meeting what one cast over them all meets.
 
 Breaks that turn this red (each applied once and seen red, then reverted):
 - ready.support_faults: `gaps[nearest] > TOLERANCE` made `> 1.0` -> the floating crate passes
@@ -97,6 +98,9 @@ Breaks that turn this red (each applied once and seen red, then reverted):
 - ready.seated_among: every neighbour object left out -> the seated room's door is in no wall and it reads open
 - ready.Place.hits: CAST_AT_ONCE unread (every look cast at once) -> the closed room's 50 looks reach `cast` in one
   batch past the 7 at once (the square's looks, cast all at once against the plaza, held past 12 GB)
+- ready.cast: FACES_AT_ONCE unread (every face in one ray structure) -> the walled look's 13 faces are built into one
+  structure past the 5 at once (the pad's 19.8 million made faces built one past 20 GB)
+- ready.cast_in_parts: the nearest per ray not kept -> the walled look's first hits keep the far wall's too
 - ready.cast: its `gc.collect()` left out -> the ball's cast leaves its Trimesh (and its ray structure) alive until
   the collector runs (the square's looks held every batch's, past 12 GB)
 - ready.box_meets: taken as always True -> the hall's post 150 m off, past the room's sight, is lent (the flat
@@ -658,6 +662,17 @@ def test_every_planted_physics_fault_is_told_by_name(tmp_path, monkeypatch):
     first, every = ready.cast(walled, *looks, multiple_hits=False), ready.cast(walled, *looks)
     assert first[1].tolist() == [0] and np.allclose(first[0], [[2.9, 0.5, 0.0]]) and sorted(every[1].tolist()) == [0, 0], \
         (first, every)
+    built, building = [], trimesh.Trimesh  # the same looks cast 5 faces at a time: what all at once meets, nearest first
+    monkeypatch.setattr(ready, "FACES_AT_ONCE", 5)
+    monkeypatch.setattr(ready.trimesh, "Trimesh", lambda *given, **named: (
+        built.append(len(given[1]) if len(given) > 1 else 0), building(*given, **named))[1])
+    parted_first, parted_every = ready.cast(walled, *looks, multiple_hits=False), ready.cast(walled, *looks)
+    monkeypatch.undo()
+    assert max(built) <= 5 and np.allclose(parted_first[0], first[0]) and parted_first[1].tolist() == [0] \
+        and np.allclose(np.sort(parted_every[0], axis=0), np.sort(every[0], axis=0)) \
+        and sorted(zip(parted_every[1].tolist(), parted_every[2].tolist())) == sorted(zip(every[1].tolist(),
+                                                                                         every[2].tolist())), \
+        (built, parted_first, parted_every)
     folder = planted(tmp_path)
     coarse = trimesh.creation.box(extents=(2.0, 2.0, 2.0))  # a face's middle half a metre off, a corner 0.6 off its own
     corner = np.array([1.0, 1.0, 1.0]) + 0.6 / np.sqrt(3.0)
