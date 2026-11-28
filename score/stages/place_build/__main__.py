@@ -281,7 +281,7 @@ def run(args):
         return place_build.kind(args.folder, args.kind)
     if args.step == "door":
         return place_build.door(args.folder, args.name, args.opens, "slide" if args.slide else "hinge", args.lock,
-                                args.side, args.crouch)
+                                args.side, args.crouch, args.seat)
     if args.step == "refinish":
         return place_build.refinish(args.folder, args.name, args.glow, args.kind)
     if args.step == "plan":
@@ -539,6 +539,7 @@ def parser():
     step.add_argument("--lock")
     step.add_argument("--side", choices=place_build.SIDES)
     step.add_argument("--crouch", action="store_true", help="a hatch the walkers cross crouching")
+    step.add_argument("--seat", help="the laid seat the door opens onto, climbed into through it (no floor behind it)")
     step = steps.add_parser("kind")
     step.add_argument("folder")
     step.add_argument("kind", choices=place_build.KINDS)

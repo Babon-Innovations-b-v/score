@@ -1,7 +1,8 @@
 """Invariant: the physics ready check tells the placing agent, by object, every planted fault that keeps a place from
 being walked in and pushed (a crate floating 40 cm over the ground; a crate standing 3 degrees off it, one edge down; a slab of structure 22 cm over it; two crates 10 cm inside each other; a door standing
 free of any wall; a door's far side walled off by a crate so no way 0.9 m wide reaches it, unless that door's leaf is joined to a
-neighbour there (place.json `joins`), whose side the area's joins check walks; a tunnel whose far end
+neighbour there (place.json `joins`), whose side the area's joins check walks, or it is marked as opening onto a seat
+within reach there (a capsule's hatch over the pilot's seat), while the same door opening onto a seat 4 m off is told; a tunnel whose far end
 joins nothing; a tunnel too low to walk in; a box half off a desk that tips, and moves when let go in MuJoCo; an object
 with no triangles; a door 40 cm narrower than its opening and one lying 20 cm over its wall; a person standing 30 cm
 over the ground; a walker (time-sampled) 30 cm over it, told by its planted foot alone; a round hatch in a square doorway; a person with no head and no right hand; a person whose sleeve tears from its chest to its hand),
@@ -45,6 +46,9 @@ Breaks that turn this red (each applied once and seen red, then reverted):
 - ready.crossing_depths: `count % 2` made `count % 2 == 0` -> the overlapping crates pass
 - ready.door_faults: the `open_sides` list left empty -> the free-standing door passes
 - ready.room_for_walkway: ERODED made 0 -> the blocked door's far side reads reached
+- ready.seat_faults: `gap > SEAT_REACH` made `gap > 10.0` -> the door opening onto crate_ok, 4 m off, passes
+- ready.walkway_targets: the seat side kept -> the door opening onto the blocker in reach behind it is still told its
+  walkway there (the capsule's hatch over the pilot's seat, 2099 #161)
 - ready.walkway_targets: a joined leaf's far side kept -> the door joined to a neighbour past its blocked side is
   still sent there (the pad's walkway hatch, whose far side is the capsule's, 2099 #161); its join's `from` unread ->
   a doorway joined as laid (no leaf of it) drops the door's side too
@@ -771,6 +775,14 @@ def test_every_planted_physics_fault_is_told_by_name(tmp_path, monkeypatch):
                          (None, 2)):
         sides = {name: spot for name, spot in ready.walkway_targets(laid, joined)[0].items() if name.startswith("door (")}
         assert len(sides) == kept and (kept == 2 or all(spot[2] > 0.0 for spot in sides.values())), (joined, sides)
+    assert {fault["target"] for fault in found["door"]} == {"door (back)"}, found["door"]
+    for seat, told_doors in (("blocker", set()), ("crate_ok", {"door (seat)", "door (back)"})):  # in reach; 4 m off
+        place_build.door(folder, "door", seat=seat)  # it opens onto that seat, climbed into through it
+        stage, place = place_build.opened(folder)  # held: a Place's prims expire with their stage
+        walkways, _ = ready.walkway_faults(ready.Place(stage, place))
+        targets = {fault["target"] for fault in walkways if fault["target"].startswith("door (")}
+        assert targets == told_doors, (seat, walkways)
+    place_build.door(folder, "door")
     assert "floating" in told["crate_float"], found["crate_float"]
     assert "footing" not in told and "floating" in told["slab_float"], (found.get("footing"), found.get("slab_float"))
     assert told["crate_tilted"] == {"tilted"}, found["crate_tilted"]

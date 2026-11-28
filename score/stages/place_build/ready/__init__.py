@@ -42,7 +42,10 @@ left out of every measure, `out_of_reach`). The faults, each with its measure:
 - `broken body`: a person's skin torn by its skinning, a missing head, hand or foot, or a height or proportions no
   person has (people.shape_faults).
 - `walkway`: the walkers' floor (reach.py's Recast-style spans of every surface, doors open, eroded by half of WALKWAY)
-  does not join both sides of every door, and every shell and connector, in one walkable piece WALKWAY wide.
+  does not join both sides of every door, and every shell and connector, in one walkable piece WALKWAY wide. A door
+  marked as opening onto a seat (SEAT, place_build.door --seat: a crew capsule's hatch, climbed through into the pilot's
+  seat, no corridor behind it) needs that seat within SEAT_REACH of its side nearer the seat, not floor there; its
+  other side is a walkway target as any door's.
 - `connector`: a tube whose end ring stays over JOIN from every other shell or structure, or that has no walkable floor
   along its length.
 - `unstable`: let go in MuJoCo (settle_mujoco.py, in the physics trial's Python), it moves over SETTLE_MOVE or turns
@@ -153,6 +156,8 @@ LEVEL_RAYS = 5
 CROUCH = "score:crouch"  # a door's mark: a hatch the walkers cross crouching (place_build.door --crouch)
 CROUCH_HEAD = 1.0  # metres of room over a crouching walker's floor
 CROUCH_KNEE = 0.45  # metres a crouching walker steps up over a hatch's sill
+SEAT = "score:seat"  # a door's mark: the seat it opens onto, climbed into through it (place_build.door --seat)
+SEAT_REACH = 0.6  # metres from a seat-entry door's seat-side spot (a body's depth through it) to its seat's surface
 HATCH_REACH = 0.6  # metres either side of a hatch's plane the crouch lasts  # rays a side over an object's footprint that find the levels of the support under it
 STRUCTURE_WORDS = ("wall", "bulkhead", "partition", "frame", "fence")
 CONNECTOR_WORDS = ("tube", "tunnel", "corridor", "connector")
@@ -928,32 +933,78 @@ def spans_near(grid, span_cells, span_heights, standing, spot, across=0.4):
     return np.flatnonzero(standing & near & (np.abs(span_heights - spot[1]) <= reach.KNEE))
 
 
+def door_sides(laid, name):
+    """A door's two sides: {"front": spot, "back": spot}, each a body's depth out of its plane (WALKWAY/2 and 0.2 m past
+    its leaf), at its foot."""
+    middle, axes, half = frame_of(laid, name)
+    foot = laid.meshes[name].bounds[0][1]
+    sides = {}
+    for side, sign in (("front", 1), ("back", -1)):
+        spot = middle + axes[2] * sign * (half[2] + WALKWAY / 2 + 0.2)
+        sides[side] = (np.array([spot[0], foot, spot[2]]), axes[2] * sign)
+    return sides
+
+
+def seat_side(laid, name):
+    """A seat-entry door's (marked SEAT) side onto its seat, (side, its seat's distance from that side's spot), the
+    side nearer the seat's surface; None for a door not marked, or (None, seat name) when the scene holds no such
+    seat."""
+    seat = text_of(laid.prims[name], SEAT)
+    if not seat:
+        return None
+    if seat not in laid.meshes:
+        return None, seat
+    gaps = {side: nearest_to_surface(laid.meshes[seat], [spot]) for side, (spot, _) in door_sides(laid, name).items()}
+    side = min(gaps, key=gaps.get)
+    return side, gaps[side]
+
+
 def walkway_targets(laid, joins=None):
     """Where the walkers must get to: each door's two sides (a body's depth out, at its foot) and the floor of each
     shell and connector (its box): {target name: spot (x, y, z)} and {target name: (low, high)}. A door leaf in a joined
     doorway (place.json `joins`, recorded from that leaf) leads into its neighbour on its far side: that side is the
     area's to judge (area/'s joins check walks a way through it, seated), never this place's alone (the pad's walkway
-    hatch, whose far side is the capsule's, 2099 #161)."""
+    hatch, whose far side is the capsule's, 2099 #161). A seat-entry door's side onto its seat (seat_side) is climbed
+    into the seat, never walked (the capsule's hatch over the pilot's seat, 2099 #161): seat_faults judges it."""
     spots, zones = {}, {}
     for name in laid.with_role("door"):
-        middle, axes, half = frame_of(laid, name)
-        foot = laid.meshes[name].bounds[0][1]
         joined = (joins or {}).get(name)
         inward = np.asarray(joined["inward"], float) if joined and joined.get("from") == f"the door leaf {name}" \
             else None
-        for side, sign in (("front", 1), ("back", -1)):
-            if inward is not None and float(np.dot(axes[2] * sign, inward)) < 0.0:
+        onto_seat = (seat_side(laid, name) or (None,))[0]
+        for side, (spot, outward) in door_sides(laid, name).items():
+            if inward is not None and float(np.dot(outward, inward)) < 0.0:
                 continue
-            spot = middle + axes[2] * sign * (half[2] + WALKWAY / 2 + 0.2)
-            spots[f"{name} ({side})"] = np.array([spot[0], foot, spot[2]])
+            if side == onto_seat:
+                continue
+            spots[f"{name} ({side})"] = spot
     for name in laid.with_role("shell", "connector"):
         zones[name] = laid.meshes[name].bounds
     return spots, zones
 
 
+def seat_faults(laid):
+    """Seat-entry doors (marked SEAT) whose seat is not in the scene or stands past SEAT_REACH of the door's side onto
+    it: [{fault "walkway", target "<door> (seat)", why}]."""
+    faults = []
+    for name in laid.with_role("door"):
+        found = seat_side(laid, name)
+        if found is None:
+            continue
+        side, gap = found
+        if side is None:
+            faults.append({"fault": "walkway", "target": f"{name} (seat)",
+                           "why": f"it opens onto the seat {gap}, which the scene does not hold"})
+        elif gap > SEAT_REACH:
+            faults.append({"fault": "walkway", "target": f"{name} (seat)", "gap": round(float(gap), 3),
+                           "why": f"its seat stands {gap:.2f} m from its {side} side (at most {SEAT_REACH}): "
+                                  f"no seat to climb into through it"})
+    return faults
+
+
 def walkway_faults(laid, joins=None):
-    """Door sides and zones the walkers cannot reach from the rest on a way WALKWAY wide: [{target, why}] (a joined
-    leaf's far side left to the area, walkway_targets)."""
+    """Door sides and zones the walkers cannot reach from the rest on a way WALKWAY wide, and seat-entry doors with no
+    seat in reach (seat_faults): [{target, why}] (a joined leaf's far side left to the area, walkway_targets)."""
     grid, span_cells, span_heights, standing, pieces = walkers_floor(laid)
     spots, zones = walkway_targets(laid, joins)
     reached = {name: set(pieces[spans_near(grid, span_cells, span_heights, standing, spot)])
@@ -968,7 +1019,8 @@ def walkway_faults(laid, joins=None):
     return [{"fault": "walkway", "target": name,
              "why": (f"no floor {WALKWAY} m wide to stand on there" if not found else
                      f"no way {WALKWAY} m wide joins it to the rest")}
-            for name, found in sorted(reached.items()) if main not in found], (grid, span_cells, span_heights, standing)
+            for name, found in sorted(reached.items()) if main not in found] + seat_faults(laid), \
+        (grid, span_cells, span_heights, standing)
 
 
 # --- a closed inside (owner 2026-11-19: a concept's cut is the camera's, never the building's) --------------------
