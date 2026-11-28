@@ -32,7 +32,7 @@
     python -m score.stages.place_build backdrop <folder> <name>
     python -m score.stages.place_build hollow <folder> <name> --region x0,y0,z0,x1,y1,z1 [--region ...]
     python -m score.stages.place_build door <folder> <name> [--opens] [--slide] [--lock chamber --side inner|outer]
-    python -m score.stages.place_build refinish <folder> <name>
+    python -m score.stages.place_build refinish <folder> <name> [--glow variant] [--kind kind]
     python -m score.stages.place_build finish <folder> <name> <take/<take>|concept/<n>|picture.png>
     python -m score.stages.place_build plan <folder> <plan.json>
     python -m score.stages.place_build dress <folder> <name> <address> <row> <N|S|E|W|floor> [--support wall]
@@ -283,7 +283,7 @@ def run(args):
         return place_build.door(args.folder, args.name, args.opens, "slide" if args.slide else "hinge", args.lock,
                                 args.side, args.crouch)
     if args.step == "refinish":
-        return place_build.refinish(args.folder, args.name, args.glow)
+        return place_build.refinish(args.folder, args.name, args.glow, args.kind)
     if args.step == "plan":
         return place_build.plan(args.folder, args.source)
     if args.step == "dress":
@@ -523,6 +523,8 @@ def parser():
         step.add_argument("name")
         if name == "refinish":
             step.add_argument("--glow", help="a glowing palette variant its nearest part wears (a lantern's paper)")
+            step.add_argument("--kind", help="the palette's kind of thing it is (palette.json `kinds`): its parts "
+                                             "wear that kind's variants alone")
     step = steps.add_parser("hollow")
     step.add_argument("folder")
     step.add_argument("name")

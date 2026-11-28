@@ -443,14 +443,24 @@ def refinish_undone(stage, place, prim):
             inside.ClearActive()
 
 
-def variant_colours(folder):
+def variant_colours(folder, kind=None):
     """{palette variant: its token's CIELAB colour} of the place's palette, the variants a made prop's part may wear
-    (PROP_FAMILIES, no NOT_A_PAINT recipe)."""
+    (PROP_FAMILIES, no NOT_A_PAINT recipe); given `kind`, the variants the palette lists for that kind of thing
+    (`kinds`: a lamp post's glowing head, a window's glass) and those alone, so a part is never painted another
+    thing's paint (2099 #161: the street's lamp heads and windows wore the road's white lane paint, its lanterns the
+    kerb's yellow)."""
     path = pathlib.Path(folder) / place_build.PALETTE
     if not path.exists():
         raise place_build.Refused("no palette: lay the place's surface library first (palette <folder> <materials.json>)")
     taken = json.loads(path.read_text())
     every = place_build.surface_library.variants(taken)
+    if kind is not None:
+        listed = (taken.get("kinds") or {}).get(kind)
+        if not listed:
+            raise place_build.Refused(f"the place's palette has no kind {kind} (its kinds are "
+                                      f"{', '.join(sorted(taken.get('kinds') or {})) or 'none'})")
+        return {name: grade.hex_lab(taken["tokens"][every[name]["token"]]) for name in listed
+                if name in every and every[name].get("token") in taken["tokens"]}
     return {name: grade.hex_lab(taken["tokens"][variant["token"]]) for name, variant in every.items()
             if variant.get("family") in PROP_FAMILIES and variant.get("recipe") not in NOT_A_PAINT
             and variant.get("token") in taken["tokens"]}
@@ -530,12 +540,12 @@ def glow_look(folder, variant):
     return {"address": f"palette/{variant}", "hex": None, "colour": grade.hex_lab(spec["hex"])}
 
 
-def refinish(folder, name, glow=None):
+def refinish(folder, name, glow=None, kind=None):
     """The object re-finished per part: its looks taken off; a paint the library made shows whole, but for the part
     nearest a glowing look it wore (a lantern's paper), or the glowing palette variant `glow` given, which keeps that
     glow; a paint no library surface made is
     split into its parts, the one nearest the look it wore keeping that look and every other wearing the place's
-    palette variant nearest its colour (`surface --part`)."""
+    palette variant nearest its colour (`surface --part`), of the palette's `kind` of thing alone when one is given."""
     stage, place = place_build.opened(folder)
     path = str(place_build.scene_path(folder).resolve())
     held = path in place_build.HELD
@@ -550,7 +560,7 @@ def refinish(folder, name, glow=None):
         earlier = glow_look(folder, glow) if glow else earlier_look(stage, place, prim, library)
         if not library and not painted.parts:
             raise place_build.Refused(f"{name}'s model has no paint to read parts from: lay a surface on it")
-        colours = None if library else variant_colours(folder)
+        colours = None if library else variant_colours(folder, kind)
         instances_opened(prim)
         taken_off(stage, place, prim)
         if library and earlier is None:

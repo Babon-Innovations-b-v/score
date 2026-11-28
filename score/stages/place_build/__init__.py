@@ -2517,11 +2517,12 @@ def dress(folder, name, address, row, side, support=None, height=0.0, every=None
     return plan_fit.dress(folder, name, address, row, side, support, height, every, front)
 
 
-def refinish(folder, name, glow=None):
+def refinish(folder, name, glow=None, kind=None):
     """The object re-finished per part from the place's palette (finished.refinish); `glow` a glowing palette variant
-    its part nearest that variant's colour wears (a lantern laid unlit: its paper lit)."""
+    its part nearest that variant's colour wears (a lantern laid unlit: its paper lit); `kind` the palette's kind of
+    thing it is, whose variants alone its parts wear."""
     from score.stages.place_build import finished
-    return finished.refinish(folder, name, glow)
+    return finished.refinish(folder, name, glow, kind)
 
 
 STEPS = {"put": put, "palette": palette, "dome": dome, "ground": ground, "terrain": terrain, "tube": tube, "stairs": stairs, "surface": surface, "light": light, "snap": snap, "remove": remove,

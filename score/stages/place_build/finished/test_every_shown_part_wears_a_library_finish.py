@@ -38,6 +38,8 @@ Breaks that turn this red (each applied once and seen red, then reverted):
 - finished.own_surface: always True -> the stall's material naming no held surface passes
 - finished.object_faults: its walk without Usd.TraverseInstanceProxies() -> the booth, the stall's model laid under an
   instanceable prim, shows nothing and passes (#155)
+- finished.variant_colours: `kind` unread -> the stool's dark part wears the dark paint its palette kind does not list
+  (the street's lamp heads in the road's lane paint, 2099 #161)
 - finished.refinish: `glow` unread -> the unlit lantern shows its own paint whole, no glowing part
 - finished.glow_look: the recipe rule left out -> a dark paint is taken as the glow
 - finished.refinish: instances_opened unread -> the crate's re-finish authors under an instance proxy and fails (#156)
@@ -193,7 +195,8 @@ def test_every_shown_part_wears_a_library_finish(tmp_path, monkeypatch):
                                             "dark_paint": {"recipe": "painted_metal", "token": "dark", "seed": 3}}},
                      "lamp": {"variants": {"lamp_glow": {"recipe": "glowing", "token": "glow", "seed": 5}}},
                      "sand": {"variants": {"sand_ground": {"recipe": "painted_metal", "token": "ground", "seed": 4}}},
-                     "leaf": {"variants": {"crop_leaf": {"recipe": "cloth", "token": "green", "seed": 6}}}}}))
+                     "leaf": {"variants": {"crop_leaf": {"recipe": "cloth", "token": "green", "seed": 6}}}},
+        "kinds": {"stool": ["wood_paint"]}}))
     for name, address, at in (("gen", "model/generator", 0), ("box", "model/box", 4), ("stool", "take/stool", 8),
                               ("bare", "model/bare", 12), ("lantern", "model/generator", 20),
                               ("kiosk", "model/kiosk", 24), ("stall", "model/stall", 28), ("plain", "kit/plain", 32),
@@ -251,6 +254,11 @@ def test_every_shown_part_wears_a_library_finish(tmp_path, monkeypatch):
     assert mended["unlit"]["parts"] == mended["lantern"]["parts"], mended  # an unlit lantern lit by `glow`
     assert sorted(mended["stool"]["parts"].values()) == ["palette/dark_paint", "palette/wood_paint"], mended
     assert put_after["finish"]["parts"] == mended["stool"]["parts"] == mended["crate"]["parts"], (put_after, mended)
+    kinded = place_build.refinish(folder, "stool2", kind="stool")  # a stool's parts in a stool's paints alone
+    with pytest.raises(place_build.Refused, match="no kind boat"):
+        place_build.refinish(folder, "stool2", kind="boat")
+    assert set(kinded["parts"].values()) == {"palette/wood_paint"}, kinded
+    stage = Usd.Stage.Open(str(place_build.scene_path(folder)))
     bound = finished.bound_parts(stage.GetPrimAtPath("/camp/Objects/lantern/geo"))
     looks = {part.GetName(): str(material.GetPath()) if material else None for part, material in bound}
     glow = [name for name, look in looks.items() if look and look.startswith("/camp/Looks/lantern__")]
