@@ -18,6 +18,9 @@ Breaks that turn this red (each applied once and seen red, then reverted):
   alone) -> the wheel is cut to 17k and its spokes go to blobs; budget.with_cut: a mesh matched by its order, not its
   node's name -> the knob's geometry lands on the plate; the cut's vertices kept a face apart -> the plate's two
   triangles hold 6 vertices, not 4; a node's matrix taken from the cut -> the knob's pivot is lost (moving parts)
+- reach.surface_chunks reading the mesh's own face_normals and area (trimesh keeps them) -> a mesh read for the
+  walkers' floor keeps its corners, cross products, normals and areas, about 200 bytes a face more, every mesh
+  of the place at once (2099's square, 2026-11-28: budget's nears of 73 million faces killed at 12 GB)
 - fit.size_matrix: one uniform scale (TRELLIS.2's proportions kept), or its sides read as wide, deep, tall in the
   model's Y-up order -> the L drawn 10% tall and 12% shallow is not laid at the size, the L's at twice (#170);
   STRETCH made unbounded -> the L drawn twice as deep is squashed to the size's depth, not held a quarter off;
@@ -320,6 +323,13 @@ def test_a_made_model_fits_its_place_its_paint_and_its_weight(tmp_path, monkeypa
     assert budget.faces_seen(202.0, 43.0, None) == budget.faces_seen(202.0, 43.0, 0.1) > 500_000  # held close: whole
     assert budget.faces_seen(1e-6, 1e-6, 50.0) == budget.LEAST
     assert abs(budget.faces_seen(1.0, 1.0, 10.0) - (pixels / 10) ** 2 / 4 * budget.SHOWN_FACES) < 2
+    import trimesh
+    from score.stages.place_build import ready
+    sphere = trimesh.creation.icosphere(3)  # nearest's walkers' floor reads every mesh; none keeps a face's sizes
+    points = np.vstack([points for points, _ in ready.reach.surface_chunks(sphere, chunk=4000, floors=True)])
+    assert not [key for key, value in sphere._cache.cache.items() if np.ndim(value) and len(value) == len(sphere.faces)]
+    level = sphere.copy().face_normals[:, 1] >= np.cos(np.radians(ready.reach.MAX_SLOPE))
+    assert len(points) and np.all(points[:, 1] > -1e-9) and level.any()  # the floor faces' points, read as trimesh's
     pivot = np.eye(4)
     pivot[:3, 3] = [0.5, 0.25, 0.0]  # the knob's spin pivot
     document, binary = two_part_glb(tmp_path / "made.glb", (2.0, 0.2), ("plate", "knob"), pivot)

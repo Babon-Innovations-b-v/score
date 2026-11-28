@@ -41,6 +41,7 @@ import pathlib
 import sys
 
 import numpy as np
+import trimesh
 from scipy.sparse import coo_matrix
 from scipy.sparse.csgraph import connected_components
 
@@ -196,10 +197,12 @@ def surface_chunks(mesh, chunk=None, within=None, floors=False):
     held at once ran the check out of 33 GB (the Hong Kong square, 2026-11-19); a chunk at a time it holds what one
     chunk needs."""
     chunk = CHUNK if chunk is None else chunk
-    level = mesh.face_normals[:, 1] >= np.cos(np.radians(MAX_SLOPE))
-    count = int(np.ceil(mesh.area * SAMPLES_PER_M2))
+    normals, areas = face_sizes(mesh)
+    level = normals[:, 1] >= np.cos(np.radians(MAX_SLOPE))
+    count = int(np.ceil(areas.sum() * SAMPLES_PER_M2))
+    del normals
     if count:
-        weight_cum = np.cumsum(mesh.area_faces)
+        weight_cum = np.cumsum(areas)
         origins = mesh.vertices[mesh.faces[:, 0]]
         vectors = mesh.vertices[mesh.faces[:, 1:]] - origins[:, None, :]
         picks, lengths = np.random.default_rng(0), np.random.default_rng(0)
@@ -223,6 +226,19 @@ def surface_chunks(mesh, chunk=None, within=None, floors=False):
         kept = (level[faces] if floors else np.ones(len(faces), bool)) \
             & (over(points[:, 0], points[:, 2], within) if within is not None else True)
         yield points[kept], level[faces[kept]]
+
+
+def face_sizes(mesh):
+    """Each face's unit normal (zero for a degenerate face) and area, worked out as trimesh's face_normals and
+    area_faces are but never kept on the mesh: kept, a mesh's corners, cross products, normals and areas hold about
+    200 bytes a face over the mesh's own 70, and the walkers' floor reads every mesh of a place (2099's square,
+    2026-11-28: its 73 million faces took the budget command's nears past 12 GB)."""
+    corners = mesh.vertices.view(np.ndarray)[mesh.faces]
+    crosses = trimesh.triangles.cross(corners)
+    found, valid = trimesh.triangles.normals(triangles=corners, crosses=crosses)
+    normals = np.zeros((len(corners), 3))
+    normals[valid] = found
+    return normals, trimesh.triangles.area(crosses=crosses)
 
 
 def over(xs, zs, within):
