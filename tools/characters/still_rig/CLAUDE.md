@@ -58,8 +58,11 @@ A still picture-made model (a TRELLIS.2 mesh, no skeleton) rigged as a player mo
   cut's rims are smoothed and the lumps' leftover skin paint on the cloth repainted. Open: a coat one colour with its
   fused sleeves (the older woman's) still swings its flanks with the arms; taken off by place, its cuffs tore away. While a hand goes more than
   HAND_CLEAR into the clothes over a clip, that arm is turned out the fewest whole degrees more while it hangs that
-  bring it out (`hands_cleared`, every degree to HAND_CLEAR_MOST tried: the depth plateaus), and rig.json records
-  each clip's hands (degrees, depth); a hand resting on a lap (bench, seated), where the arm does not hang, keeps
+  bring it out (`hands_cleared`, every degree to HAND_CLEAR_MOST tried: the depth plateaus); a hand clear of them
+  lets its arm's floor down as far as it stays clear (`held_out`, to HAND_LOWER_MOST under the still's own arm, the
+  clip's own swing at the most; 2026-11-28: the older woman's still hangs its arms 21 degrees out and her walk held
+  them there every frame, stiff off her coat), and rig.json records each clip's hands (degrees off the still's arm,
+  under 0 let in, and depth); a hand resting on a lap (bench, seated), where the arm does not hang, keeps
   its depth there, recorded.
 - **The place clips** (2099 #161: the places' people had only the dressed body's five clips): `place_clips.py` makes
   the prologue's clips (talking, stairs up and down, the rail lean, looking out, waving, swaying) and makes again the

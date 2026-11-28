@@ -57,7 +57,9 @@ above it touching the backpack, and a stray backpack face inside the cloth. Each
   point a fused arm's labels hung from the hand keeps the hand (`off_the_hands`'s cloth weights skipped: the hoodie
   man's dark wings at the hips), a cuff point stays on the hand rather than the forearm, or any other weight moves,
   or a point is taken off the arm where the sleeve and the cloth beside it are one colour (the older woman's coat:
-  her cuffs left on her hips),
+  her cuffs left on her hips), a hand that never meets the clothes keeps its arm at the still's 15 degrees rather
+  than its clip's own 5 (`hands_cleared` letting no floor down: the older woman's arms stiff 21 degrees out all her
+  walk, 2026-11-28),
   or a tear's sides are not each closed by their own fan (`tears_closed`: the hollow showed black), a fan spans the
   tear, or a face still spans the sleeve and the thigh after `torn` (eased instead, his walk stretched edges by 15 cm or his
   hands stood 5 cm beside his cuffs), or a torn face moves or a copy loses its point's other values;
@@ -593,3 +595,7 @@ def test_a_rigged_still_rides_its_joints_without_a_crack():
     assert cleared["Left"][1] <= still_rig.HAND_CLEAR and 0.0 < cleared["Left"][0] <= 6.0
     assert cleared["Right"][0] == 0.0 and cleared["Right"][1] == 0.02
     assert cleared_worlds[:, 3, 0, 3].min() >= 0.36 - still_rig.HAND_CLEAR
+    hanging, _, free = still_rig.hands_cleared(np.stack([arm_worlds(5.0, 5.0)] * 2), kept_bind, kept_names,
+                                               kept_parents, lambda moves: {"Left": 0.0, "Right": 0.0})
+    assert free["Left"][0] == free["Right"][0] == -still_rig.HAND_LOWER_MOST
+    assert abs(still_rig.abduction(hanging, kept_bind, kept_names, "Left")[0] - 5.0).max() < 0.1

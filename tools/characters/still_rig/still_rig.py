@@ -190,6 +190,9 @@ HAND_FRAMES = 3  # every this many frames of a clip is read for the hands' depth
 HAND_REACH = 0.45  # metres: the clothes this near a hand at the bind are the ones its depth is read in
 HAND_CLEAR = 0.003  # metres: a hand this little in the clothes is out of them (the shell's own noise)
 HAND_CLEAR_MOST = 12.0  # degrees at most a hanging arm is turned further out to bring its hand out
+# and the most its floor is let down under the still's own arm (to no floor, the clip's own swing): the older woman's
+# still hangs its arms 21 degrees out, her walk held them there every frame, stiffly out from her coat (2026-11-28)
+HAND_LOWER_MOST = 30.0
 
 
 class StillError(ValueError):
@@ -484,10 +487,10 @@ def abduction(worlds, bind, names, side):
             -off[:, 1] / np.maximum(np.linalg.norm(off, axis=1), 1e-12))
 
 
-def arms_kept_out(worlds, bind, names, parents, extra=None):
+def arms_kept_out(worlds, bind, names, parents, extra=None, lowered=None):
     """A clip's joint worlds (frames x joints x 4 x 4) with each arm turned out across the trunk (about the chest's
-    forward axis, at the shoulder) wherever it comes in nearer than the still's own arm hangs at the bind, and `extra`
-    degrees further ({side: degrees}, `hands_cleared`)
+    forward axis, at the shoulder) wherever it comes in nearer than the still's own arm hangs at the bind less
+    `lowered` degrees ({side: degrees}), and `extra` degrees further ({side: degrees}; both `hands_cleared`)
     (`abduction`; a soft maximum ARM_SOFT_DEGREES wide, held only while the arm hangs down, ARM_HANGING, on its own
     side of the trunk, ARM_ACROSS_DEGREES), every joint
     under it turned along; and {Arm joint: its new local rotations as glTF quaternions (frames x 4)}. The dressed
@@ -497,7 +500,7 @@ def arms_kept_out(worlds, bind, names, parents, extra=None):
     out, locals_ = np.array(worlds, float), {}
     chest = names.index("Chest")
     for side, sign in prop_rig.SIDES.items():
-        floor = float(abduction(bind[None], bind, names, side)[0][0])
+        floor = float(abduction(bind[None], bind, names, side)[0][0]) - (lowered or {}).get(side, 0.0)
         angle, hanging = abduction(out, bind, names, side)
         raised = floor + ARM_SOFT_DEGREES * np.logaddexp(0.0, (angle - floor) / ARM_SOFT_DEGREES)
         share = (np.clip((hanging - ARM_HANGING[0]) / (ARM_HANGING[1] - ARM_HANGING[0]), 0.0, 1.0)
@@ -1174,23 +1177,31 @@ def hands_depth(points, faces, part_of, order, kept, names):
     return depth
 
 
+def held_out(worlds, bind, names, parents, degrees):
+    """`arms_kept_out` with each side's arm held `degrees` ({side: degrees}) off the still's own: over 0 turned that
+    much further out while it hangs (`extra`), under 0 its floor let down that much (`lowered`)."""
+    return arms_kept_out(worlds, bind, names, parents, {side: max(value, 0.0) for side, value in degrees.items()},
+                         {side: max(-value, 0.0) for side, value in degrees.items()})
+
+
 def hands_cleared(worlds, bind, names, parents, depth):
-    """A person's clip with each arm held out far enough that its hand stays out of the clothes: turned out the
-    fewest whole degrees more while it hangs (`arms_kept_out`'s `extra`, 0 to HAND_CLEAR_MOST, every one tried: the
-    depth is not monotonic, the hoodie man's left hand stood 3 cm in at 0 and 1 degree and out at 8) after which its
-    hand goes no deeper than HAND_CLEAR into them (`depth`, `hands_depth`'s reader), else the degrees it goes least
-    deep at (a hand resting on a lap, where the arm does not hang). The relaxed hands' fingers curl towards the
-    thigh: laid in the older woman's and the hoodie man's sleeves they went 2.5 to 3 cm into the coat and the
-    trousers standing (2026-11-27). The clip's worlds, the arms' new local turns, {side: (degrees, deepest metres)}."""
+    """A person's clip with each arm hanging as near its trunk as its hand stays out of the clothes: held the fewest
+    whole degrees off the still's own arm (`held_out`, from HAND_LOWER_MOST in to HAND_CLEAR_MOST out, every one
+    tried: the depth is not monotonic, the hoodie man's left hand stood 3 cm in at 0 and 1 degree and out at 8) at
+    which its hand goes no deeper than HAND_CLEAR into them (`depth`, `hands_depth`'s reader), else the degrees it
+    goes least deep at (a hand resting on a lap, where the arm does not hang). The relaxed hands' fingers curl towards
+    the thigh: laid in the older woman's and the hoodie man's sleeves they went 2.5 to 3 cm into the coat and the
+    trousers standing (2026-11-27); held at the still's own arm, hers stood 21 degrees out the whole walk, stiff off
+    her coat (2026-11-28). The clip's worlds, the arms' new local turns, {side: (degrees, deepest metres)}."""
     tried = {}
-    for degrees in np.arange(0.0, HAND_CLEAR_MOST + 0.5, 1.0):
-        kept, _ = arms_kept_out(worlds, bind, names, parents, {side: degrees for side in relaxed_hands.SIDES})
+    for degrees in np.arange(-HAND_LOWER_MOST, HAND_CLEAR_MOST + 0.5, 1.0):
+        kept, _ = held_out(worlds, bind, names, parents, {side: degrees for side in relaxed_hands.SIDES})
         tried[float(degrees)] = depth(kept @ np.linalg.inv(bind))
     chosen = {}
     for side in relaxed_hands.SIDES:
         clear = [degrees for degrees, found in tried.items() if found[side] <= HAND_CLEAR]
-        chosen[side] = min(clear) if clear else min(tried, key=lambda degrees: (tried[degrees][side], degrees))
-    kept, turned = arms_kept_out(worlds, bind, names, parents, chosen)
+        chosen[side] = min(clear) if clear else min(tried, key=lambda degrees: (tried[degrees][side], abs(degrees)))
+    kept, turned = held_out(worlds, bind, names, parents, chosen)
     return kept, turned, {side: (chosen[side], round(tried[chosen[side]][side], 4)) for side in relaxed_hands.SIDES}
 
 
