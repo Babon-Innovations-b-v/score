@@ -39,9 +39,9 @@ VIEW_DEGREES = 70.0  # its walker camera's field of view, top to bottom (game/pl
 NEAREST = 0.3  # metres: no eye comes nearer a surface (a walker's half WALKWAY, leaning in)
 LEAST_ERROR = 0.0005  # metres a cut may always move the surface (0.5 mm)
 # a kept vertex's smooth normal moved NORMAL_CHANGE costs LEAST_ERROR (none: the wardrobe's flat door drew a crease
-# along a long triangle tilted within the bound; scaled with the bound, the square's launch tower 426 m off kept 238k
-# faces of 486k, 32k at this fixed weight; 2026-11-28)
-NORMAL_CHANGE = 0.005
+# along a long triangle tilted within the bound, at 0.005 the street's notice board a faint one; scaled with the bound,
+# the square's launch tower 426 m off kept 238k faces of 486k, 32k at this fixed weight; 2026-11-28)
+NORMAL_CHANGE = 0.001
 # under SEAM_FREE metres of bound a UV seam's vertices and those of every face touching it are locked (collapsed along
 # its seam, a chart's edge went straight across its atlas gutter: the capsule's indicator lamp showed dark specks; a
 # vertex next to a concave chart edge moved its triangle over the gutter: a speck on the stairwell's door handle at
