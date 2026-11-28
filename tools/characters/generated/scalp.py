@@ -1,9 +1,10 @@
 """The scalp under the removed hair (`scalp_patch`): a smooth skull-shaped surface closing the hole the hair's triangles
 leave, joined to the skin round it without a ridge. Where the hair hung behind the neck the model has no neck at all:
-a direction that meets nothing there (down to NECK_LOWEST) is the hole too, and under it `neck_back` closes the neck:
-the back half of an upright elliptic tube as wide as the neck's own skin (between NECK_BAND_M under the eyes), its back
-meeting the scalp's foot (`nape_of`), from
-NECK_BELOW_M under that band up into the scalp.
+a direction that meets nothing there (down to NECK_LOWEST) is the hole too, and under it `neck_closed` closes the neck:
+an upright elliptic tube as wide as the neck's own skin (between NECK_BAND_M under the eyes), its back meeting the
+scalp's foot (`nape_of`), from NECK_BELOW_M under that band up into the scalp; its back half, and all round wherever
+the hair was taken off the skin (the jaw's corner, behind the ear), running on under the skin's edge (round 13,
+2026-11-28: the back half alone left the jaw's corner open, its inside showing as a dark notch in three quarters).
 
 The head is read from its own middle (`origin`: the eyes' height plus ORIGIN_OVER_EYES_M, over the cap's middle) along
 DIRECTIONS (an icosphere's corners): along each, the first skin and the first hair met (rays against the model). A
@@ -12,7 +13,8 @@ scalp runs TUCK_M under the skin (no gap at the edge, no step over it). Over the
 origin is an ellipsoid fitted to the skin at the seam (the skull's shape) plus the seam's own difference from it spread
 over the hole smoothly (harmonic, so the scalp meets the skin at the skin's own height all round), kept CLEAR_M inside
 the hair's shell; then smoothed SMOOTH times with the seam held. A seam direction whose skin stands more than
-EAR_OUT of the ellipsoid off it (an ear) is not held to its skin. Roots grow only on its `rooted` points: under the
+EAR_OUT of the ellipsoid off it (an ear) is not held to its skin (nor fitted), unless it lies EAR_LOWEST_M under the
+eyes within JAW_OUT (the jaw's corner: held, not fitted). Roots grow only on its `rooted` points: under the
 shell's hair, or where nothing was met behind the head's middle (BEHIND: the neck the model never had); a
 direction meeting nothing in front is a bust's open cut under the chin, never scalp.
 
@@ -35,16 +37,24 @@ RING = 3
 TUCK_M = 0.0008
 CLEAR_M = 0.002
 EAR_OUT = 0.12
+EAR_LOWEST_M = 0.05  # under this far under the eyes a seam's skin standing out (up to JAW_OUT) is the jaw's corner,
+# held all the same though never fitted (round 13, 2026-11-28: not held, the scalp lay 2 to 3 cm inside the jaw's corner
+# and showed as a dark notch there)
+JAW_OUT = 0.25  # further out under the ear is a shoulder or a collar, never held
 SMOOTH = 20
 SMOOTH_SHARE = 0.5
 NECK_LOWEST = -0.87  # a direction meeting nothing (where the hair hung over a neck the model never had) is the
-# hole too, down to 60 degrees under level; under it the neck's back (`neck_back`) closes it
+# hole too, down to 60 degrees under level; under it the neck's back (`neck_closed`) closes it
 NECK_BAND_M = (0.13, 0.17)  # the neck's skin read this far under the eyes
 NECK_DEPTH = 0.9  # the neck's depth front to back, a share of its width
 NECK_BELOW_M = 0.03  # the tube reaches this far under the band (into the collar)
 NECK_SPREAD = (10, 90)  # the neck's width between these percentiles of its skin's (the jaw's edge is not the neck)
 NECK_TUCK = 0.9  # the tube this share of the neck skin's width, so its sides stay behind the skin
-NECK_AROUND, NECK_UP = 48, 80
+NECK_AROUND, NECK_UP = 96, 80
+NAPE_COS = 0.85  # within some 30 degrees of straight back, where nothing is met, the tube is the ellipse meeting the
+# nape (held: spread from the sides alone, the jaw's reach pushed the back 3 cm out past the scalp's foot)
+NECK_REACH = 1.6  # a skin or scalp met this far out (a share of the tube's distance) is what the neck runs under;
+# further (a collar, a shoulder) is not
 # the scalp's foot behind the neck: its points behind the head this near the middle, in their lowest band; the tube's
 # back meets it (round 4, 2026-11-27: a tube 0.9 of the neck's width deep stood 5 cm inside an older woman's collar and
 # the scalp's foot, and showed between her bob's ends and the collar as a dark strip)
@@ -148,8 +158,11 @@ def scalp_patch(points, faces, hair, frame):
     seam = grown_ring(hole, neighbours, RING) & ~hole & np.isfinite(skin_at)
     fit = ellipsoid_fit(directions[seam], skin_at[seam])
     skull = ellipsoid_at(fit, directions)
-    held = seam & (np.abs(skin_at - skull) < EAR_OUT * skull)
-    fit = ellipsoid_fit(directions[held], skin_at[held])
+    off = np.abs(skin_at - skull) / skull
+    fitted = seam & (off < EAR_OUT)
+    skin_height = start[1] + directions[:, 1] * np.where(np.isfinite(skin_at), skin_at, 0.0)
+    held = fitted | (seam & (skin_height < frame["eyes_middle"][1] - EAR_LOWEST_M) & (off < JAW_OUT))
+    fit = ellipsoid_fit(directions[fitted], skin_at[fitted])
     skull = ellipsoid_at(fit, directions)
     difference = np.where(held, skin_at - TUCK_M - skull, 0.0)
     shaped = skull + harmonic(difference, held, neighbours)
@@ -199,10 +212,15 @@ def nape_of(patch, frame):
     return float(np.median(places[places[:, 1] < places[:, 1].min() + NAPE["band_m"], 2]))
 
 
-def neck_back(points, faces, hair, colours_skin_like, frame, patch):
-    """The neck's back where the hair hung over it: (points, triangles). `colours_skin_like` marks the model's skin
-    triangles; the tube is fitted to the neck's skin (its width, its front), its depth NECK_DEPTH of its width or, where
-    the scalp's foot lies further back, deep enough that its back meets it (TUCK_M inside; `nape_of`)."""
+def neck_closed(points, faces, hair, colours_skin_like, frame, patch):
+    """The neck closed where the hair hung over it: (points, triangles). `colours_skin_like` marks the model's skin
+    triangles. An upright elliptic tube fitted to the neck's skin (its width, its front), its depth NECK_DEPTH of its
+    width or, where the scalp's foot lies further back, deep enough that its back meets it (TUCK_M inside; `nape_of`),
+    read all round from its axis (`neck_reach`): where the model's skin or the scalp is met within NECK_REACH of the
+    tube it runs TUCK_M under it, and the difference spreads over the rest (harmonic, as the scalp's; none within
+    NAPE_COS of straight back where nothing is met), never past the hair less CLEAR_M. Kept: the back half, every
+    place nothing is met (the jaw's corner, behind the ear) and RING places round them under the skin, so the skin's
+    edge meets it where the hair was taken off the jaw."""
     middles = points[faces].mean(axis=1)
     eyes = frame["eyes_middle"]
     band = (~hair & colours_skin_like & (middles[:, 1] < eyes[1] - NECK_BAND_M[0])
@@ -214,11 +232,56 @@ def neck_back(points, faces, hair, colours_skin_like, frame, patch):
     half_depth = max(NECK_DEPTH * half_width, (front - nape_of(patch, frame) - TUCK_M) / 2.0)
     middle = np.array([frame["middle_x"], front - half_depth])
     low, high = eyes[1] - NECK_BAND_M[1] - NECK_BELOW_M, origin(frame)[1]
-    angles = np.linspace(np.pi / 2.0, 3.0 * np.pi / 2.0, NECK_AROUND)
-    heights = np.linspace(low, high, NECK_UP)
-    angle, height = np.meshgrid(angles, heights, indexing="ij")
-    placed = np.stack([middle[0] + half_width * np.sin(angle), height, middle[1] + half_depth * np.cos(angle)],
-                      axis=-1).reshape(-1, 3)
+    angle, height = np.meshgrid(np.linspace(0.0, 2.0 * np.pi, NECK_AROUND, endpoint=False),
+                                np.linspace(low, high, NECK_UP), indexing="ij")
+    ellipse = np.stack([half_width * np.sin(angle), half_depth * np.cos(angle)], axis=-1).reshape(-1, 2)
+    tube = np.linalg.norm(ellipse, axis=1)
+    ways = np.stack([ellipse[:, 0] / tube, np.zeros(len(tube)), ellipse[:, 1] / tube], axis=1)
+    axis = np.stack([np.full(len(tube), middle[0]), height.ravel(), np.full(len(tube), middle[1])], axis=1)
+    radius, kept = neck_reach(points, faces, hair, patch, axis, ways, tube, angle.ravel())
+    placed = axis + ways * radius[:, None]
     corner = np.arange(NECK_AROUND * NECK_UP).reshape(NECK_AROUND, NECK_UP)
-    quads = np.stack([corner[:-1, :-1], corner[1:, :-1], corner[1:, 1:], corner[:-1, 1:]], axis=-1).reshape(-1, 4)
-    return placed, np.vstack([quads[:, [0, 1, 2]], quads[:, [0, 2, 3]]])
+    quads = np.stack([corner, np.roll(corner, -1, axis=0)], axis=-1)
+    quads = np.stack([quads[:, :-1, 0], quads[:, :-1, 1], quads[:, 1:, 1], quads[:, 1:, 0]], axis=-1).reshape(-1, 4)
+    quads = quads[kept[quads].all(axis=1)]
+    used = np.unique(quads)
+    renumber = np.full(len(placed), -1)
+    renumber[used] = np.arange(len(used))
+    quads = renumber[quads]
+    return placed[used], np.vstack([quads[:, [0, 1, 2]], quads[:, [0, 2, 3]]])
+
+
+def neck_grid():
+    """The neck tube's places' neighbours (NECK_AROUND round, wrapping, by NECK_UP high) as a sparse matrix."""
+    corner = np.arange(NECK_AROUND * NECK_UP).reshape(NECK_AROUND, NECK_UP)
+    pairs = np.vstack([np.stack([corner.ravel(), np.roll(corner, -1, axis=0).ravel()], axis=1),
+                       np.stack([corner[:, :-1].ravel(), corner[:, 1:].ravel()], axis=1)])
+    count = corner.size
+    ones = np.ones(len(pairs) * 2)
+    return coo_matrix((ones, (np.r_[pairs[:, 0], pairs[:, 1]], np.r_[pairs[:, 1], pairs[:, 0]])),
+                      shape=(count, count)).tocsr()
+
+
+def met_along(points, faces, starts, ways):
+    """Each ray's distance from its start to the first of the triangles it meets (inf when none)."""
+    met = np.full(len(starts), np.inf)
+    if len(faces):
+        where, ray, _ = trimesh.Trimesh(points, faces, process=False).ray.intersects_location(starts, ways,
+                                                                                                 multiple_hits=True)
+        np.minimum.at(met, ray, np.linalg.norm(where - starts[ray], axis=1))
+    return met
+
+
+def neck_reach(points, faces, hair, patch, axis, ways, tube, angle):
+    """Each neck place's distance from its axis point along its way (level, out from the axis) and whether it is kept
+    (see `neck_closed`); `tube` is the ellipse's distance there, `angle` its angle from the front."""
+    met = np.minimum(met_along(points, faces[~hair], axis, ways),
+                     met_along(patch["points"], patch["triangles"], axis, ways))
+    known = met < NECK_REACH * tube
+    covered = np.isfinite(met)
+    nape = ~known & (np.cos(angle) < -NAPE_COS)
+    neighbours = neck_grid()
+    difference = np.where(known, met - TUCK_M - tube, 0.0)
+    radius = np.minimum(tube + harmonic(difference, known | nape, neighbours),
+                        met_along(points, faces[hair], axis, ways) - CLEAR_M)
+    return np.maximum(radius, 0.0), (np.cos(angle) <= 0.0) | ~covered | grown_ring(~covered, neighbours, RING)

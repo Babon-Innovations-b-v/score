@@ -106,7 +106,7 @@ def scalp_hair(points, faces, paint, frame, labelled, style):
     skin_like = labels.skin_like(colours)
     patch = scalp.scalp_patch(points, faces, labelled, frame)
     points = scalp.laid(points, faces, labelled, patch, frame)
-    neck = scalp.neck_back(points, faces, labelled, skin_like, frame, patch) if patch["open_neck"] else None
+    neck = scalp.neck_closed(points, faces, labelled, skin_like, frame, patch) if patch["open_neck"] else None
     body = body_of(points, faces, labelled, patch, neck, frame, skin_like)
     model, model_labels = model_near_hair(points, faces, labelled)
     space = volume.hair_volume(model, model_labels, body, np.random.default_rng(strands.SEED), scalp.origin(frame))

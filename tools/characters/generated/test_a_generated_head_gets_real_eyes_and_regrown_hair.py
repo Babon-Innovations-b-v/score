@@ -38,6 +38,14 @@ Round 4 of the hair (2026-11-27), each break applied once, seen red, reverted: t
 (`scalp.nape_of` ignored: the tube's back at z -0.029, not -0.079); the forehead's floor under every style
 (`strands.grows_here` always fringed: no roots 3 cm over the eyes with no fringe).
 
+Round 13 of the hair (2026-11-28), the jaw's corner: the neck closed round a hole the hair step left in a neck's side
+40 to 80 degrees from its front, and the scalp held to a jaw's corner standing 20% out under the ear, never to an ear
+as far out over it. Breaks that turn these rows red (each applied once, seen red, reverted): the neck kept on its
+back half alone (`scalp.neck_reach`: 0.0 of the hole's rays meet it); its back not held to the nape where nothing is
+met (`scalp.NAPE_COS` 2: the back at z -0.0866, past the scalp's foot); the jaw never held (`scalp.EAR_LOWEST_M` 1 m,
+or `scalp.JAW_OUT` 0: the jaw's directions left out of the scalp); the ear held as the jaw (`scalp.EAR_LOWEST_M`
+-1 m: 51 directions held to the ear's skin).
+
 Round 2 of the hair (2026-11-26): the skin at the hole's edge is laid onto the scalp (`scalp.laid`, over the toy with
 its hair's foot raised 3 mm more into a lip, standing up to 11 mm); the layer runs from the scalp's side to the outer
 surface of a 2 cm spherical shell (`volume.layered`); the grooves of a corrugated plane and the streaks painted 30
@@ -565,22 +573,68 @@ def strands_measured():
             f"reach {np.median(reach) * 1000:.1f} mm")
 
 
-def neck_meets_nape():
-    """The neck's back closed under a bob over a neck the model never had: its deepest point behind (z, m), over a 10 cm
-    neck of skin 15 cm under the eyes whose scalp's foot lies at z -0.08, 8 cm behind its middle."""
-    neck = trimesh.creation.cylinder(radius=0.05, height=0.1, sections=32)
+def neck_toy(window):
+    """A 10 cm neck of skin 15 cm under the eyes with no back (the hair hung there over a neck the model never had)
+    and, when `window`, the hair step's hole in its jaw's corner (40 to 80 degrees round from the front on one side,
+    12 to 15 cm under the eyes); its scalp's foot lies at z -0.08: (points, faces, frame, patch)."""
+    neck = trimesh.creation.cylinder(radius=0.05, height=0.1, sections=64)
     neck.apply_transform(trimesh.transformations.rotation_matrix(np.pi / 2.0, [1, 0, 0]))
     neck.apply_translation([0.0, -0.15, 0.0])
     neck = neck.subdivide().subdivide()
-    faces = np.asarray(neck.faces)
+    points, faces = np.asarray(neck.vertices), np.asarray(neck.faces)
+    middles = points[faces].mean(axis=1)
+    round_from_front = np.degrees(np.arctan2(middles[:, 0], middles[:, 2]))
+    gone = middles[:, 2] < 0.0
+    if window:
+        gone |= (round_from_front > 40) & (round_from_front < 80) & (middles[:, 1] < -0.12) & (middles[:, 1] > -0.15)
     frame = {"eyes_middle": np.zeros(3), "middle_x": 0.0, "centre": np.array([0.0, 0.0, -0.02])}
     heights = np.linspace(-0.03, 0.05, 9)
     foot = np.stack([np.zeros(9), heights, -0.08 - 0.2 * (heights + 0.03)], axis=1)
     patch = {"points": np.vstack([foot, [[0.0, 0.05, 0.09]]]), "hole": np.ones(10, dtype=bool),
-             "directions": np.vstack([np.tile([0.0, 0.0, -1.0], (9, 1)), [[0.0, 0.0, 1.0]]])}
-    tube, _ = scalp.neck_back(np.asarray(neck.vertices), faces, np.zeros(len(faces), dtype=bool),
-                              np.ones(len(faces), dtype=bool), frame, patch)
+             "directions": np.vstack([np.tile([0.0, 0.0, -1.0], (9, 1)), [[0.0, 0.0, 1.0]]]),
+             "triangles": np.zeros((0, 3), np.int64)}
+    return points, faces[~gone], frame, patch
+
+
+def neck_closes_jaw():
+    """The neck closed over the toy's jaw-corner hole: the share of rays out from the neck's middle through the hole
+    that meet the tube within 3 mm inside the skin's 5 cm."""
+    points, faces, frame, patch = neck_toy(True)
+    tube, triangles = scalp.neck_closed(points, faces, np.zeros(len(faces), dtype=bool),
+                                        np.ones(len(faces), dtype=bool), frame, patch)
+    angle, height = np.meshgrid(np.radians(np.linspace(45, 75, 7)), np.linspace(-0.145, -0.125, 5))
+    ways = np.stack([np.sin(angle.ravel()), np.zeros(angle.size), np.cos(angle.ravel())], axis=1)
+    starts = np.stack([np.zeros(angle.size), height.ravel(), np.zeros(angle.size)], axis=1)
+    met = scalp.met_along(tube, triangles, starts, ways)
+    return round(float(np.mean(np.abs(met - 0.05) < 0.003)), 2)
+
+
+def neck_meets_nape():
+    """The neck's back closed under a bob over a neck the model never had: its deepest point behind (z, m), over the
+    toy whose scalp's foot lies at z -0.08, 8 cm behind its middle."""
+    points, faces, frame, patch = neck_toy(False)
+    tube, _ = scalp.neck_closed(points, faces, np.zeros(len(faces), dtype=bool), np.ones(len(faces), dtype=bool),
+                                frame, patch)
     return round(float(tube[:, 2].min()), 4)
+
+
+def scalp_holds_jaw():
+    """The scalp over a ball's back hair with a jaw's corner standing 18% out at the seam 8 cm under the eyes and an
+    ear as far out 2 cm over them: (the scalp meets the jaw's skin within 1 mm, fewer than 10 of its directions
+    held to the ear's)."""
+    ball = trimesh.creation.icosphere(subdivisions=5, radius=0.09)
+    points, faces = np.asarray(ball.vertices).copy(), np.asarray(ball.faces)
+    for middle in ([0.05, -0.075, 0.004], [-0.09, 0.0, 0.0]):
+        middle = np.asarray(middle) / np.linalg.norm(middle) * 0.09
+        points *= (1.0 + 0.2 * np.exp(-(np.sum((points - middle) ** 2, axis=1) / 0.015 ** 2) ** 2))[:, None]
+    middles = points[faces].mean(axis=1)
+    hair = (middles[:, 2] < -0.002) & (middles[:, 1] > -0.085)
+    frame = {"eyes_middle": np.array([0.0, -0.02, 0.09]), "middle_x": 0.0, "centre": np.zeros(3)}
+    patch = scalp.scalp_patch(points, faces, hair, frame)
+    skin = scalp.first_hit(points, faces[~hair], scalp.origin(frame), patch["directions"])
+    out = ~patch["hole"] & (skin > 1.12 * 0.09)
+    jaw, ear = out & (patch["directions"][:, 0] > 0.3), out & (patch["directions"][:, 0] < -0.5)
+    return bool(jaw.sum() > 10 and np.abs(patch["distance"] - skin)[jaw].max() < 0.001), bool(ear.sum() < 10)
 
 
 def shell_layers():
@@ -2282,6 +2336,8 @@ def tether_inside_read():
     ("the roots fade in over the hairline, none on the chin, the beard fades down the neck", roots_and_beard_fade,
      (True, True, True)),
     ("the neck's back under a bob meets the scalp's foot behind it", neck_meets_nape, -0.0792),
+    ("the neck closes the hole the hair left in the jaw's corner at the skin's height", neck_closes_jaw, 1.0),
+    ("the scalp meets the jaw's corner standing out under the ear, never an ear", scalp_holds_jaw, (True, True)),
     ("a darker hair gets more melanin, a warm one its hue's redness, a grey head the white share, melanin and redness "
      "whose swatch shows its colour and spread", lambda: bool(fibre_fitted()[0]), True),
     ("the photo's hair holds a silver bob as light as its backdrop and little else",

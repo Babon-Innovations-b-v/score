@@ -83,6 +83,16 @@ own paint) and brings in only what the generator cannot make, from the repo's ow
   surface is volume even beside the skin (`volume.shell_voxels`: lock ends curled on the neck's sides lay inside the
   body), and the forehead's floor holds only under a fringe. The neck's back meets the scalp's foot
   (`scalp.nape_of`): 5 cm inside an older woman's collar it showed under her bob as a dark strip.
+- **The jaw's corner is closed with skin** (round 13, 2026-11-28, ray cast off the stairwell woman's three-quarter
+  close-up: the hair painted over her jaw's corner taken off, the rays met the inside of the neck tube and the scalp).
+  The scalp ended at NECK_LOWEST's cone 2 to 3 cm inside the jaw (a seam's skin standing past EAR_OUT was read as an
+  ear, so never held) and the neck tube was its back half alone. Under EAR_LOWEST_M under the eyes a seam standing out
+  up to JAW_OUT is held (never fitted into the skull), and `scalp.neck_closed` reads the neck all round from its axis:
+  under the skin or scalp where it meets them, kept where it meets nothing (the jaw's corner) and on its back, held to
+  the nape there (NAPE_COS). Measured on the a, b and c heads the tube runs under their skin and hair (the older
+  woman's old back stood 1.5 cm behind her neck's skin 13 cm under the eyes). Open: the brown slab left in that
+  corner is the body's own old hair round the neck (93 of 93 jacket rays there met `cloth.painted_over` faces), worn
+  in the paint of its nearest jacket face, which is hair-brown there too.
 - **A hair-white bit is hair.** A fringe's white bits the clothes' colours claim (a cream scarf) are still strays
   above any collar (`labels.over_clothes`), and only paint darker than the skin is brows; the forehead never roots
   under hair.py's table less 2 cm under a fringe (`strands.FOREHEAD`): a painted fringe lies on skin (round 3, 2026-11-27: a white
