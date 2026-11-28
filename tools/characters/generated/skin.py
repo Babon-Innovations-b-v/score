@@ -499,11 +499,16 @@ def occlusion(grid):
 def shading(grid, photo_linear, skin):
     """The photo's broad light over the front grid, per channel (a shut hollow's light is the skin's own colour
     bounced, so it is warmer as well as darker): each linear channel over SHADING_SIGMA_M fitted as first order in the
-    surface normal and in the model's own `occlusion` (smoothed alike) over the skin, over its mean there; clipped to
-    SHADING_RANGE."""
-    colour = smoothed_over(photo_linear, skin, SHADING_SIGMA_M / STEP_M)
-    shut = smoothed_over(occlusion(grid), skin, SHADING_SIGMA_M / STEP_M)  # smoothed as the photo is, so fitted whole
-    terms = np.stack([np.ones_like(grid["facing"]), grid["normal_x"], grid["normal_y"], grid["facing"], shut], axis=-1)
+    surface normal and in the model's own `occlusion` (both smoothed alike) over the skin, over its mean there; clipped
+    to SHADING_RANGE. The normal is smoothed too (round 4, 2026-11-28: read per 0.5 mm pixel, the model's own creases
+    were divided into the face texture as light and dark lines beside each fold, and the render shaded them again: the
+    older woman's wrinkles drew deep, her face washed out)."""
+    sigma = SHADING_SIGMA_M / STEP_M
+    colour = smoothed_over(photo_linear, skin, sigma)
+    shut = smoothed_over(occlusion(grid), skin, sigma)  # smoothed as the photo is, so fitted whole
+    seen = grid["seen"].astype(np.float64)
+    normal = [smoothed_over(grid[name], seen, sigma) for name in ("normal_x", "normal_y", "facing")]
+    terms = np.stack([np.ones_like(grid["facing"]), *normal, shut], axis=-1)
     held = skin > 0.5
     fitted, *_ = np.linalg.lstsq(terms[held], colour[held], rcond=None)
     light = terms @ fitted

@@ -168,6 +168,10 @@ own paint) and brings in only what the generator cannot make, from the repo's ow
   skin counted as a 31% highlight and was pressed 19% darker and recoloured; the matte is now read over plain skin
   (`plain_skin`, MATTE_DARK), and the shade the photo keeps in a hollow deeper than the one fitted line is divided out
   as far as the model's own occlusion shuts it (`hollows`): the texture's band over cheek 0.71 to 0.83.
+  Round 4 (2026-11-28, owner: the older woman's face "a bit overlit", wrinkles deeper than the photo's): the light
+  fit read the model's normal per 0.5 mm pixel while the photo is fitted smoothed over 4 mm, so the model's own
+  creases were divided into face.png as a light and a dark line beside each fold (her nasolabial folds, chin and nose
+  wings embossed) and the render shaded the same creases again; `shading` now smooths the normal as the photo.
   Run: `python -m tools.characters.generated.head <model.glb> <cut-out.png> <close-up> <marks.json> <out> --height
   <m>` (under 2 minutes, 1.6 GB), then `blender -b --python blender_head.py -- <model.glb>
   <out>/eyes/eyes.npz <library> <height> <samples> <renders> <out>` (CPU; before is the raw model), then `python -m

@@ -301,6 +301,11 @@ not moved. Breaks that turn the row red (each applied once, seen red, reverted, 
 face's normal alone (`slid`'s side 1: the hair pushed through to the plate's underside); the voxel reach without the
 step (`voxel_size` of the edges alone: the crossing steps never looked at); the length not kept (`slid`'s
 keep_length dropped: steps shortened on the plate).
+
+The photo's light is fitted to the model's normal smoothed as the photo is (`skin.shading`; the older woman's face
+washed out with deep wrinkles, 2026-11-28: the 0.5 mm grid's own creases were divided into the face texture as light
+and dark lines beside each fold). Break (applied once, seen red, reverted, 2026-11-28): the normal read per pixel
+(main's `shading`: the 2 mm crease ripple left in the flattened photo).
 """
 import functools
 import types
@@ -1004,14 +1009,17 @@ def skin_registered():
 
 def skin_light_off():
     """The photo's light taken off: a shading that follows the normal flattened, a nose's gloss taken out, plain
-    skin kept."""
+    skin kept; the model's own fine creases (a 2 mm ripple in its normal the photo's broad light does not show) leave
+    no lines in it (`skin.shading` reads the normal smoothed as the photo is)."""
     grid = skin_flat_grid(lambda x, y: np.ones(x.shape + (3,)) * 0.5)
     tilt = np.sin(grid["xs"] * 20.0)[None, :] * np.ones((len(grid["ys"]), 1))
-    grid["normal_x"], grid["facing"] = tilt, np.sqrt(1 - tilt ** 2)
+    crease = 0.3 * np.sin(grid["xs"] * 2.0 * np.pi / 0.002)[None, :] * np.ones((len(grid["ys"]), 1))
+    grid["normal_x"] = np.clip(tilt + crease, -0.95, 0.95)
+    grid["facing"] = np.sqrt(1 - grid["normal_x"] ** 2)
     albedo = np.array([0.5, 0.3, 0.22])
     lit = albedo * (0.9 + 0.1 * tilt)[..., None]
     light, _ = skin.shading(grid, lit, np.ones(tilt.shape))
-    flat = eyes.luminance(lit / light)
+    flat = eyes.luminance(lit / light)[:, 20:-20]
     glossy = albedo + 0.12
     cleaned, excess = skin.gloss_free(np.array([glossy, albedo]), np.full(2, eyes.luminance(albedo)),
                                       np.tile(albedo / albedo[0], (2, 1)))
