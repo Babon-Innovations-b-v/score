@@ -55,7 +55,11 @@ A still picture-made model (a TRELLIS.2 mesh, no skeleton) rigged as a player mo
   and what is painted as the cloth beside the hand rather than the sleeve hangs from no arm (`off_the_hands`: the
   hoodie man's trousers, labelled down to the fingertips, swung out with the arms as dark wings at the hips), the
   surface torn between them (`torn`, eased only within each side) and each side's tear closed (`tears_closed`); the
-  cut's rims are smoothed and the lumps' leftover skin paint on the cloth repainted. Open: a coat one colour with its
+  cut's rims are smoothed and the lumps' leftover skin paint on the cloth repainted. Round 3 (2026-11-28, owner: four hands while walking): the lump is told from the cloth by the
+  skin of the body before its head swap (`own_skin`, `--own-skin`: the swapped head wears the generated head's paler,
+  pinker paint, so most of each lump read as cloth and stayed beside the laid hand), and past the wrist chosen again
+  by spreads in CIELAB (`skin_chosen`: a lump's shaded back lies nearer a grey sleeve's paint than the lit skin's).
+  Open: a coat one colour with its
   fused sleeves (the older woman's) still swings its flanks with the arms; taken off by place, its cuffs tore away. While a hand goes more than
   HAND_CLEAR into the clothes over a clip, that arm is turned out the fewest whole degrees more while it hangs that
   bring it out (`hands_cleared`, every degree to HAND_CLEAR_MOST tried: the depth plateaus); a hand clear of them

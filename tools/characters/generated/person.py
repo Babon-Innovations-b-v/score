@@ -14,7 +14,8 @@ The steps, each on what the one before made (`--from` starts at one, the ones be
 2. hair: the hair split off <out>/head/head.glb and regrown (`python -m tools.characters.generated`) into <out>/hair.
 3. swap: the body toned (`colour.toned`), the mended head alone (no eyeballs: `head_swap.py` takes one mesh) put on
    it (`head_swap.py`) into <out>/swap/<name>.glb and its head-to-body record.
-4. rig: still_rig `--person` with an empty palette (her own paint, ungraded) into <out>/rig, the Head's share on the
+4. rig: still_rig `--person` with an empty palette (her own paint, ungraded) and her body before the swap (its
+   hand lumps told from the cloth by her own face, `--own-skin`) into <out>/rig, the Head's share on the
    body's neck under the cut moved down the neck chain (`rig_necked`).
 5. pieces: what the cloth and the drawing need to carry the head's own pieces onto the rigged body (`pieces_of`):
    the head-to-rig matrix (the swap's head-to-body matrix after the body-to-rig similarity, found by `framed`), the
@@ -192,7 +193,7 @@ def rig_step(out, person, name):
     (folder / "palette.json").write_text(json.dumps({"tokens": {}}))
     run([sys.executable, REPO / "tools/characters/still_rig/still_rig.py", out / "swap" / f"{name}.glb",
          dressed_body(person), CLIPS, folder / "palette.json", folder, "--faces", RIG_FACES,
-         "--person"], out / "rig.log")
+         "--person", "--own-skin", out / "swap" / "body_toned.glb"], out / "rig.log")
     print(f"rig points under the cut moved off the Head: {rig_necked(out, name)}", flush=True)
 
 

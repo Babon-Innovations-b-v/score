@@ -41,7 +41,8 @@ The steps:
    A person's hands (`--person`; 2026-11-27: TRELLIS.2's fused hands read as claws and mittens curled against the
    coat and the thighs, and the skeleton has one joint a hand, so no weights can open them) are cut off
    (`hand_cut`: the arm's faces past the wrist, and its skin-painted ones up to the cuff, the skin read off the
-   face, `face_skin`) and the whole route's relaxed hands with real fingers laid on in their place (`hands.py`'s
+   body's face before its head swap, `own_skin`, else the face, `face_skin`, and past the wrist chosen again between
+   the lump's own paint and the cloth's as spreads, `skin_chosen`) and the whole route's relaxed hands with real fingers laid on in their place (`hands.py`'s
    file beside the clips rig; `hands_laid`: sized by the forearm, moved by their own weights onto the bind, and
    across the forearm into the middle of the sleeve's opening, `sleeve_offsets`; nothing left by the cut hanging
    from a hand or off the sleeve from the arm, `off_the_hands`; `with_hands`: the cut's holes closed with their rims
@@ -164,6 +165,8 @@ HAND_AROUND = 0.15  # metres from the wrist the cloth beside the hand (off the a
 HAND_SETTLE = 3  # rounds of neighbours' votes on which faces are the hand's (`hand_pieces`)
 HAND_PIECE = 30  # faces: a piece of hand smaller than this is a speck of skin paint on the cloth
 SKIN_NEAR = 0.12  # a face whose paint lies this near the person's skin (RGB, 0 to 1) is skin
+HAND_TONE_SPREAD = 1.0  # CIELAB units squared added to each paint spread's covariance (`skin_chosen`): a cloth of one
+# flat paint still has a spread
 SLEEVE_RING = (-0.12, -0.02)  # metres along the forearm from the wrist the sleeve's paint is read between
 PAINT_NEIGHBOURS = 12  # the kept points whose paint a point's is averaged over when told sleeve from cloth
 TEAR_PASSES = 3
@@ -790,12 +793,28 @@ def face_skin(points, faces, part_of, colours, names, bind):
     return np.median(colours[strip], axis=0)
 
 
+def own_skin(path, to_rig, names, bind):
+    """The person's own skin colour off the body at `path` before its head was swapped (same frame as the still;
+    `to_rig` stands its points as the still's were), read off its face as `face_skin` reads the still's. The swapped
+    head wears the generated head's paint, paler and pinker than TRELLIS.2's own skin on the hand lumps (the
+    stairwell woman's face 0.81, 0.61, 0.55 against her lumps' 0.57, 0.41, 0.32, nearer her grey-green sleeve; the
+    older woman's lumps nearer her camel coat), so `hand_cut` judged most of each lump cloth and the kept lump showed
+    beside the laid hand as a second pair of hands (2026-11-28)."""
+    body, colours, _ = still_of(path)
+    points = to_rig(body.vertices)
+    return face_skin(points, body.faces, np.full(len(body.faces), PARTS.index("head")), colours, names, bind)
+
+
 def hand_cut(points, faces, colours, weights, names, bind, skin):
     """Which of the still's faces are its hands, to be cut off (TRELLIS.2's fused lumps): of the faces hanging wholly
     from a side's forearm and hand (strongest joint) and lying wholly under HAND_CUFF_OVER above the wrist or past it,
-    those whose paint lies nearer the person's `skin` (`face_skin`) than the cloth round the hand (`cloth_round`),
-    settled by their neighbours (`hand_pieces`). Cut by place alone, a ring of the older woman's coat and the hoodie man's
-    trousers went with each hand, and the hollow inside showed black through the holes (2026-11-27)."""
+    those whose paint lies nearer the person's `skin` (`own_skin`, else `face_skin`) than the cloth round the hand
+    (`cloth_round`), settled by their neighbours (`hand_pieces`); then, past the wrist, chosen again between those
+    faces' own paint and the cloth's round the hand as spreads in CIELAB (`skin_chosen`; over the wrist, at the cuff,
+    the skin's spread would take the paint between the sleeve and a speck of skin paint on it), and settled again. Cut by place alone, a ring of the
+    older woman's coat and the hoodie man's trousers went with each hand, and the hollow inside showed black through
+    the holes (2026-11-27); by the lit skin's paint alone, the stairwell woman's left lump, shaded on its back (0.54,
+    0.40, 0.32), lay nearer her grey-green sleeve and its back stayed beside the laid hand (2026-11-28)."""
     strongest = np.array(names)[weights.argmax(1)]
     paint = colours[faces].mean(1)
     middles = points[faces].mean(1)
@@ -808,20 +827,47 @@ def hand_cut(points, faces, colours, weights, names, bind, skin):
         if not (arm & (along[faces].min(1) > 0.0)).any():
             raise StillError(f"the {side.lower()} arm reaches no hand past its wrist")
         lying = arm & (along[faces].min(1) > -HAND_CUFF_OVER)
-        hand = lying & (np.linalg.norm(paint - skin, axis=1) < cloth_distance(paint, cloth_round(
-            paint, middles, arm, along[faces].mean(1), wrist, skin)))
-        cut |= hand_pieces(hand, lying, pairs)
+        cloths = cloth_round(paint, cloth_places(middles, arm, along[faces].mean(1), wrist), skin)
+        first = hand_pieces(lying & (np.linalg.norm(paint - skin, axis=1) < cloth_distance(
+            paint, [colour for colour, _ in cloths])), lying, pairs)
+        past = arm & (along[faces].min(1) > 0.0)
+        cut |= hand_pieces(lying & np.where(past, skin_chosen(paint, first, [place for _, place in cloths]), first),
+                           lying, pairs)
     return cut
 
 
-def cloth_round(paint, middles, arm, along, wrist, skin):
-    """The cloth colours round a hand: the sleeve's (the arm's faces HAND_SLEEVE above the wrist) and whatever lies
-    beside the hand off the arm within HAND_AROUND of the wrist (a coat's flank, the trousers), their medians, a
-    median within SKIN_NEAR of the `skin` left out (a bare leg is no cloth)."""
+def cloth_places(middles, arm, along, wrist):
+    """The faces the cloth round a hand is read on: the sleeve (the arm's faces HAND_SLEEVE above the wrist) and
+    whatever lies beside the hand off the arm within HAND_AROUND of the wrist (a coat's flank, the trousers)."""
     sleeve = arm & (along < -HAND_SLEEVE[0]) & (along > -HAND_SLEEVE[1])
     beside = ~arm & (np.linalg.norm(middles - wrist, axis=1) < HAND_AROUND)
-    found = [np.median(paint[place], axis=0) for place in (sleeve, beside) if place.any()]
-    return [colour for colour in found if np.linalg.norm(colour - skin) >= SKIN_NEAR]
+    return [place for place in (sleeve, beside) if place.any()]
+
+
+def cloth_round(paint, places, skin):
+    """The cloth round a hand: each of its `places`' (`cloth_places`) median paint with that place, a median within
+    SKIN_NEAR of the `skin` left out (a bare leg is no cloth)."""
+    found = [(np.median(paint[place], axis=0), place) for place in places]
+    return [(colour, place) for colour, place in found if np.linalg.norm(colour - skin) >= SKIN_NEAR]
+
+
+def skin_chosen(paint, skin, cloths):
+    """Which faces' paint is the `skin` faces' rather than any of the `cloths`' (face masks): each a Gaussian spread
+    in CIELAB (HAND_TONE_SPREAD added), the nearer by its log-likelihood. The skin's spread carries the lump's own
+    shading, so a shaded back of the hand is skin however near a grey sleeve's lightness, and a camel coat as near
+    the skin's hue is cloth by its lightness; a cloth read on fewer than HAND_PIECE faces left out. With fewer than
+    HAND_PIECE skin faces or no cloth, the `skin` faces."""
+    cloths = [place for place in cloths if place.sum() >= HAND_PIECE]
+    if skin.sum() < HAND_PIECE or not cloths:
+        return skin.copy()
+    from skimage.color import rgb2lab
+    lab = rgb2lab(np.clip(paint[:, :3], 0.0, 1.0)[None])[0]
+
+    def unlikely(place):
+        spread = np.cov(lab[place].T) + HAND_TONE_SPREAD * np.eye(3)
+        off = lab - lab[place].mean(0)
+        return np.einsum("fi,ij,fj->f", off, np.linalg.inv(spread), off) + np.log(np.linalg.det(spread))
+    return unlikely(skin) < np.min([unlikely(place) for place in cloths], axis=0)
 
 
 def cloth_distance(paint, cloths):
@@ -1518,10 +1564,11 @@ def photo_skin(stats_path):
     return np.clip(lab2rgb(np.asarray(lab, float)[None, None])[0, 0], 0.0, 1.0)
 
 
-def rigged(still, dressed, rig_path, palette_path, out, faces=FACES, person=False, skin_stats=None):
+def rigged(still, dressed, rig_path, palette_path, out, faces=FACES, person=False, skin_stats=None, own=None):
     """The still rigged on the dressed body's skeleton into `out` (body.glb, rig.json); the record. A `person` has a
     head and clothes for parts (parts_of); its laid hands wear its photo's skin (`photo_skin`, from the face skin
-    step's `skin_stats`) where it has one, else its face's paint."""
+    step's `skin_stats`) where it has one, else its face's paint; its hand lumps are told from the cloth by the skin
+    of its `own` body before a head swap where it has one (`own_skin`), else by its face's paint."""
     document, blob, names, dressed_bind, parents = skeleton_of(dressed)
     rig = np.load(rig_path)
     body, body_weights = soma_on(rig, names, dressed_bind)
@@ -1548,8 +1595,9 @@ def rigged(still, dressed, rig_path, palette_path, out, faces=FACES, person=Fals
     weights = eased_cliffs(mesh.vertices, mesh.faces, weights, hard_points(mesh.faces, part_of, len(mesh.vertices)))
     laid_paint, laid_rough, hands_record = None, None, {}
     if person:
-        skin = face_skin(mesh.vertices, mesh.faces, part_of, colours, names, bind)
-        hand_skin = skin if skin_stats is None else photo_skin(skin_stats)
+        face = face_skin(mesh.vertices, mesh.faces, part_of, colours, names, bind)
+        skin = face if own is None else own_skin(own, taken_back(fitted.vertices, thin.vertices), names, bind)
+        hand_skin = face if skin_stats is None else photo_skin(skin_stats)
         cut = hand_cut(mesh.vertices, mesh.faces, colours, weights, names, bind, skin)
         laid = hands_laid(hands_file(rig_path), names, rig["bind"], bind)
         offsets = sleeve_offsets(mesh.vertices, mesh.faces, cut, weights, names, bind)
@@ -1622,9 +1670,12 @@ def main():
                         help="a person: a head and clothes, no helmet, visor or backpack")
     parser.add_argument("--skin-stats", type=pathlib.Path,
                         help="a person's face skin step stats.json: its hands wear the photo's skin")
+    parser.add_argument("--own-skin", type=pathlib.Path,
+                        help="a person's body before its head swap: its hand lumps are told from the cloth by its "
+                             "face's paint")
     options = parser.parse_args()
     record = rigged(options.still, options.dressed, options.rig, options.palette, options.out, options.faces,
-                    options.person, options.skin_stats)
+                    options.person, options.skin_stats, options.own_skin)
     print(f"still rig: {record['height_m']} m, {record['triangles']} triangles, parts {record['parts']}, matched "
           f"{record['matched_share']:.0%}, stretch {({name: clip['stretch_most'] for name, clip in record['clips'].items()})}; "
           f"{options.out / 'rig.json'}", flush=True)

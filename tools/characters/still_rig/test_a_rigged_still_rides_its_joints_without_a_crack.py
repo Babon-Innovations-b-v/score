@@ -64,7 +64,10 @@ above it touching the backpack, and a stray backpack face inside the cloth. Each
   tear, or a face still spans the sleeve and the thigh after `torn` (eased instead, his walk stretched edges by 15 cm or his
   hands stood 5 cm beside his cuffs), or a torn face moves or a copy loses its point's other values;
   a jagged rim keeps its jags or shrinks (`smoothed_rims` with no rounds); a skin speck on the sleeve by the cut
-  keeps the lump's skin paint (`lump_patches` skipped); a nail is painted as the skin or as rough; the hands' skin is
+  keeps the lump's skin paint (`lump_patches` skipped); the stairwell woman's shaded lump (0.54, 0.40, 0.32, nearer
+  her grey-green sleeve's paint than her lit skin's) is not chosen as skin against the sleeve, or the older woman's
+  camel coat is (`skin_chosen` skipped or by the paint's distance alone: her left lump stayed beside her laid hand,
+  2026-11-28); a nail is painted as the skin or as rough; the hands' skin is
   not the stats file's photo CIELAB (`photo_skin`).
 """
 import pathlib
@@ -433,6 +436,12 @@ def test_a_rigged_still_rides_its_joints_without_a_crack():
     painted_skin = (np.abs(colours[skin_faces] - skin_colour).max(2) < 1e-9).all(1)
     assert cut_faces[arm_faces & painted_skin & (skin_points[skin_faces, 1].max(1) < 0.785)].all()
     assert cut_faces[arm_faces & crevice[skin_faces].all(1)].all()
+    lit = np.linspace(0.85, 1.05, 60)[:, None]  # a lump's lit skin as the first choice cut it, and the cloth round it
+    for own, cloth, asked, wanted in (((0.742, 0.525, 0.413), (0.41, 0.44, 0.39), (0.544, 0.397, 0.32), True),
+                                      ((0.755, 0.508, 0.407), (0.62, 0.45, 0.34), (0.62, 0.45, 0.34), False)):
+        tones = np.concatenate([lit * own, np.linspace(0.92, 1.08, 60)[:, None] * cloth, [asked]])
+        chosen = still_rig.skin_chosen(tones, np.arange(121) < 60, [(np.arange(121) >= 60) & (np.arange(121) < 120)])
+        assert chosen[:60].all() and not chosen[60:120].any() and chosen[120] == wanted
     assert not cut_faces[arm_faces & patch[skin_faces].all(1)].any()
     assert not cut_faces[arm_faces & speck[skin_faces].any(1)].any()
     assert not cut_faces[arm_faces & (skin_points[skin_faces, 1].max(1) > 0.8 + still_rig.HAND_CUFF_OVER)].any()
