@@ -902,12 +902,15 @@ def laid_reference(stage, path, folder, asset, address, kind, pose, ground, metr
 
 
 def dome(folder, name, radius, at=(0.0, 0.0, 0.0), turn=(0.0, 0.0, 0.0), meridians=None, rings=None, rib=None,
-         address=DOME, openings=(), base=None, oculus=None, strips=()):
+         address=DOME, openings=(), base=None, oculus=None, strips=(), role=None):
     """The dome shell algorithm's dome (dome_shell.py) of `radius` metres laid as Objects/<name>: its file written once
     under the place's assets for its sizes and `openings` ([around degrees, radius, centre height] in its own frame,
     where a tunnel or airlock joins it), its parts `shell`, `ribs`, `deck` and `base` ready for their surfaces;
     `base` [high, wide] its plinth's section, `oculus` its crown ring's radius, `strips` the heights of its light
-    strips (part `strip`)."""
+    strips (part `strip`); `role` `fixed` for far scenery no walker enters (2099's square: a city's dome 1.1 km off,
+    read as a shell, stretched the walkers' grid past the check's memory), else a shell."""
+    if role not in (None, "shell", "fixed"):
+        raise Refused(f"a dome is a shell or fixed far scenery, not {role}")
     from score.stages.place_build import dome_shell
     sizes = {"meridians": meridians or dome_shell.MERIDIANS, "rings": dome_shell.RINGS if rings is None else rings,
              "rib": rib or dome_shell.RIB}
@@ -927,6 +930,7 @@ def dome(folder, name, radius, at=(0.0, 0.0, 0.0), turn=(0.0, 0.0, 0.0), meridia
     stage, place = opened(folder)
     relative = laid_reference(stage, f"/{place}/Objects/{name}", folder, target, address, "algorithm",
                               (at, turn, (1.0, 1.0, 1.0)), False)
+    marked(stage.GetPrimAtPath(f"/{place}/Objects/{name}"), role)
     saved(stage)
     return {"name": name, "address": address, "usd": relative, "radius": radius, **sizes}
 

@@ -4,7 +4,7 @@ surface bound over the model's own colour (a variant as the library makes it, a 
 refused without one), or on one named part alone while the rest keeps the whole look; a glTF-only model converted with a
 part a material, each wearing its own bake (its base colour map beside it, read by the mesh's texture coordinates),
 a take's finished model laid before its raw one; a ground disc laid as the ground; a character dressed in its made body (its far one hidden) and held still in its clip, its own
-SkelRoot kept; a ground marked as the ground; the dome shell's glass skin, curved ribs and deck as three parts at its radius;
+SkelRoot kept; a ground marked as the ground; the dome shell's glass skin, curved ribs and deck as three parts at its radius, a far one marked fixed;
 a batch of steps run in one call, a refused one named while the rest go on; a lamp where it is laid; an entry with no
 USD refused by name, a removed object gone; a real terrain's heightfield (fine posts near its centre, wider out, its gaps
 filled) laid as the ground with its building pads levelled to the laid height and the ground beyond untouched; a sky
@@ -98,6 +98,7 @@ Breaks that turn this red (each applied once and seen red, then reverted):
 - render.views: `review` kept True when final -> the final render runs at the review's samples
 - dome_shell.chamfered_box: the outward flip dropped -> a block's solid has negative volume (faces inward)
 - place_build.main: a check not ready exiting 0 again -> a chain goes on past a failed check to package the place
+- place_build.dome: its role not written -> a far city's dome reads as a shell and stretches the walkers' grid
 - place_build.blocks: the structure role not written -> a building's blocks read as a loose prop to the check
 - cockpit_kit.near_hole: THROUGH dropped -> a porthole's axis, run on across the room, cuts its hole in the far
   wall too
@@ -872,7 +873,7 @@ def test_a_laid_scene_holds_its_library_entries_where_the_agent_put_them(tmp_pat
         {"step": "put", "name": "walker", "address": "character/walker", "at": [2, 0, 2]},
         {"step": "dome", "name": "dome", "radius": 5.0, "meridians": 8, "rings": 2, "rib": 0.1},
         {"step": "dome", "name": "holed", "radius": 5.0, "at": [40, 0, 0], "openings": [[0, 1.2, 1.0]],
-         "base": [0.4, 0.3], "oculus": 0.8, "strips": [2.0]},
+         "base": [0.4, 0.3], "oculus": 0.8, "strips": [2.0], "role": "fixed"},
         {"step": "tube", "name": "hall", "radius": 1.5, "length": 3.0, "at": [60, 0, 0], "cap": [1.6, 2.0],
          "trims": [[0, 0, -3.0, 4.0]]},
         {"step": "ground", "name": "regolith", "radius": 3.0},
@@ -965,6 +966,7 @@ def test_a_laid_scene_holds_its_library_entries_where_the_agent_put_them(tmp_pat
     assert "no colour of its own" in refused_recipe["refused"]  # and a refused one leaves the look as it was
     assert np.allclose(bound_colour(stage, "/yard/Objects/screen/glow/geo"), (1.0, 0.0, 0.0))
     assert np.allclose(bound_colour(stage, "/yard/Objects/screen/geo"), (0.0, 1.0, 0.0))
+    assert stage.GetPrimAtPath("/yard/Objects/holed").GetAttribute("score:role").Get() == "fixed"  # far scenery
     holed = UsdGeom.Mesh(stage.GetPrimAtPath("/yard/Objects/holed/geo"))
     shell_middles = part_middles(holed, "shell")
     in_hole = (shell_middles[:, 0] > 0) & (np.hypot(shell_middles[:, 1] - 1.0, shell_middles[:, 2]) < 1.2)
