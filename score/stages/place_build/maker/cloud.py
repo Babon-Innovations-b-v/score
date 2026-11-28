@@ -48,11 +48,15 @@ def job_of(pairs):
     lines = list(ENV_LINES)
     for number, pair in enumerate(pairs):
         faces = f" {int(pair[2])}" if len(pair) > 2 and pair[2] else ""
-        if len(pair) > 3 and pair[3] is not None:  # a remake's take: its own seed, after its faces
+        take = len(pair) > 3 and pair[3] is not None
+        if take:  # a remake's take: its own seed, after its faces
             from score.stages.place_build.maker import generate
             faces = f" {int(pair[2]) if pair[2] else generate.FACES} {int(pair[3])}"
-        lines.append(f"mkdir -p /work/out/{number} && {PYTHON} -I score/stages/place_build/maker/generate.py {ENV} "
-                     f"/work/in/{number}.png /work/out/{number}/model.glb{faces}")
+        line = (f"{PYTHON} -I score/stages/place_build/maker/generate.py {ENV} "
+                f"/work/in/{number}.png /work/out/{number}/model.glb{faces}")
+        if take:  # one take's crash (CuMesh's illegal memory access at one seed) never sinks the others' models
+            line = f"{{ {line} || echo 'take {number} at seed {int(pair[3])} failed'; }}"
+        lines.append(f"mkdir -p /work/out/{number} && {line}")
     return {"command": ["bash", "-c", "set -euo pipefail; " + " && ".join(lines)],
             "code": ["score/stages/place_build/maker/generate.py", "score/stages/place_build/maker/remesh.py",
                      "score/stages/place_build/maker/shim"],
@@ -65,9 +69,9 @@ def job_of(pairs):
             "minutes": SETUP_MINUTES + MINUTES_A_PICTURE * len(pairs)}
 
 
-def made(pairs, who):
+def made(pairs, who, takes=False):
     """Each (picture, out.glb) of `pairs` made on one cloud card; {out: its stats}. A picture whose model did not come
-    back raises, naming it."""
+    back raises, naming it, unless the pairs are a remake's `takes`, where it is left out."""
     sys.path.insert(0, str(REPO / "tools/cloud/k8s"))
     import cluster_jobs
     job = job_of(pairs)
@@ -77,6 +81,8 @@ def made(pairs, who):
     stats = {}
     for output, (picture, out, *_) in zip(job["outputs"], pairs):
         if not (pathlib.Path(output["local"]) / "model.glb").is_file():
+            if takes:
+                continue
             raise RuntimeError(f"{picture}: no model came back")
         stats[str(out)] = brought_back(pathlib.Path(output["local"]), pathlib.Path(out))
     return stats
@@ -124,7 +130,9 @@ def laid_take(take, out, seed, overlaps):
 def remade(pairs, who, attempt, sizes=None):
     """Each (picture, out.glb[, faces]) of `pairs` remade on one cloud card at remake `attempt`'s seeds
     (generate.seeds_for: TAKES takes a picture, never the failed make's seed), the take that best matches its close-up
-    laid at out (best_take, laid_take), `sizes` each pair's row size or None; {out: its stats}."""
+    laid at out (best_take, laid_take), `sizes` each pair's row size or None; {out: its stats}. A take that crashed
+    is left out of the choice (2099's prologue, 2026-11-28: CuMesh crashed at seed 44 on the plaza hedge and the stage
+    wedges, and its job brought back neither's other takes); a picture none of whose takes came back raises."""
     from score.stages.place_build.maker import generate
     seeds = generate.seeds_for(attempt)
     takes = []
@@ -135,11 +143,13 @@ def remade(pairs, who, attempt, sizes=None):
             if not path.is_file():
                 takes.append((picture, path, rest[0] if rest else None, seed))
     if takes:
-        made(takes, who)
+        made(takes, who, takes=True)
     stats = {}
     for number, (picture, out, *_) in enumerate(pairs):
-        kept, overlaps = best_take(picture, {seed: take_path(out, seed) for seed in seeds},
-                                   sizes[number] if sizes else None)
+        back = {seed: take_path(out, seed) for seed in seeds if take_path(out, seed).is_file()}
+        if not back:
+            raise RuntimeError(f"{picture}: none of its takes at seeds {seeds} came back")
+        kept, overlaps = best_take(picture, back, sizes[number] if sizes else None)
         stats[str(out)] = laid_take(take_path(out, kept), pathlib.Path(out), kept, overlaps)
     return stats
 

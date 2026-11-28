@@ -72,7 +72,8 @@ Breaks that turn this red (each applied once and seen red, then reverted):
   trellis-decoded.glb lies beside the model (#209); generate.seeds_for: a remake at SEED, or one take's seed for all
   -> the remake reproduces the failed make (2099's prologue, 2026-11-28: seven remakes the failed models again);
   cloud.job_of: a take's seed not passed -> made at 42; cloud.best_take: the first take kept, not the best outline ->
-  the rod laid for the cube's close-up
+  the rod laid for the cube's close-up; cloud.job_of: a take's crash fatal, or cloud.remade choosing among takes that
+  never came back -> one crashed take sinks the remake (2099's plaza hedge and stage wedges, 2026-11-28)
 - shim/flash_attn: the padded batch's key mask dropped -> padded keys are attended (checked where torch is, as in
   the maker's own Python, with the three below)
 - generate.chunked_layer_norm: a block normalised in float16 -> the norm is not LayerNorm32's bit for bit;
@@ -594,14 +595,16 @@ def test_a_made_model_fits_its_place_its_paint_and_its_weight(tmp_path, monkeypa
     assert generate.seeds_for(0) == [generate.SEED] and generate.SEED not in remake_seeds
     assert len(set(remake_seeds) | set(generate.seeds_for(2))) == 2 * generate.TAKES == 2 * len(remake_seeds)
     job = cloud.job_of([("/pictures/a.png", cloud.take_path("/made/a/a.glb", remake_seeds[0]), None, remake_seeds[0])])
-    assert job["command"][-1].endswith(f"/0/model.glb {generate.FACES} {remake_seeds[0]}")
+    assert f"/0/model.glb {generate.FACES} {remake_seeds[0]} ||" in job["command"][-1]
     cube_up = (([0.0, 0.0, 0.0], [1.0, 1.0, 1.0]),)  # the close-up: a cube; the takes a rod, the cube and a plate
     shapes = dict(zip(remake_seeds, ([3.0, 0.3, 0.3], [1.0, 1.0, 1.0], [1.0, 0.05, 1.0])))
     sent = []
 
-    def cloud_made(pairs, who):
+    def cloud_made(pairs, who, takes=False):
         for picture, out, faces, seed in pairs:
             sent.append(seed)
+            if seed == remake_seeds[2] and takes:  # the plate's take crashed on its card: never brought back
+                continue
             trimesh.creation.box(extents=shapes[seed]).export(str(out))
             out.with_suffix(".json").write_text(json.dumps({"seed": seed}))
     monkeypatch.setattr(cloud, "made", cloud_made)
@@ -613,8 +616,9 @@ def test_a_made_model_fits_its_place_its_paint_and_its_weight(tmp_path, monkeypa
     close_up.save(tmp_path / "cube.png")
     remade_out = tmp_path / "remade" / "trellis.glb"
     stats = cloud.remade([(tmp_path / "cube.png", remade_out, None)], "test", 1, [[1.0, 1.0, 1.0]])[str(remade_out)]
-    assert sent == remake_seeds and stats["seed"] == remake_seeds[1] and len(stats["takes"]) == generate.TAKES
-    assert all(cloud.take_path(remade_out, seed).is_file() for seed in remake_seeds) and remade_out.is_file()
+    assert sent == remake_seeds and stats["seed"] == remake_seeds[1] and len(stats["takes"]) == generate.TAKES - 1
+    assert all(cloud.take_path(remade_out, seed).is_file() for seed in remake_seeds[:2]) and remade_out.is_file()
+    assert f"|| echo 'take 0 at seed {remake_seeds[0]} failed'; }}" in job["command"][-1]
 
     points, faces, normals, inside_out = mended_fixture()  # #167: the mesh repaired, its shape kept
     sources, kept, mended, counts = repair.repaired(points, faces, normals)
