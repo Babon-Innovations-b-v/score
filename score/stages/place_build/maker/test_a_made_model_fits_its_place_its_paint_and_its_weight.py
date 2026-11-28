@@ -13,11 +13,12 @@ Breaks that turn this red (each applied once and seen red, then reverted):
 - maker.make: `card_only` not stopped after generated -> the card step alone goes on to set in the place a model
   the card has not made
 - maker.faces_for: FACES for every size -> the 0.3 m sprout is made at 500k faces, not LEAST_FACES
-- budget.faces_seen: its distance dropped (every model as seen at NEAREST) -> the pad's ferris wheel 400 m off keeps
-  its 452k faces (2099's prologue, 2026-11-28: the pad at 18.9 million); the outline's share dropped (the surface's
-  alone) -> the wheel is cut to 17k and its spokes go to blobs; budget.with_cut: a mesh matched by its order, not its
-  node's name -> the knob's geometry lands on the plate; the cut's vertices kept a face apart -> the plate's two
-  triangles hold 6 vertices, not 4; a node's matrix taken from the cut -> the knob's pivot is lost (moving parts)
+- budget: the old rule, a face count from the projected density at the nearest eye -> the dense 1 m panel seen from
+  0.3 m keeps every face (2099's prologue, 2026-11-28: 27,961,850 faces cut to 27,961,850); budget.error_bound
+  without its LEAST_ERROR floor -> the panel's cut at 0.3 m is held to 0.34 mm; SIMPLIFY_LOCK_BORDER dropped -> the
+  panel's outline loses its corners' edge vertices; a cut taken whole without the bound (target_error 1.0) -> the 3 mm
+  ridge goes flat and its points stand 3 mm off the cut; budget.smooth_normals summed per vertex, not per position ->
+  the bent knob's seam vertices take half a fan's normal
 - reach.surface_chunks reading the mesh's own face_normals and area (trimesh keeps them) -> a mesh read for the
   walkers' floor keeps its corners, cross products, normals and areas, about 200 bytes a face more, every mesh
   of the place at once (2099's square, 2026-11-28: budget's nears of 73 million faces killed at 12 GB)
@@ -105,16 +106,38 @@ from score.stages.place_build.maker import parts as made_parts
 HERE = pathlib.Path(__file__).resolve().parent
 
 
-def two_part_glb(path, sizes, names, matrix):
-    """A GLB of two textured quads (`sizes` across) at nodes `names`, the second under a pivot node of `matrix`."""
+def dense_grid(low, high, size, cells):
+    """(points, faces, uv) of a dense flat grid from x `low` to `high` (of a `size` side), z 0 to `size`, `cells` a
+    side: TRELLIS.2's marching triangles on a flat panel. Its texture coordinates are its own half's (u from `low`)."""
+    x, z = np.meshgrid(np.linspace(low, high, cells + 1), np.linspace(0.0, size, cells + 1), indexing="ij")
+    points = np.stack([x, 0.0 * x, z], -1).reshape(-1, 3)
+    uv = np.stack([x + low, z], -1).reshape(-1, 2) / size
+    index = np.arange(len(points)).reshape(cells + 1, cells + 1)
+    corners = index[:-1, :-1], index[1:, :-1], index[1:, 1:], index[:-1, 1:]
+    faces = np.vstack([np.stack(corners[:3], -1).reshape(-1, 3),
+                       np.stack([corners[0], corners[2], corners[3]], -1).reshape(-1, 3)])
+    return points, faces, uv
+
+
+def panel_glb(path, pivot, cells=100):
+    """A GLB of a dense 1 m plate (two halves of `cells` x 2`cells` faces meeting in a UV seam at x 0.5, a 3 mm ridge
+    4 mm wide across it at x 0.25) and a 0.1 m knob bent on a 0.2 m radius under a pivot node of matrix `pivot`, both
+    textured."""
     import trimesh
     scene = trimesh.Scene()
     picture = __import__("PIL.Image", fromlist=["Image"]).new("RGB", (4, 4), (200, 30, 30))
-    for size, name, frame in zip(sizes, names, (np.eye(4), matrix)):
-        quad = trimesh.Trimesh([[0, 0, 0], [size, 0, 0], [size, size, 0], [0, size, 0]], [[0, 1, 2], [0, 2, 3]],
-                               process=False)
-        quad.visual = trimesh.visual.TextureVisuals(uv=[[0, 0], [1, 0], [1, 1], [0, 1]], image=picture)
-        scene.add_geometry(quad, node_name=name, geom_name=name, transform=frame)
+    for name, size, frame in (("plate", 1.0, np.eye(4)), ("knob", 0.1, pivot)):
+        halves = [dense_grid(low * size, (low + 0.5) * size, size, cells) for low in (0.0, 0.5)]
+        points = np.vstack([half[0] for half in halves])
+        faces = np.vstack([halves[0][1], halves[1][1] + len(halves[0][0])])
+        uv = np.vstack([half[2] for half in halves])
+        if name == "plate":
+            points[:, 1] = 0.003 * np.exp(-((points[:, 0] - 0.25) / 0.002) ** 2)
+        else:  # the knob's face bent on a 0.2 m radius: 0.5 mm of sag lets a chord turn its normal 0.14 rad
+            points[:, 1] = 0.2 - np.sqrt(0.2 ** 2 - (points[:, 0] - 0.05) ** 2)
+        mesh = trimesh.Trimesh(points, faces, process=False)
+        mesh.visual = trimesh.visual.TextureVisuals(uv=uv, image=picture)
+        scene.add_geometry(mesh, node_name=name, geom_name=name, transform=frame)
     scene.export(str(path))
     return glb.read(path)
 
@@ -317,12 +340,6 @@ def test_a_made_model_fits_its_place_its_paint_and_its_weight(tmp_path, monkeypa
     from score.stages.place_build.maker import generate
     assert [maker.faces_for(size) for size in (0.3, 1.0, 3.0, None)] == [maker.LEAST_FACES, 125000, generate.FACES,
                                                                        generate.FACES]  # a sprout, a chair, a wall
-    pixels = budget.VIEW_ROWS / np.radians(budget.VIEW_DEGREES)  # a metre's at a metre
-    wheel = budget.faces_seen(6987.0, 9163.0, 400.0)  # the pad's ferris wheel (made at 452k faces, 5,458 pixels)
-    assert 150_000 < wheel < 200_000 and budget.faces_seen(6987.0, 9163.0, 4000.0) < 20_000, wheel
-    assert budget.faces_seen(202.0, 43.0, None) == budget.faces_seen(202.0, 43.0, 0.1) > 500_000  # held close: whole
-    assert budget.faces_seen(1e-6, 1e-6, 50.0) == budget.LEAST
-    assert abs(budget.faces_seen(1.0, 1.0, 10.0) - (pixels / 10) ** 2 / 4 * budget.SHOWN_FACES) < 2
     import trimesh
     from score.stages.place_build import ready
     sphere = trimesh.creation.icosphere(3)  # nearest's walkers' floor reads every mesh; none keeps a face's sizes
@@ -330,33 +347,47 @@ def test_a_made_model_fits_its_place_its_paint_and_its_weight(tmp_path, monkeypa
     assert not [key for key, value in sphere._cache.cache.items() if np.ndim(value) and len(value) == len(sphere.faces)]
     level = sphere.copy().face_normals[:, 1] >= np.cos(np.radians(ready.reach.MAX_SLOPE))
     assert len(points) and np.all(points[:, 1] > -1e-9) and level.any()  # the floor faces' points, read as trimesh's
+    assert budget.error_bound(0.3) == budget.error_bound(None) == budget.LEAST_ERROR  # 0.34 mm a pixel, 0.5 mm kept
+    assert abs(budget.error_bound(10.0) - 10.0 * np.radians(70.0) / 1080) < 1e-12  # a pixel at 10 m: 11.3 mm
     pivot = np.eye(4)
     pivot[:3, 3] = [0.5, 0.25, 0.0]  # the knob's spin pivot
-    document, binary = two_part_glb(tmp_path / "made.glb", (2.0, 0.2), ("plate", "knob"), pivot)
-    assert abs(budget.areas_of(document, binary)[0] - 4.04) < 1e-6
-    image = glb.image(document, binary, 0)
-    cut_document, cut_binary = two_part_glb(tmp_path / "cut.glb", (0.3, 2.0), ("knob", "plate"), np.eye(4))
-    for node in cut_document["nodes"]:  # a vertex a face, as Blender writes a mesh it has no normals for
-        node.pop("matrix", None)
-    plate = budget.primitive(cut_document, [number for number, node in enumerate(cut_document["nodes"])
-                                            if node.get("name") == "plate"][0])
-    corner_of, taken, pieces = np.array([0, 1, 2, 0, 2, 3]), set(range(len(cut_document["accessors"]))), {}
-    for attribute, number in plate["attributes"].items():  # the plate's two faces apart, on accessors of its own
-        values = repair.accessor_array(cut_document, cut_binary, number)[corner_of]
-        plate["attributes"][attribute] = number = budget.own_accessor(cut_document, number, taken)
-        pieces[cut_document["accessors"][number]["bufferView"]] = repair.with_accessor(cut_document, number, values)
-    plate["indices"] = number = budget.own_accessor(cut_document, plate["indices"], taken)
-    pieces[cut_document["accessors"][number]["bufferView"]] = repair.with_accessor(cut_document, number, np.arange(6))
-    cut_binary = glb.with_views(cut_document, cut_binary, pieces)
-    matrices = [node.get("matrix") for node in document["nodes"]]
-    document, binary = budget.with_cut(document, binary, cut_document, cut_binary)
-    sizes = {}
-    for node, _ in budget.mesh_frames(document):
-        found = budget.primitive(document, node)
-        points = repair.accessor_array(document, binary, found["attributes"]["POSITION"])
-        sizes[document["nodes"][node]["name"]] = (round(float(np.ptp(points[:, 0])), 6), len(points))
-    assert sizes == {"plate": (2.0, 4), "knob": (0.3, 4)}, sizes  # each its own node's cut, the plate welded again
+    document, binary = panel_glb(tmp_path / "made.glb", pivot)
+    before = {document["nodes"][node]["name"]: (repair.accessor_array(document, binary, budget.primitive(
+        document, node)["attributes"]["POSITION"]).copy(), repair.accessor_array(document, binary, budget.primitive(
+            document, node)["indices"]).reshape(-1, 3).copy()) for node, _ in budget.mesh_frames(document)}
+    matrices, image = [node.get("matrix") for node in document["nodes"]], glb.image(document, binary, 0)
+    glb.write(tmp_path / "final.glb", document, binary)
+    counts = budget.budgeted(tmp_path / "final.glb", 0.3)  # a walker's eye 0.3 m off the panel
+    document, binary = glb.read(tmp_path / "final.glb")
+    assert counts["faces_before"] == 2 * 2 * 2 * 100 ** 2 and counts["faces"] < 0.1 * counts["faces_before"], counts
     assert [node.get("matrix") for node in document["nodes"]] == matrices and glb.image(document, binary, 0) == image
+    for node, frame in budget.mesh_frames(document):
+        name, found = document["nodes"][node]["name"], budget.primitive(document, node)
+        points, faces = (repair.accessor_array(document, binary, found[key] if key == "indices" else
+                                               found["attributes"][key]) for key in ("POSITION", "indices"))
+        faces, (old_points, old_faces) = faces.reshape(-1, 3), before[name]
+        assert len(faces) < (0.1 if name == "plate" else 0.5) * len(old_faces), (name, len(faces))  # each its own cut
+        assert len(trimesh.Trimesh(points, faces).split(only_watertight=False)) == 1
+        cut = trimesh.Trimesh(points @ frame[:3, :3].T + frame[:3, 3], faces, process=False)
+        _, off, _ = trimesh.proximity.closest_point(cut, old_points @ frame[:3, :3].T + frame[:3, 3])
+        assert off.max() < budget.LEAST_ERROR, (name, off.max())  # every point of the dense mesh within the bound
+        edge = old_points[:, [0, 2]]
+        outline = (np.isclose(edge, 0.0) | np.isclose(edge, edge.max())).any(axis=1)
+        held = {tuple(row) for row in np.round(points, 9)}
+        assert all(tuple(row) in held for row in np.round(old_points[outline], 9)), name  # the outline locked
+        if name == "knob":  # the smooth normals the cut keeps are the bent face's own, a seam's two sides as one
+            smooth = budget.smooth_normals(old_points.astype(float), old_faces.astype(np.int64))
+            bent = np.stack([0.05 - old_points[:, 0], 0.2 - old_points[:, 1], 0.0 * old_points[:, 0]], -1) / 0.2
+            inside = ~outline
+            assert np.abs(np.einsum("ij,ij->i", smooth, bent))[inside].min() > np.cos(0.0005)
+        uv = repair.accessor_array(document, binary, found["attributes"]["TEXCOORD_0"])
+        seam = np.isclose(points[:, 0], 0.5 * edge.max())
+        assert len(np.unique(np.round(uv[seam, 0], 6))) == 2, name  # the seam's two sides kept apart
+    plate = [node for node, _ in budget.mesh_frames(document) if document["nodes"][node]["name"] == "plate"][0]
+    found = budget.primitive(document, plate)
+    ridge = repair.accessor_array(document, binary, found["attributes"]["POSITION"])
+    top = ridge[ridge[:, 1] > 0.0029]  # the ridge's crest kept at its 3 mm, all along the plate
+    assert len(top) and np.ptp(top[:, 2]) > 0.999 and abs(top[:, 1].max() - 0.003) < 1e-6, top
     assert [generate.band_for(clear) for clear in (0.0, 0.005, 0.02)] == [(1, 0.0), (1, 0.0), (
         generate.BAND, generate.PROJECT)]  # the drill, the cart and the locker at band 1; the fridge's glass at BAND
     filled = []

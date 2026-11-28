@@ -1,57 +1,96 @@
-"""A made model's face budget (2099's prologue, 2026-11-28: every TRELLIS.2 model over 2 m came at 500k faces whatever
-it was and however far it stood, the pad's 52 at 18.9 million, more than a game draws a place and more than three
-laying checks held in memory): the faces a model needs are those that show from the nearest a player's eye comes.
+"""A made model's faces cut to what shows (2099's prologue, 2026-11-28: every TRELLIS.2 model over 2 m came at 500k
+faces whatever it was and however far it stood, the prologue's made models at 28 million, the square's checks dead
+for memory at 73 million, more than a game draws): TRELLIS.2's meshes are uniformly dense, marching-cube triangles on
+a flat panel as on a knob, so the waste is where the surface is flat, and a face count set by the distance kept it all
+(a walker's eye comes within 0.3 m of nearly everything: the window's security bars kept 236k faces).
 
-    faces_seen(area, hull, near)           -> the faces a model of surface `area` and convex hull surface `hull` (m^2)
-                                              needs seen from `near` m
-    areas_of(document, binary)             -> the GLB's surface and its convex hull's (m^2) in its scene's frame
-    with_cut(document, binary, cut_document, cut_binary) -> (document, binary): each mesh's geometry the cut's
-    budgeted(final, near, work)            -> the made GLB at `final` cut to its budget in place; its counts
+    error_bound(near)                      -> the metres a cut may move the surface seen from `near` m
+    simplified(points, faces, bound)       -> the faces of a quadric-error cut of (points, faces) within `bound` m
+    with_cut(document, binary, bound)      -> (document, binary): every mesh cut within `bound` in its scene's frame
+    budgeted(final, near)                  -> the made GLB at `final` cut in place; its counts
     nearest(folder)                        -> {made entry: metres from the nearest walker's eye} in a laid place
-    rebudgeted(folder, entry, near)        -> a laid made entry cut to its budget and taken in again (same draft)
+    rebudgeted(folder, entry, near)        -> a made entry cut and taken in again (same draft)
 
-`make` cuts at NEAREST (where it will stand is not known yet: only a small model is cut); `budget <folder>`, after a
-place is laid, reads how near the walkers' eyes come to each made model (the scene package's eyes: ready's walkers'
-floor with every door open, LOOK_HEIGHTS over it) and cuts each to that, taking it into score_lib again.
+A cut is meshoptimizer's quadric-error simplification (meshopt_simplifyWithAttributes, MIT) with an absolute error:
+the surface may move by what a pixel of 2099's walker camera (VIEW_DEGREES tall on VIEW_ROWS rows) subtends at the
+nearest a walker's eye comes, and always by LEAST_ERROR (0.5 mm: an eye 0.3 m off still keeps sub-millimetre detail),
+so a flat panel gives up its faces and an edge, a ridge or a small knob keeps its own; each kept vertex's smooth
+normal is an attribute of the cut (NORMAL_CHANGE), so a long triangle tilted within the bound draws no crease in the
+shading. Every open edge is locked (SIMPLIFY_LOCK_BORDER: a model's outline, a part's boundary, a moving part's split,
+each its own primitive),
+a UV seam is kept (meshoptimizer collapses a seam vertex only along its seam), only existing vertices are kept (every
+attribute of a kept vertex as it was) and no face is added. Each primitive's indices and vertex attributes are the
+cut's; the rest of the GLB (nodes and their matrices, moving parts, materials, pictures) is kept byte for byte.
 
-A model seen from `near` m (at least NEAREST) by the game's view (2099's walker camera: VIEW_DEGREES tall on VIEW_ROWS
-rows) needs the more of: one face a FACE_PIXELS patch of its whole surface seen square on (what the view resolves of
-a surface held close), and SHOWN_FACES a pixel of its outline (its convex hull's mean outline, a quarter of the hull's
-surface by Cauchy's formula, in pixels), which keeps a far thin thing whole (the pad's ferris wheel at 400 m: its
-spokes went to blobs at 17k faces and 50k, held at 180k, made at 452k on 5,458 pixels). Blender's quadric edge
-collapse (budget_blender.py) spends them where the shape bends, so a flat side gives its faces to the silhouette, the
-small hardware and the holes. A model is never given more faces than it holds,
-nor cut under LEAST: a 2 cm nail keeps a round head. Every attribute of a primitive is the cut's; the rest of the GLB
-(nodes and their matrices, moving parts, materials, pictures) is kept byte for byte.
+`make` knows no distance and cuts at NEAREST; `budget <folder>`, after a place is laid, reads how near the walkers'
+eyes come to each made model (the scene package's eyes: ready's walkers' floor with every door open, LOOK_HEIGHTS over
+it) and `budget <folder> --entry <e> --near <m>` cuts each to that, taking it into score_lib again.
 """
 import json
 import math
 import pathlib
-import subprocess
 
 import numpy as np
 
 from score.stages.place_build.maker import glb, repair
 
-HERE = pathlib.Path(__file__).resolve().parent
-SCRIPT = HERE / "budget_blender.py"
 VIEW_ROWS = 1080  # 2099's viewport height (project.godot)
 VIEW_DEGREES = 70.0  # its walker camera's field of view, top to bottom (game/player/walker.tscn)
-SHOWN_FACES = 16  # faces a pixel of the model's outline (front and back, and its depth: a wheel's spokes)
-FACE_PIXELS = 2.0  # screen pixels a face covers seen nearest (4 drew a door knob's highlight in facets at 0.5 m)
 NEAREST = 0.3  # metres: no eye comes nearer a surface (a walker's half WALKWAY, leaning in)
-LEAST = 2000  # faces no model is cut under
-MEMORY_GB = 6  # the Blender's scope: a 500k-face model held 1.6 GB
-KEPT_ATTRIBUTES = {"POSITION", "NORMAL", "TEXCOORD_0"}
+LEAST_ERROR = 0.0005  # metres a cut may always move the surface (0.5 mm)
+NORMAL_CHANGE = 0.005  # a kept vertex's smooth normal moved this far costs a whole bound (none: the wardrobe's flat
+#                        door drew a crease along a long triangle tilted within the bound, 2026-11-28)
 
 
-def faces_seen(area, hull, near):
-    """The faces a model of surface `area` and convex hull surface `hull` (square metres) needs seen from `near`
-    metres (None: NEAREST)."""
-    square_pixels = (VIEW_ROWS / math.radians(VIEW_DEGREES) / max(float(near or NEAREST), NEAREST)) ** 2  # a m^2's
-    surface = float(area) * square_pixels / FACE_PIXELS
-    shown = float(hull) / 4 * square_pixels * SHOWN_FACES
-    return max(LEAST, int(math.ceil(max(surface, shown))))
+def error_bound(near):
+    """The metres a cut may move the surface seen from `near` metres (None: NEAREST): what a pixel subtends there, at
+    least LEAST_ERROR."""
+    metres = NEAREST if near is None else max(float(near), 0.0)
+    return max(LEAST_ERROR, metres * math.radians(VIEW_DEGREES) / VIEW_ROWS)
+
+
+def smooth_normals(points, faces):
+    """Each vertex's smooth normal: the area-weighted normal of the faces round its position (a UV seam's copies share
+    one), unit length."""
+    _, spot = np.unique(points, axis=0, return_inverse=True)
+    spot = spot.reshape(-1)
+    crossed = np.cross(points[faces[:, 1]] - points[faces[:, 0]], points[faces[:, 2]] - points[faces[:, 0]])
+    summed = np.zeros((spot.max() + 1, 3))
+    np.add.at(summed, spot[faces].reshape(-1), np.repeat(crossed, 3, axis=0))
+    normals = summed[spot]
+    return normals / np.maximum(np.linalg.norm(normals, axis=1, keepdims=True), 1e-20)
+
+
+def simplifier():
+    """meshoptimizer's meshopt_simplifyWithAttributes with its C signature declared (the package's own wrapper passes
+    its sizes and error untyped, and crashed)."""
+    import ctypes
+    from meshoptimizer._loader import lib
+    pointer, size = ctypes.c_void_p, ctypes.c_size_t
+    function = lib.meshopt_simplifyWithAttributes
+    function.argtypes = [pointer, pointer, size, pointer, size, size, pointer, size, pointer, size, pointer, size,
+                         ctypes.c_float, ctypes.c_uint, pointer]
+    function.restype = size
+    return function
+
+
+def simplified(points, faces, bound):
+    """The faces (k x 3, indices into `points`) of meshoptimizer's quadric-error cut of (points, faces) that moves the
+    surface by `bound` (points' units) at most and each kept vertex's smooth normal by NORMAL_CHANGE a bound, its open
+    edges locked; never more faces than given."""
+    import meshoptimizer
+    faces = np.asarray(faces, dtype=np.int64).reshape(-1, 3)
+    flat = np.ascontiguousarray(faces.reshape(-1), dtype=np.uint32)
+    kept = np.zeros(len(flat), dtype=np.uint32)
+    corners = np.ascontiguousarray(points, dtype=np.float32)
+    normals = np.ascontiguousarray(smooth_normals(np.asarray(points, dtype=np.float64), faces), dtype=np.float32)
+    weights = np.full(3, float(bound) / NORMAL_CHANGE, dtype=np.float32)
+    options = meshoptimizer.SIMPLIFY_LOCK_BORDER | meshoptimizer.SIMPLIFY_ERROR_ABSOLUTE
+    count = simplifier()(kept.ctypes.data, flat.ctypes.data, len(flat), corners.ctypes.data, len(corners), 12,
+                         normals.ctypes.data, 12, weights.ctypes.data, 3, None, 0, float(bound), options, None)
+    if count > len(flat) or count % 3:
+        raise RuntimeError(f"meshoptimizer gave {count} indices for {len(flat)}")
+    return kept[:count].reshape(-1, 3).astype(np.int64)
 
 
 def node_matrix(node):
@@ -75,24 +114,12 @@ def mesh_frames(document):
 
 
 def primitive(document, node):
-    """The one indexed triangle primitive of a node's mesh; refused for any other."""
+    """The one indexed triangle primitive of a node's mesh, with no morph targets; refused for any other."""
     primitives = document["meshes"][document["nodes"][node]["mesh"]]["primitives"]
-    if len(primitives) != 1 or primitives[0].get("mode", 4) != 4 or "indices" not in primitives[0]:
+    if len(primitives) != 1 or primitives[0].get("mode", 4) != 4 or "indices" not in primitives[0] \
+            or primitives[0].get("targets"):
         raise ValueError(f"node {document['nodes'][node].get('name')}: not one indexed triangle primitive")
     return primitives[0]
-
-
-def areas_of(document, binary):
-    """(surface, its convex hull's surface) in m^2 of every mesh the GLB draws, in its scene's frame."""
-    from scipy.spatial import ConvexHull
-    total, every = 0.0, []
-    for node, frame in mesh_frames(document):
-        found = primitive(document, node)
-        points = repair.accessor_array(document, binary, found["attributes"]["POSITION"]) @ frame[:3, :3].T
-        faces = repair.accessor_array(document, binary, found["indices"]).reshape(-1, 3)
-        total += float(repair.areas(points, faces).sum())
-        every.append(points)
-    return total, float(ConvexHull(np.vstack(every), qhull_options="QJ").area)  # QJ: a flat model too
 
 
 def faces_of(document):
@@ -100,92 +127,53 @@ def faces_of(document):
                for node, _ in mesh_frames(document))
 
 
-def welded(values, faces):
-    """(values, faces) with vertices of equal values made one (Blender writes a vertex a face where it has no normal
-    to keep)."""
-    kept, back = np.unique(values, axis=0, return_inverse=True)
-    return kept, back.reshape(-1)[faces]
+def copied_accessor(document, number):
+    """A copy of accessor `number` on a new buffer view of its own (a writer may share one accessor between meshes:
+    trimesh does identical arrays); the copy's number."""
+    document["bufferViews"].append({"buffer": 0, "byteOffset": 0, "byteLength": 0})
+    document["accessors"].append({**document["accessors"][number], "bufferView": len(document["bufferViews"]) - 1})
+    return len(document["accessors"]) - 1
 
 
-def cut_geometry(document, binary, node, cut_document, cut_binary, cut_node):
-    """{attribute: values} and faces of `node`'s primitive as the cut's `cut_node` holds them: the original's
-    attributes only, refused when the cut lacks one."""
-    mine, theirs = primitive(document, node), primitive(cut_document, cut_node)
-    names = sorted(mine["attributes"])
-    if set(names) - KEPT_ATTRIBUTES or set(names) - set(theirs["attributes"]):
-        raise ValueError(f"node {document['nodes'][node].get('name')}: attributes {names}, the cut holds "
-                         f"{sorted(theirs['attributes'])}")
-    columns = [np.asarray(repair.accessor_array(cut_document, cut_binary, theirs["attributes"][name]), np.float64)
-               for name in names]
-    faces = np.asarray(repair.accessor_array(cut_document, cut_binary, theirs["indices"])).reshape(-1, 3)
-    widths = np.cumsum([0] + [column.shape[1] for column in columns])
-    values, faces = welded(np.hstack(columns), faces)
-    return {name: values[:, widths[number]:widths[number + 1]] for number, name in enumerate(names)}, faces
-
-
-def own_accessor(document, number, taken):
-    """Accessor `number`, or, when another primitive already took it (`taken`, a writer may share one between
-    meshes: trimesh does identical arrays), a copy of it on a new buffer view; its number, marked taken."""
-    if number in taken:
-        document["bufferViews"].append({"buffer": 0, "byteOffset": 0, "byteLength": 0})
-        document["accessors"].append({**document["accessors"][number], "bufferView": len(document["bufferViews"]) - 1})
-        number = len(document["accessors"]) - 1
-    taken.add(number)
-    return number
-
-
-def with_cut(document, binary, cut_document, cut_binary):
-    """(document, binary): every mesh's primitive given the geometry of the cut's mesh at the node of its name, all
-    else of the GLB as it was."""
-    theirs = {node.get("name"): number for number, node in enumerate(cut_document["nodes"]) if "mesh" in node}
-    pieces, taken = {}, set()
+def with_cut(document, binary, bound):
+    """(document, binary): every mesh's primitive cut within `bound` metres in its scene's frame (`simplified`), its
+    kept vertices alone left with every attribute as it was; all else of the GLB as it was. A primitive the cut does not
+    change is left untouched."""
+    pieces, shared = {}, {}
     for node, _ in mesh_frames(document):
-        name = document["nodes"][node].get("name")
-        if name not in theirs:
-            raise ValueError(f"the cut has no mesh node {name!r} (it has {sorted(map(str, theirs))})")
-        values, faces = cut_geometry(document, binary, node, cut_document, cut_binary, theirs[name])
         found = primitive(document, node)
-        for attribute, column in [*values.items(), ("indices", faces.reshape(-1))]:
-            number = own_accessor(document, found["indices"] if attribute == "indices" else
-                                  found["attributes"][attribute], taken)
+        for number in [found["indices"], *found["attributes"].values()]:
+            shared[number] = shared.get(number, 0) + 1
+    for node, frame in mesh_frames(document):
+        found = primitive(document, node)
+        points = repair.accessor_array(document, binary, found["attributes"]["POSITION"]).astype(np.float64)
+        faces = repair.accessor_array(document, binary, found["indices"]).reshape(-1, 3).astype(np.int64)
+        cut = simplified(points @ frame[:3, :3].T + frame[:3, 3], faces, bound)
+        if len(cut) == len(faces):
+            continue
+        kept, cut = np.unique(cut, return_inverse=True)
+        columns = {name: repair.accessor_array(document, binary, number)[kept]
+                   for name, number in found["attributes"].items()}
+        for attribute, values in [*columns.items(), ("indices", cut.reshape(-1))]:
+            number = found["indices"] if attribute == "indices" else found["attributes"][attribute]
+            if shared[number] > 1:  # another primitive still reads it: this one's cut goes on a copy
+                shared[number] -= 1
+                number = copied_accessor(document, number)
             found.update(indices=number) if attribute == "indices" else found["attributes"].update({attribute: number})
-            pieces[document["accessors"][number]["bufferView"]] = repair.with_accessor(document, number, column)
+            pieces[document["accessors"][number]["bufferView"]] = repair.with_accessor(document, number, values)
     return document, glb.with_views(document, binary, pieces)
 
 
-def cut_file(source, out, faces, log):
-    """Blender's cut of the GLB at `source` to about `faces`, its geometry written at `out` (budget_blender.py)."""
-    from score.stages.place_build import render
-    command = render.queued(f"budget-{pathlib.Path(source).stem}", SCRIPT, [str(source), str(out), str(int(faces))],
-                            card=False, seconds=1800, memory_gb=MEMORY_GB)
-    done = subprocess.run(command, capture_output=True, text=True)
-    pathlib.Path(log).write_text(done.stdout + done.stderr)
-    if done.returncode != 0 or not pathlib.Path(out).is_file():
-        raise RuntimeError(f"Blender's cut of {source} failed (exit {done.returncode}"
-                           f"{render.unlinked_hint(done.returncode)}): "
-                           f"{(done.stderr or done.stdout)[-400:]}")
-
-
-def budgeted(final, near, work):
-    """The made GLB at `final` cut in place to faces_seen of its surfaces from `near` (None: NEAREST) when it holds
-    more; {near_m, area_m2, hull_m2, faces_before, faces_asked, faces}."""
+def budgeted(final, near):
+    """The made GLB at `final` cut in place within error_bound(near) when that drops a face;
+    {near_m, error_m, faces_before, faces}."""
     document, binary = glb.read(final)
-    (area, hull), before = areas_of(document, binary), faces_of(document)
-    asked = faces_seen(area, hull, near)
-    counts = {"near_m": round(max(float(near or NEAREST), NEAREST), 3), "area_m2": round(area, 4),
-              "hull_m2": round(hull, 4),
-              "faces_before": int(before), "faces_asked": int(asked), "faces": int(before)}
-    if asked >= before:
-        return counts
-    work = pathlib.Path(work)
-    work.mkdir(parents=True, exist_ok=True)
-    cut = work / f"{pathlib.Path(final).stem}-cut.glb"
-    cut_file(final, cut, asked, work / "budget.log")
-    cut_document, cut_binary = glb.read(cut)
-    document, binary = with_cut(document, binary, cut_document, cut_binary)
-    glb.write(final, document, binary)
-    cut.unlink()
-    counts["faces"] = int(faces_of(document))
+    bound, before = error_bound(near), faces_of(document)
+    document, binary = with_cut(document, binary, bound)
+    counts = {"near_m": round(NEAREST if near is None else max(float(near), 0.0), 3), "error_m": round(bound, 6),
+              "faces_before": int(before), "faces": int(faces_of(document))}
+    if counts["faces"] < before:
+        glb.write(final, document, binary)
     return counts
 
 
@@ -233,12 +221,18 @@ def nearest(folder):
     return {entry: round(metres, 3) for entry, metres in sorted(found.items())}
 
 
-def entry_files(folder, entry):
-    """The laid entry's version folder under the place's assets (its newest)."""
+def entry_version(folder, entry):
+    """The version of `entry` the place lays (its newest under the place's assets), else the library's newest (a made
+    entry no place lays yet, cut as seen from NEAREST)."""
+    import os
     from score.stages import place_build
-    versions = sorted((pathlib.Path(folder) / "assets" / "model" / entry).glob("*"), key=lambda path: int(path.name))
+    laid = sorted((pathlib.Path(folder) / "assets" / "model" / entry).glob("*"), key=lambda path: int(path.name))
+    if laid:
+        return laid[-1].name
+    held = pathlib.Path(os.environ.get("SCORE_LIB_ROOT") or ".") / "entries" / "model" / entry
+    versions = sorted((path.name for path in held.glob("*") if path.name.isdigit()), key=int)
     if not versions:
-        raise place_build.Refused(f"{entry}: not laid in {folder} (no assets/model/{entry})")
+        raise place_build.Refused(f"{entry}: neither laid in {folder} nor in the library")
     return versions[-1]
 
 
@@ -254,25 +248,27 @@ def library_record(entry, version):
 
 
 def rebudgeted(folder, entry, near):
-    """The laid made `entry` (its files under the place's assets) cut to its budget from `near` metres and taken into
-    score_lib again as the same draft (take-in writes a changed draft over), its record's `budget` the counts; its
-    hulls, physics and moving parts as made. Nothing taken in when the budget cuts nothing. The counts."""
+    """The made `entry` (its version the place laid, else the library's newest; its files the library's, never the
+    place's copies, which `put` converted: the pad's rocket laid only its USD, 2026-11-28) cut within error_bound(near)
+    and taken into score_lib again as the same draft (take-in writes a changed draft over), its record's `budget` the
+    counts; its hulls, physics and moving parts as made. Nothing taken in when the cut drops no face. The counts."""
     from score.stages import place_build
     from score.stages.place_build import maker
-    source = entry_files(folder, entry)
-    record = library_record(entry, source.name)
+    version = entry_version(folder, entry)
+    record = library_record(entry, version)
     if record.get("state") != "draft":
-        raise place_build.Refused(f"{entry}@{source.name} is {record.get('state')}, not a draft: cut it as a new "
-                                  "version")
+        raise place_build.Refused(f"{entry}@{version} is {record.get('state')}, not a draft: cut it as a new version")
     work = pathlib.Path(folder) / "made" / entry
     work.mkdir(parents=True, exist_ok=True)
     files = {}
     for name in record["files"]:
-        target = work / name
-        target.write_bytes((source / name).read_bytes())
-        files[name] = target
-    final = work / f"{entry}-final.glb"
-    counts = budgeted(final, near, work / "budget")
+        reference = place_build.library_files.reference(f"model/{entry}@{version}", name)
+        found = place_build.library_files.resolve(reference)
+        if found is None:
+            raise place_build.Refused(f"{reference}: the library does not hold this file")
+        files[name] = work / name
+        files[name].write_bytes(pathlib.Path(found).read_bytes())
+    counts = budgeted(work / f"{entry}-final.glb", near)
     if counts["faces"] == counts["faces_before"]:
         return {"entry": entry, **counts, "taken_in": None}
     record_of(work / f"{entry}.json", counts)

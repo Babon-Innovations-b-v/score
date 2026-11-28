@@ -17,6 +17,8 @@ dependencies = [
     "networkx>=3.6",
     "scikit-image>=0.26",
     "fast-simplification>=0.2",
+    # maker/budget.py's error-bounded cut (meshopt_simplify with an absolute error, MIT; zeux/meshoptimizer's own Python).
+    "meshoptimizer==0.2.30a0",
     "matplotlib>=3.11",
     "fonttools>=4.65",
     "requests>=2.34",

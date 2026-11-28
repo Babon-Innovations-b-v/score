@@ -570,7 +570,7 @@ def parser():
                       "made/<entry>/ for a make after it to finish on the processor")
     step.add_argument("--near", type=float, help="metres from the nearest a walker's eye comes (maker/budget.py)")
     step = steps.add_parser("budget", help="a laid place's made models: how near the walkers' eyes come to each "
-                            "(no --entry), or one cut to the faces that show from --near and taken in again")
+                            "(no --entry), or one cut within a pixel seen from --near and taken in again")
     step.add_argument("folder")
     step.add_argument("--entry", help="a made entry laid here (<name>_trellis.<place>)")
     step.add_argument("--near", type=float, help="metres from its nearest eye (`budget <folder>`'s answer)")

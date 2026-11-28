@@ -549,6 +549,16 @@ wheels = [
 ]
 
 [[package]]
+name = "meshoptimizer"
+version = "0.2.30a0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "numpy", version = "2.4.6", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.12'" },
+    { name = "numpy", version = "2.5.3", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.12'" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/35/b9/23259780df3097b6b70e7091970a689b677bd320b02a63fdf60493902167/meshoptimizer-0.2.30a0.tar.gz", hash = "sha256:36b18b61a95ba992de804b1e91e86be2ba185925e4e2c1481495f8c68a17f5db", size = 98795, upload-time = "2026-02-27T06:39:01.628Z" }
+
+[[package]]
 name = "motion-correction"
 version = "1.0.0"
 source = { path = "vendor/kimodo/wheels/motion_correction-1.0.0-cp311-cp311-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl" }
@@ -1042,6 +1052,7 @@ dependencies = [
     { name = "fast-simplification" },
     { name = "fonttools" },
     { name = "matplotlib" },
+    { name = "meshoptimizer" },
     { name = "motion-correction", version = "1.0.0", source = { path = "vendor/kimodo/wheels/motion_correction-1.0.0-cp311-cp311-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl" }, marker = "python_full_version < '3.12'" },
     { name = "motion-correction", version = "1.0.0", source = { path = "vendor/kimodo/wheels/motion_correction-1.0.0-cp312-cp312-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl" }, marker = "python_full_version >= '3.12'" },
     { name = "networkx", version = "3.6.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.12'" },
@@ -1082,6 +1093,7 @@ requires-dist = [
     { name = "fast-simplification", specifier = ">=0.2" },
     { name = "fonttools", specifier = ">=4.65" },
     { name = "matplotlib", specifier = ">=3.11" },
+    { name = "meshoptimizer", specifier = "==0.2.30a0" },
     { name = "motion-correction", marker = "python_full_version < '3.11' or python_full_version >= '3.13'" },
     { name = "motion-correction", marker = "python_full_version == '3.11.*'", path = "vendor/kimodo/wheels/motion_correction-1.0.0-cp311-cp311-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl" },
     { name = "motion-correction", marker = "python_full_version == '3.12.*'", path = "vendor/kimodo/wheels/motion_correction-1.0.0-cp312-cp312-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl" },

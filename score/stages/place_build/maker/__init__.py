@@ -13,7 +13,7 @@ place_build's `make`, one prop's model from its picture, made ready for the plac
 3. Set in the place's frame (fit.py): over the library model it replaces (`like`, its turn, scale and spot found by
    covering it best), or `height` metres tall on the floor. Its mesh repaired, its shape kept (repair.py: collapsed,
    repeated and membrane faces out, two solids touching along an edge parted, hidden crumbs out, wound outward). Its
-   faces cut to those that show from the nearest a walker's eye comes (budget.py; `budget` again once it is laid).
+   faces cut within a pixel seen from the nearest a walker's eye comes (budget.py; `budget` again once it is laid).
 4. Its own paint graded toward the place's palette (grade.py, palette.json's tokens); a group still far from every
    token is named a mismatch. A graded paint is still not a library surface: `put` lays the made model's paint parts
    (grade.parts) each as the palette variant nearest its colour (place_build/finished).
@@ -410,7 +410,7 @@ def make(folder, name, source, material, like=None, height=None, size=None, take
     its record's `moving_parts`, the model's part nodes) and taken into score_lib unless not `take_in`; its address
     (None when not taken in) and measures. With `card_only`, only its card step: TRELLIS.2's model kept in its work
     folder, which a make after it takes from there (generated), so a queue frees the card for the next one while the
-    processor steps run. `near`: metres from the nearest a walker's eye comes (budget.faces_seen; None: budget.NEAREST,
+    processor steps run. `near`: metres from the nearest a walker's eye comes (budget.error_bound; None: budget.NEAREST,
     where it will stand not yet known)."""
     try:
         sim.material(material)
@@ -432,7 +432,7 @@ def make(folder, name, source, material, like=None, height=None, size=None, take
     document, binary, mended = repair.repaired_glb(document, binary)
     final = work / f"{entry}-final.glb"
     glb.write(final, document, binary)
-    budget_counts = budget.budgeted(final, near, work / "budget")  # its faces those that show (budget.py)
+    budget_counts = budget.budgeted(final, near)  # its faces cut to what shows (budget.py)
     document, binary = glb.read(final)
     decoded_placed(raw, document, decoded_file(work))
     palette = folder / place_build.PALETTE
