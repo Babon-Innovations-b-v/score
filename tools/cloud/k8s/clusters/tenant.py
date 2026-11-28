@@ -115,9 +115,15 @@ def machine_type_name(node_type):
     return node_type.upper().replace("_", "-")
 
 
+# The root disk of score's pools on the tenant cluster (sbs_5k, read with `scw k8s pool list` 2026-11-28): its
+# owner's setting, priced with each node (backend.node_price).
+NODE_ROOT_GB = 125
+
+
 def price(machine_type, zone):
-    """A node's price: (euros a minute, the minutes it is billed by), as the Instance of its type."""
-    return backend.price(machine_type.upper(), zone)
+    """A node's price: (euros a minute, the minutes it is billed by), as the Instance of its type with its root disk
+    and public address."""
+    return backend.node_price(machine_type.upper(), zone, NODE_ROOT_GB)
 
 
 POOLS = "SCORE_K8S_POOLS"  # the class pools as the box's settings give them (JSON), in place of scw's list

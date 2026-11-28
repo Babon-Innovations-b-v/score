@@ -64,7 +64,13 @@ runners in `tools/cloud/` stay as they are.
 - **Idempotent jobs.** The runtime writes `done.json` last and exits 0 when it exists; the submitter remakes a Job
   freely (new generation) and resumes a run from its labels.
 - **Money.** No month's ceiling (owner, 2026-10-20); each pool's max size is what the batch cap pays for
-  `BATCH_HOURS`; the live cost of a run's nodes is checked every poll against the batch cap. Empty nodes go after
+  `BATCH_HOURS`; the live cost of a run's nodes is checked every poll against the batch cap, under the owner's
+  override with the live cost of the runs beside it on this box under the same override (their marks,
+  `submitter.others_euros`). A node's minutes are booked once, creation to deletion, as the bill counts them: each
+  ledger row claims the spans it paid whole (its machines' `spans`) and a later run on the node pays none of them
+  (`ledger.node_claims`; 2099's prologue, 2026-11-27: runs one after another on a node each booked it from its own
+  start to its estimated end, 67 node hours booked for the 50 Scaleway's instance metrics show), and a node's price
+  holds its root disk and address (`backends/scaleway.node_price`). Empty nodes go after
   the cluster's autoscaler's minutes (5 on score's own cluster, 2 on the tenant's), past a warm hold's. `down`
   deletes the cluster; check its own project id first, and never touch another project's cluster.
 - **Secrets only by name.** The store and registry credentials come from the provider at submit time and go to the
@@ -72,7 +78,10 @@ runners in `tools/cloud/` stay as they are.
   `~/.farm-factory-props/cloud/`).
 - **Warm nodes** (owner, 2026-11-06: "why dont machine keep kept warm while there is a queu"). A run puts its jobs on
   the cluster as its `parallel` allows, so its nodes stay busy while any of its jobs wait. Once every job is on the
-  cluster, each idle node a job of the run ran on is kept `submitter.WARM_MINUTES` (10) by a warm hold
+  cluster, and only while another run of this box has a job of its kind not running yet (its CLUSTER_WAITING mark,
+  `submitter.work_coming`; 2099's prologue, 2026-11-27: each run's nodes held 10 min past its last job with nothing
+  to come, 23% of their billed time idle at the tail), each idle node a job of the run ran on is kept
+  `submitter.WARM_MINUTES` (10) by a warm hold
   (`manifests.warm_hold`, `submitter.hold_idle`): a pause pod pinned to the node by hostname with the autoscaler's
   `safe-to-evict: "false"`, no card asked (the next job's pod lands beside it at once, its node cache, GEM-X's
   environment among it, still there), ended by its Job's own deadline, so no floor outlives its minutes whatever

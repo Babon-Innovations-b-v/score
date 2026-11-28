@@ -116,6 +116,22 @@ def entries():
     return [json.loads(line) for line in LEDGER.read_text().splitlines() if line.strip()]
 
 
+def node_claims(names):
+    """{node: [[from, until], ...]}: the spans of each cluster node of `names` that ledger rows booked whole (their
+    machines' `spans`, k8s/submitter.py), so a later run on the node books none of them again: the bill counts a
+    node's minutes once, from its creation to its deletion."""
+    claims = {}
+    if not names:
+        return claims
+    for entry in entries():
+        if entry.get("path") != "k8s":
+            continue
+        for machine in entry.get("machines") or []:
+            if machine.get("node") in names and machine.get("spans"):
+                claims.setdefault(machine["node"], []).extend(machine["spans"])
+    return claims
+
+
 def month_total(month, batches, now=None):
     """What the batches started in `month` (YYYY-MM) cost, in euros, a machine still open (open_rents) at what it has
     cost by `now` (default: the time now): the guard counts machines running and not yet in a run's row."""

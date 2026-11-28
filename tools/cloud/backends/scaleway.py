@@ -167,6 +167,15 @@ def price(machine_type, zone):
     raise SystemExit(f"no price for {machine_type} in {zone}")
 
 
+def node_price(machine_type, zone, disk_gb):
+    """A cluster node's price: (euros a minute, the minutes it is billed by), its Instance's with its root disk of
+    `disk_gb` and its public IPv4 address, which the bill counts on lines of their own for as long as the node stands
+    (2099's prologue, 2026-11-27: 125 GB disks and an address on each of 43 L4 nodes, about EUR 1.50 no ledger row
+    held)."""
+    per_minute, unit = price(machine_type, zone)
+    return per_minute + (disk_gb * DISK_EUROS_A_GB_HOUR + ADDRESS_EUROS_AN_HOUR) / 60, unit
+
+
 def parked_places(now):
     """(type, zone) of every machine a run parked with time left (tools/cloud/park.py's records)."""
     found = set()

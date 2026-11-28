@@ -61,9 +61,17 @@ invariant with the break that turns it red (each applied once and seen red):
   after books none of it. Break: `paid += right - left` (no split) in `held_share`. Break: return the fallback
   (`1.0 if created >= started`) for every unused node in `Run.share` (the 23 nodes of 2026-11-07). Break: drop the
   `made > seen["created"]` check in `note_waiting`. Break: drop `* share` from `euros` in `ledger.machine_row`.
+  Runs one after another on a node book it once between them, creation to deletion, as the bill does (2099's
+  prologue, 2026-11-27: 67 node hours booked for 50 billed): a row claims the spans it paid whole and a later row
+  pays none of them. Break: drop the `claimed_at` skip in `paid_pieces`. Break: `return []` in `Run.spans`. A node's
+  price holds its root disk and address. Break: `return price(...)` alone in `scaleway.node_price`. Under the
+  owner's override a run's stop counts the runs beside it on this box (their marks). Break: `return 0.0` first in
+  `others_euros`.
 - Warm nodes: once every job of the run is on the cluster, each idle node a job ran on gets one warm hold an idle
   spell (a pause pod pinned to it, not evictable by the autoscaler, no card asked, ended by its own deadline), billed
-  to the hold's end; a stop drops the holds. Break: drop the `submitted is None` return in `hold_idle`. Break: drop
+  to the hold's end, and only while another run of this box has a job of its kind waiting (its mark); a stop drops
+  the holds. Break: drop the `work_coming` return in `hold_idle`. Break: drop the `submitted is None` return in
+  `hold_idle`. Break: drop
   the `held_at` check in `hold_idle`. Break: drop the safe-to-evict annotation in `manifests.warm_hold`. Break: count
   a hold pod as busy in `note_hosts`. Break: `gone = now + ...` in `last_seen_scale_down`. Break: drop `drop_holds`
   in `stop_run`.
@@ -438,6 +446,7 @@ def test_jobs_take_their_classes_in_order(tmp_path, monkeypatch):
     tenant = submit.cluster_module()
     assert tenant.NAME == "tenant"
     monkeypatch.setattr(tenant, "scw", lambda *words: pytest.fail(f"scw asked: {words}"))
+    real_price = tenant.price
     monkeypatch.setattr(tenant, "price", lambda machine_type, zone: (0.01, 1))
     monkeypatch.setenv(tenant.POOLS, json.dumps([
         {"name": "score-l4", "class": "gpu-24gb", "type": "L4-1-24G", "zone": "fr-par-2", "max": 10},
@@ -788,7 +797,7 @@ def test_jobs_take_their_classes_in_order(tmp_path, monkeypatch):
             early = next(node for node in kubectl.nodes if node["metadata"]["name"] == "early-node")
             early["metadata"]["labels"].update({submit.INSTANCE_LABEL: "l4-1-24g", submit.ZONE_LABEL: "fr-par-2"})
         real_look(run, None)
-        assert len(warm_holds()) == holds, (run.run_id, step)
+        assert len(warm_holds()) == (holds if coming[0] else 0), (run.run_id, step)
         assert not (hold and run.nodes["l4-b"]["busy"]), (run.run_id, step)  # a hold on it is no job
 
     def warm_holds():
@@ -821,12 +830,21 @@ def test_jobs_take_their_classes_in_order(tmp_path, monkeypatch):
     sigterm = lambda run: os.kill(os.getpid(), signal.SIGTERM)  # noqa: E731
     before = signal.getsignal(signal.SIGTERM)
     retried = 1 + submit.POLL_RETRIES + 1
-    for name, steps, ending, error, left, count, nodes in (
-            ("lost-run", [None], unreachable, subprocess.CalledProcessError, "unwatched", retried, ["grown", "warm"]),
-            ("stopped-direct", [None], sigterm, submit.Stopped, "stopped", 2, ["grown", "warm"]),
-            ("capped-run", warm_steps, capped, None, "stopped", len(warm_steps) + 1, ["l4-a", "l4-b"]),
+    # another run of this box with a blender job not running yet (its mark): the work a warm hold waits for; without
+    # one no node is held (2099's prologue, 2026-11-27: 10 min held past each run's last job with nothing to come).
+    # Break: drop the `work_coming` return in `hold_idle`
+    other = tmp_path / "waiting" / str(os.getppid())
+    coming = [True]
+    for name, steps, ending, error, left, count, nodes, coming[0] in (
+            ("lost-run", [None], unreachable, subprocess.CalledProcessError, "unwatched", retried, ["grown", "warm"],
+             True),
+            ("stopped-direct", [None], sigterm, submit.Stopped, "stopped", 2, ["grown", "warm"], True),
+            ("capped-run", warm_steps, capped, None, "stopped", len(warm_steps) + 1, ["l4-a", "l4-b"], True),
             ("lost-warm", warm_steps, unreachable, subprocess.CalledProcessError, "unwatched",
-             len(warm_steps) + retried - 1, ["l4-a", "l4-b"])):
+             len(warm_steps) + retried - 1, ["l4-a", "l4-b"], True),
+            ("lone-warm", warm_steps, capped, None, "stopped", len(warm_steps) + 1, ["l4-a", "l4-b"], False)):
+        other.parent.mkdir(parents=True, exist_ok=True)
+        other.write_text(json.dumps({"ticket": "", "euros": 0.0, "waiting": {"blender": 1 if coming[0] else 0}}))
         out_file.unlink()
         booked.clear()
         looks.clear()
@@ -864,6 +882,9 @@ def test_jobs_take_their_classes_in_order(tmp_path, monkeypatch):
         # the provider's record for a node the cluster lists without zone labels, its pool's machine for the node
         # just joined, no class node for the conductor's, the early node's type and zone once its labels came.
         # Break: read the label raw in `watch_nodes`. Break: drop `if seen["type"] == "?":` and its line there
+        if not coming[0]:  # nothing to come: no hold, the idle node goes at the autoscaler's own time
+            assert not warm_holds() and run.nodes["l4-a"]["deleted"] == clock[0] + submit.IDLE_ESTIMATE_MINUTES * 60
+            continue
         seen = run.nodes["kosmos-node"]
         assert (seen["type"], seen["zone"], seen["created"]) == ("POP2-32C-128G", "pl-waw-2", 1791554400.0), name
         assert (run.nodes[joined]["type"], run.nodes[joined]["zone"]) == ("L4-1-24G", "fr-par-2"), name
@@ -1049,6 +1070,39 @@ def test_jobs_take_their_classes_in_order(tmp_path, monkeypatch):
     machine = {"type": "H100-1-80G", "zone": "fr-par-2", "cards": 1, "created": 10_000.0, "ready": 10_150.0,
                "deleted": 10_900.0, "price": 0.01, "unit_minutes": 1, "share": 0.25}
     assert submit.ledger.machine_row(machine)["euros"] == pytest.approx(15 * 0.01 * 0.25)
+
+    # runs one after another on one node book it once between them, from its creation to its deletion, as the bill
+    # does (2099's prologue, 2026-11-27: each run booked a node from its own start to its estimated end, 67 node hours
+    # for the bill's 50); the node's root disk and address are in its price. Break: drop the `claimed_at` skip in
+    # `paid_pieces`. Break: `return []` in `Run.spans`. Break: `return price(...)` alone in `scaleway.node_price`
+    chained = [pod("r-1", "one", "chain", 20_100.0, 20_400.0, made=20_000.0, placed=20_100.0),
+               pod("r-2", "two", "chain", 20_600.0, 20_900.0, made=20_550.0, placed=20_600.0)]
+    booked_rows, paid = [], {}
+    monkeypatch.setattr(submit.ledger, "entries", lambda: booked_rows)
+    for run_id, started, deleted in (("r-1", 20_000.0, 21_000.0), ("r-2", 20_500.0, 21_500.0)):
+        found = submit.Run(run_id, {"make": {"kind": "meshparts", "image": "image", "minutes": 5}},
+                           ClusterKubectl(pods=chained if run_id == "r-2" else chained[:1]), tenant)
+        found.started = started
+        found.nodes["chain"] = {"class": "gpu-24gb", "type": "L4-1-24G", "zone": "fr-par-2", "cards": 1,
+                                "created": 20_000.0, "ready": None, "deleted": deleted, "jobs": set()}
+        found.note_hosts()
+        found.read_claims(fresh=True)
+        start, end = found.window(found.nodes["chain"])
+        paid[run_id] = (end - start) * found.share("chain", found.nodes["chain"])
+        booked_rows.append({"path": "k8s", "machines": [{"node": "chain",
+                                                         "spans": found.spans("chain", found.nodes["chain"])}]})
+    assert paid == {"r-1": pytest.approx(1_000), "r-2": pytest.approx(500)}, paid  # 1,900 s before: 1,000 + 900
+    assert sum(paid.values()) == pytest.approx(21_500 - 20_000)  # the node's life, once
+    # a run's stop under the owner's override counts the live nodes of the runs beside it on this box under the same
+    # override (their marks), not only what is booked: ten runs side by side each saw only its own (2026-11-27).
+    # Break: `return 0.0` first in `others_euros`
+    beside = tmp_path / "waiting" / str(os.getppid())
+    for ticket, mark_ticket, counted in (("override prologue", "override prologue", 2.5),
+                                         ("override prologue", "override other", 0.0), ("node key", "node key", 0.0)):
+        beside.write_text(json.dumps({"ticket": mark_ticket, "euros": 2.5, "waiting": {}}))
+        assert submit.others_euros(ticket) == counted, (ticket, mark_ticket)
+    monkeypatch.setattr(tenant.backend, "price", lambda machine_type, zone: (0.013125, 1))
+    assert real_price("l4-1-24g", "fr-par-2") == (pytest.approx(0.013125 + (125 * 0.00013 + 0.005) / 60), 1)
 
     # stop-batch: score's Jobs in score-jobs only, and only this box's: another box's runs share score-jobs
     # (2026-11-06: the conductor's stop ended a sim body run this PC had launched). Break: in

@@ -122,6 +122,7 @@ SYSTEM_TYPES = ("DEV1-M", "BASIC2-A2C-4G", "PLAY2-NANO")
 # the 20B picture model alone is 58 GB).
 ROOT_GB = {"gpu": 250, "cpu": 150, "system": 20}
 ROOT_VOLUME_TYPE = "sbs_5k"
+CARD_TYPES = ("L4", "L40S", "H100", "RENDER", "GPU")  # the Instance types with a card: their pools take ROOT_GB["gpu"]
 # The most nodes a pool may grow to; the batch cap's euros may cap it lower (cap_pools).
 POOL_MAX = 20
 CLASS_LABEL = "score.dev/class"
@@ -502,8 +503,10 @@ def machine_type_name(node_type):
 
 
 def price(machine_type, zone):
-    """A node's price: (euros a minute, the minutes it is billed by), as the Instance of its type."""
-    return backend.price(machine_type.upper(), zone)
+    """A node's price: (euros a minute, the minutes it is billed by), as the Instance of its type with its root disk
+    (ROOT_GB, a card's or a processor machine's) and public address."""
+    card = machine_type.upper().startswith(CARD_TYPES)
+    return backend.node_price(machine_type.upper(), zone, ROOT_GB["gpu" if card else "cpu"])
 
 
 def parse_time(text):

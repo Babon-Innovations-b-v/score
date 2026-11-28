@@ -107,11 +107,15 @@ WARM_MINUTES = 10
 # process's pid, touched each poll and removed when its watch ends, so its node holds no --jobs slot while its jobs
 # are on the cluster (#76: the slots were held by cluster waits, no score pod Running).
 CLUSTER_WAITING = HOME / "cloud" / "cluster.waiting"
+MARK_FRESH_SECONDS = 3 * POLL_SECONDS  # a mark not written for this long is a watch that ended or hangs
 INSTANCE_LABEL = "node.kubernetes.io/instance-type"
 # How long before a node came up a pod placed elsewhere may still have been the one the autoscaler grew it for: a
 # Kapsule card node joins 2 to 4 min after its scale-up (2026-10-09), so a pod placed on another node up to this long
 # before shares the unused node it caused.
 SCALE_UP_LEAD_MINUTES = 5
+# How old a run's copy of the ledger's booked node spans (Run.read_claims) may be in a look: its live cost is checked
+# every poll, the ledger read again a minute apart (the rows of the runs before it that shared its nodes).
+CLAIMS_SECONDS = 60
 ZONE_LABEL = "topology.kubernetes.io/zone"
 
 
@@ -323,24 +327,65 @@ def gap_holder(holds, moment):
     return min(holds, key=lambda hold: (hold["start"], hold["run"]))["run"]
 
 
-def held_share(holds, mine, start, end):
-    """The part of a node's [start, end] the run `mine` pays, from the times its pods and other runs' held the node
-    (`holds`, {run, start, end} each): a moment several runs' pods held it is split between them evenly, a moment none
-    held it goes to `gap_holder`. Every moment goes to some run, so the runs that shared a node book it whole between
-    them, none of them more than its own part. A window with no length yet (the node's clock ahead of this one) is
-    the whole of each run that held it: it costs nothing, and the run keeps the node."""
-    if end <= start:
-        return 1.0 if any(hold["run"] == mine for hold in holds) else 0.0
+def claimed_at(claims, left, right):
+    """Whether an earlier ledger row booked the whole of [left, right] (`claims`, its paid spans [from, until])."""
+    return any(begin <= left and until >= right for begin, until in claims)
+
+
+def paid_pieces(holds, mine, start, end, claims=()):
+    """The pieces of a node's [start, end] the run `mine` pays, (left, right, its part) each, from the times its pods
+    and other runs' held the node (`holds`, {run, start, end} each): a moment several runs' pods held it is split
+    between them evenly, a moment none held it goes to `gap_holder`, and a moment an earlier ledger row booked whole
+    (`claims`, ledger.node_claims) is none of this run's: it was paid once already (2099's prologue, 2026-11-27: runs
+    one after another on one node each booked it from its own start to its estimated end, 67 node hours booked for
+    50 billed)."""
+    bounds = [moment for claim in claims for moment in claim]
     cuts = sorted({start, end, *(moment for hold in holds for moment in (hold["start"], hold["end"])
-                                 if start < moment < end)})
-    paid = 0.0
+                                 if start < moment < end), *(moment for moment in bounds if start < moment < end)})
+    pieces = []
     for left, right in zip(cuts, cuts[1:]):
+        if claimed_at(claims, left, right):
+            continue
         holding = {hold["run"] for hold in holds if hold["start"] <= left and hold["end"] >= right}
         if not holding:
             holding = {gap_holder(holds, left)}
         if mine in holding:
-            paid += (right - left) / len(holding)
-    return paid / (end - start)
+            pieces.append((left, right, 1.0 / len(holding)))
+    return pieces
+
+
+def held_share(holds, mine, start, end, claims=()):
+    """The part of a node's [start, end] the run `mine` pays (paid_pieces). Every moment no earlier row booked goes to
+    some run, so the runs that shared a node book it whole between them, none of them more than its own part, and no
+    moment twice. A window with no length yet (the node's clock ahead of this one) is the whole of each run that held
+    it: it costs nothing, and the run keeps the node."""
+    if end <= start:
+        return 1.0 if any(hold["run"] == mine for hold in holds) else 0.0
+    return sum((right - left) * part for left, right, part in paid_pieces(holds, mine, start, end, claims)) / (
+        end - start)
+
+
+def unclaimed_part(claims, start, end):
+    """The part of [start, end] no earlier ledger row booked (`claims`)."""
+    if end <= start:
+        return 1.0
+    cuts = sorted({start, end, *(moment for claim in claims for moment in claim if start < moment < end)})
+    free = sum(right - left for left, right in zip(cuts, cuts[1:]) if not claimed_at(claims, left, right))
+    return free / (end - start)
+
+
+def whole_spans(pieces):
+    """The spans of `pieces` the run pays whole, joined where they touch: what its ledger row claims, so a later run
+    on the node books none of it again; a piece shared with a run not booked yet stays that run's to book its part."""
+    spans = []
+    for left, right, part in pieces:
+        if part < 1.0:
+            continue
+        if spans and spans[-1][1] >= left:
+            spans[-1][1] = max(spans[-1][1], right)
+        else:
+            spans.append([left, right])
+    return [[round(left, 1), round(right, 1)] for left, right in spans]
 
 
 def no_grow_times(events):
@@ -390,6 +435,8 @@ class Run:
                      for job_id in specs}
         self.nodes = {}
         self.held = 0  # jobs submit_more holds for room in the namespace's quota, as last said
+        self.claims, self.claims_at = {}, 0.0  # each node's spans earlier ledger rows booked (read_claims)
+        self.live_last = 0.0  # what its part of its nodes cost at the last look (over_limits), for its mark
 
     def resume(self):
         """Take up the run's Jobs a submitter before this one made: each job's newest generation and each kind's
@@ -570,6 +617,41 @@ class Run:
         """The nodes a job of this run ran on."""
         return {record["node"] for record in self.jobs.values() if record["node"]}
 
+    def read_claims(self, fresh=False):
+        """The spans of the run's nodes other runs' ledger rows booked (ledger.node_claims), read again once
+        CLAIMS_SECONDS old, or now when `fresh` (the booking)."""
+        if fresh or time.time() - self.claims_at >= CLAIMS_SECONDS:
+            self.claims, self.claims_at = ledger.node_claims(set(self.nodes)), time.time()
+        return self.claims
+
+    def window(self, seen):
+        """The node's [start, end] this run may pay: from the run's start (its creation when later) to its deletion,
+        else now."""
+        start = max(seen["created"] or self.started, self.started)
+        return start, max(seen["deleted"] or time.time(), start)
+
+    def holds_of(self, name, seen):
+        """The node's holds as note_hosts saw them, with this run's jobs seen on it holding it from when they ran
+        (should their pods have gone between looks)."""
+        mine = manifests.label_value(self.run_id)
+        holds = list(seen.get("holds", {}).values())
+        return holds + [{"run": mine, "start": record["ran"] or self.started, "end": record["ran"] or self.started}
+                        for record in self.jobs.values() if record["node"] == name]
+
+    def spans(self, name, seen):
+        """The spans of the node this run's row books whole (whole_spans): its own pods' and gaps' moments that no
+        earlier row booked, or the whole unbooked window of a node made during the run that no pod was on or waited
+        for; none for a node it pays only a part of by the pods that waited for it."""
+        mine = manifests.label_value(self.run_id)
+        claims = self.claims.get(name, ())
+        holds = self.holds_of(name, seen)
+        start, end = self.window(seen)
+        if holds:
+            return whole_spans(paid_pieces(holds, mine, start, end, claims))
+        if seen.get("hosted") or seen.get("waiting") or (seen["created"] or 0) < self.started:
+            return []
+        return whole_spans(paid_pieces([{"run": mine, "start": start, "end": start}], mine, start, end, claims))
+
     def share(self, name, seen):
         """The part of the node's minutes since the run's start (from its creation when later) this run pays.
         A node pods were on: split by the time each run's pods held it (held_share; a job of this run seen on it
@@ -578,43 +660,105 @@ class Run:
         pod, and a faster node may take the pod first: a second L4 came up unused on 2026-10-09), so runs side by
         side book it whole between them, not each of them whole (2026-11-07: a settle run of one job booked the 23
         nodes the cluster grew for 20 runs' pods, EUR 2.90). One made during the run with no waiting pod seen is
-        the run's whole: an overcount, never an undercount."""
+        the run's whole: an overcount, never an undercount. Moments an earlier ledger row booked whole (`claims`) are
+        none of this run's."""
         mine = manifests.label_value(self.run_id)
-        holds = list(seen.get("holds", {}).values())
-        holds += [{"run": mine, "start": record["ran"] or self.started, "end": record["ran"] or self.started}
-                  for record in self.jobs.values() if record["node"] == name]
+        claims = self.claims.get(name, ())
+        holds = self.holds_of(name, seen)
+        start, end = self.window(seen)
         if holds:
-            start = max(seen["created"] or self.started, self.started)
-            return held_share(holds, mine, start, max(seen["deleted"] or time.time(), start))
+            return held_share(holds, mine, start, end, claims)
         if seen.get("hosted"):
             return 0.0
         waiting = list(seen.get("waiting", {}).values())
         if waiting:
-            return waiting.count(mine) / len(waiting)
-        return 1.0 if (seen["created"] or 0) >= self.started else 0.0
+            return waiting.count(mine) / len(waiting) * unclaimed_part(claims, start, end)
+        return unclaimed_part(claims, start, end) if (seen["created"] or 0) >= self.started else 0.0
 
     def our_nodes(self):
         """The nodes this run pays a part of (`share`)."""
         return {name: seen for name, seen in self.nodes.items() if self.share(name, seen) > 0}
 
     def live_euros(self):
-        """What the run's part of its nodes has cost so far."""
+        """What the run's part of its nodes has cost so far, the moments other runs' rows booked left out."""
+        self.read_claims()
         total = 0.0
         for name, seen in self.our_nodes().items():
             per_minute, unit = self.cluster.price(seen["type"], seen["zone"])
-            start = max(seen["created"] or self.started, self.started)
-            total += ledger.cost(((seen["deleted"] or time.time()) - start) / 60, per_minute,
-                                 unit) * self.share(name, seen)
+            start, end = self.window(seen)
+            total += ledger.cost((end - start) / 60, per_minute, unit) * self.share(name, seen)
         return total
 
     def unfinished(self):
         return [job_id for job_id, record in self.jobs.items() if record["state"] == "waiting"]
 
 
+def write_mark(mark, run):
+    """This watch's CLUSTER_WAITING mark, written whole each poll (its name and time are what score/graph reads): the
+    run's spend ticket, what its part of its nodes has cost so far (Run.live_last) and its jobs not yet running by
+    kind, for the other runs of this box (marked_elsewhere)."""
+    waiting = collections.Counter(job_kind(run.specs[job_id]) for job_id, record in run.jobs.items()
+                                  if record["state"] == "waiting" and record["ran"] is None)
+    mark.parent.mkdir(parents=True, exist_ok=True)
+    mark.write_text(json.dumps({"ticket": os.environ.get(compute.TICKET, ""), "euros": round(run.live_last, 4),
+                                "waiting": dict(waiting)}))
+
+
+def marked_elsewhere(now=None):
+    """The marks of the other runs this box watches now (write_mark): each a fresh mark of a live process but this
+    one; a mark being written this moment, or an empty one, is left out."""
+    now = time.time() if now is None else now
+    found = []
+    for path in sorted(CLUSTER_WAITING.glob("*")) if CLUSTER_WAITING.is_dir() else []:
+        if not path.name.isdigit() or int(path.name) == os.getpid():
+            continue
+        try:
+            if now - path.stat().st_mtime > MARK_FRESH_SECONDS or not process_alive(int(path.name)):
+                continue
+            found.append(json.loads(path.read_text()))
+        except (OSError, ValueError):
+            continue
+    return found
+
+
+def process_alive(pid):
+    """Whether process `pid` lives (one of another user counts as living)."""
+    try:
+        os.kill(pid, 0)
+    except ProcessLookupError:
+        return False
+    except PermissionError:
+        return True
+    return True
+
+
+def work_coming(run):
+    """Whether a job that may take the run's idle nodes waits to run: another run of this box with a job of one of
+    the run's kinds not running yet (its mark). A warm hold is kept only then (2099's prologue, 2026-11-27: each run's
+    nodes were held 10 min past its last job with nothing to come, 23% of the nodes' billed time idle at the tail; a
+    run that starts within the autoscaler's idle minutes takes an idle node without a hold)."""
+    kinds = set(run.kinds)
+    return any(count > 0 and kind in kinds for mark in marked_elsewhere()
+               for kind, count in (mark.get("waiting") or {}).items())
+
+
+def others_euros(ticket=None):
+    """What the other runs this box watches under the same owner's override cost so far (their marks): the override's
+    euros are one budget, so a run's stop counts its side-by-side runs' live nodes, not only the rows booked
+    (2099's prologue, 2026-11-27: ten runs side by side each checked its own nodes against what was booked)."""
+    ticket = os.environ.get(compute.TICKET, "") if ticket is None else ticket
+    if not ticket.startswith("override "):
+        return 0.0
+    return sum(float(mark.get("euros") or 0.0) for mark in marked_elsewhere() if mark.get("ticket") == ticket)
+
+
 def hold_idle(run):
     """Keep each node a job of the run ran on for WARM_MINUTES once it is idle, when every job of the run is on the
-    cluster (before that, the run's next job takes the node): one warm hold a node an idle spell, the run's to pay."""
+    cluster (before that, the run's next job takes the node) and a job of another run of this box waits that may take
+    it (work_coming): one warm hold a node an idle spell, the run's to pay."""
     if any(record["submitted"] is None for record in run.jobs.values()):
+        return
+    if not work_coming(run):
         return
     now = time.time()
     for name in sorted(run.used_nodes()):
@@ -641,10 +785,12 @@ def drop_holds(run):
 def over_limits(run):
     """Why the run must stop now (ledger.batch_cap: the batch cap, or under the owner's override what is left of his
     euros, read again each look; or the env1 cap's newest reading, compute.cap_stop, which fails closed), or None."""
-    live = run.live_euros()
+    live = run.live_last = run.live_euros()
+    others = others_euros()
     cap, words = ledger.batch_cap()
-    if live >= cap:
-        return f"the run's nodes have cost €{live:.2f}, at {words}"
+    if live + others >= cap:
+        beside = f" and the runs beside it under the same override €{others:.2f}" if others else ""
+        return f"the run's nodes have cost €{live:.2f}{beside}, at {words}"
     return compute.cap_stop()
 
 
@@ -955,8 +1101,7 @@ def watch(run, parallel, wait_scale_down):
     alive_at = 0.0
     try:
         while run.unfinished():
-            mark.parent.mkdir(parents=True, exist_ok=True)
-            mark.touch()
+            write_mark(mark, run)
             note_wait(run)
             if time.time() - alive_at >= ALIVE_SECONDS:  # cap_watch sweeps them once it dies
                 alive_at = beat_alive(run.kubectl, ("-l", f"{RUN_LABEL}={manifests.label_value(run.run_id)}"),
@@ -1073,6 +1218,7 @@ def job_rows(run, kind, timings):
 def node_machines(run, kind):
     """The kind's nodes as ledger machine records: the first kind that ran on a node owns it, and a node that ran
     none of the run's jobs belongs to the first kind whose classes hold it (marked unused)."""
+    run.read_claims(fresh=True)
     owner = {}
     for job_id, record in sorted(run.jobs.items(), key=lambda item: item[1]["ran"] or 0):
         if record["node"]:
@@ -1093,7 +1239,8 @@ def node_machines(run, kind):
                          "ready": max(seen["ready"], created) if seen["ready"] else None,
                          "deleted": seen["deleted"] or time.time(), "price": per_minute,
                          "unit_minutes": unit, "class": seen["class"], "node": name, "unused": name not in used,
-                         "estimated": seen.get("estimated", False), "share": run.share(name, seen)})
+                         "estimated": seen.get("estimated", False), "share": run.share(name, seen),
+                         "spans": run.spans(name, seen)})
     return machines
 
 
@@ -1105,7 +1252,7 @@ def ledger_entries(run, timings):
         record = ledger.machines_record(machines, [], run.started)
         for row, machine in zip(record["machines"], machines):
             row.update({"class": machine["class"], "node": machine["node"], "unused": machine["unused"],
-                        "end_estimated": machine["estimated"]})
+                        "end_estimated": machine["estimated"], "spans": machine["spans"]})
         jobs = job_rows(run, kind, timings)
         entries.append({"started": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime(run.started)),
                         "batch": run.run_id, "kind": kind, "path": "k8s", **record, "jobs": jobs,
