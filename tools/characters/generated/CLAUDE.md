@@ -332,6 +332,15 @@ under his beard's underside). There the two cut edges are one closed loop each: 
   over and are drawn from behind as flat pale shards (the fan had covered them); still_rig's outer surface also lacks
   half her front neck from 0.02 to 0.04 under the cut (hidden under the chin inside the puffer collar), unseen in the
   close-ups.
+  Round 12 (2026-11-28), still_rig's weights read off the walk's shards: the faces were the body's front neck 0.025 to
+  0.04 under the cut (under the Neck1 joint), hanging up to 0.42 from the Head beside points hanging none (the SOMA
+  mean's jaw matched onto a neck standing forward of it; the Head's share on the front neck spread 0.13 to 0.37 a
+  band), so the head's turn and bob folded them over. `person.rig_necked` (the rig step, after still_rig) moves the
+  Head's share under the cut down the neck chain by height (`neck_chained`: Chest, Neck1, Neck2; eased out over
+  from none at the cut to all of it NECK_UNDER under it: moved up to the cut, the rig's neck left the head's skirt
+  and showed through it as a sawtooth band) and writes it over body.glb's own weights; the collar and the nape, hanging from no Head,
+  keep theirs. Skinned through the walk, its worst frame's neck faces over 5 mm turned over at -0.03 went from 3 to 0 (the older
+  woman's and the hoodie man's turned-over neck faces fewer or the same in every clip).
   Run: `python -m tools.characters.generated.person <name> <sources> <out> [--from <step> | --only <step>]` (head
   2 min, hair 5, swap 1.5, rig 3.5, cloth 5 to 10 at nice 19; the render some hours: 13 sheet frames and the 96-frame
   film with 240k strands, 5.7 GB).

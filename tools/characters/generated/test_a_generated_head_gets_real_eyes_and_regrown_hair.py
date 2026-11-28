@@ -218,6 +218,10 @@ with `FAN_MIDDLE_M` 1 (no cut fan found); `FAN_MIDDLE_M` 1 (the wedge reaching o
 kept: the stairwell woman's pleated neck). The head's open edge at the cut is hung with a skirt (`head_swap.skirt`).
 Break (applied once, seen red, reverted, 2026-11-28): the skirt's triangles turned as the edge (first, second,
 copy), not as its neighbour (half the skirt facing in, drawn from inside as dark wedges).
+The Head's share on the body's neck under the cut is moved down the neck chain by height (`person.neck_chained`).
+Breaks (each applied once, seen red, reverted, 2026-11-28): the Head's share kept (`moved` 0: the stairwell woman's
+front neck hung 0.42 from the Head under the Neck1 joint and folded into pale shards as she walked); NECK_UNDER
+1e-9 (the share taken off all at once at the cut: the rig's neck left the head's skirt and showed through it).
 The rig's faces round the neck by
 where they came from (`person.neck_roles`): the body's own collar over the cut released, the head's neck and the body
 far under the cut not; the head's faces on its hair read as the hair, those on its skin not. Breaks (each applied
@@ -1918,6 +1922,18 @@ def neck_fans_found():
             int(found[len(tube_faces) + 48:rest - 1].sum()), int(found[rest - 1]), int(found[rest:].sum())]
 
 
+def neck_off_the_head():
+    """Five points' weights over Chest, Neck1, Neck2 and the Head (the chain's joints 0.2 and 0.03 under the cut and
+    at it): `person.neck_chained` moves the Head's share under the cut onto the chain by height, all of it at
+    Neck1's height 0.03 under the cut (onto Neck1), half of it 0.01 under (onto Neck1 and Neck2 by height), none at
+    the cut or over it, and leaves a nape's point hanging from no Head as it was: [each point's weights, rounded]."""
+    weights = np.array([[0.6, 0.0, 0.0, 0.4], [0.0, 0.5, 0.0, 0.5], [0.0, 0.0, 0.0, 1.0], [0.0, 0.0, 0.0, 1.0],
+                        [1.0, 0.0, 0.0, 0.0]])
+    over = np.array([-0.03, -0.01, 0.0, 0.01, -0.03])  # NECK_UNDER 0.02
+    chained = person.neck_chained(weights, over, 3, [0, 1, 2], np.array([-0.2, -0.03, 0.0]))
+    return np.round(chained, 3).tolist()
+
+
 def head_edge_skirted():
     """A neck tube open at its foot (the head's edge at the cut) and closed nowhere else: `head_swap.skirt` hangs one
     copy of each foot point 1.3 cm down and 5 mm in and joins each open edge to its copies by two triangles facing
@@ -2248,6 +2264,9 @@ def tether_inside_read():
      lambda: hood_kept(open_front=True), [True, True, True, False, True, False, True]),
     ("still_rig's fan across the cut's loop, one out over it and a collar's whole are found, the neck and an "
      "armpit's fan are kept", neck_fans_found, [48, 0, 0, 1, 26]),
+    ("the Head's share on the neck under the cut moves down the neck chain by height, eased out over the cut",
+     neck_off_the_head, [[0.6, 0.4, 0.0, 0.0], [0.0, 0.583, 0.167, 0.25], [0.0, 0.0, 0.0, 1.0], [0.0, 0.0, 0.0, 1.0],
+                         [1.0, 0.0, 0.0, 0.0]]),
     ("the head's open edge at the cut is hung with a skirt down and in, facing out", head_edge_skirted,
      [48, -0.013, 0.045, 1.0]),
     ("the body's own collar over the cut is released, the head's neck and the body under not; the hair read on it",

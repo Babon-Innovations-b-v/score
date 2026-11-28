@@ -14,7 +14,8 @@ The steps, each on what the one before made (`--from` starts at one, the ones be
 2. hair: the hair split off <out>/head/head.glb and regrown (`python -m tools.characters.generated`) into <out>/hair.
 3. swap: the body toned (`colour.toned`), the mended head alone (no eyeballs: `head_swap.py` takes one mesh) put on
    it (`head_swap.py`) into <out>/swap/<name>.glb and its head-to-body record.
-4. rig: still_rig `--person` with an empty palette (her own paint, ungraded) into <out>/rig.
+4. rig: still_rig `--person` with an empty palette (her own paint, ungraded) into <out>/rig, the Head's share on the
+   body's neck under the cut moved down the neck chain (`rig_necked`).
 5. pieces: what the cloth and the drawing need to carry the head's own pieces onto the rigged body (`pieces_of`):
    the head-to-rig matrix (the swap's head-to-body matrix after the body-to-rig similarity, found by `framed`), the
    cut's level, the hair step's removed triangles and its points laid onto the scalp, all in the head model's own
@@ -107,6 +108,18 @@ FAN_SHARED = 8
 RELEASE_BAND = 0.09
 HAIR_ON_M = 0.003
 HAIR_READ_BAND = 0.06
+# still_rig's weights on the body's neck under the cut are the SOMA mean's matched over the surface, and a neck
+# standing forward of the mean's lies on its jaw: whole person round 12 (2026-11-28), the stairwell woman's front neck
+# 0.025 to 0.04 under the cut (under the Neck1 joint) hung up to 0.42 from the Head beside points hanging none (the
+# Head's share there spread 0.13 to 0.37), so as the head turned and bobbed in the walk those faces folded over and
+# were drawn from behind as flat pale shards (skinned through the walk, 11 neck faces over 5 mm turned over at once).
+# Under the cut the Head's share is moved down the neck chain (`neck_chained`: NECK_CHAIN by each point's height, each
+# joint wholly at its own and shared linearly between two), eased in from none at the cut to all of it NECK_UNDER body
+# heights under it (moved right up to the cut, the rig's neck there left the head's skirt, which rides with the
+# Head's share it hangs from, and showed through it as a sawtooth band); the collar's and the nape's points, hanging
+# from no Head, keep theirs.
+NECK_CHAIN = ("Chest", "Neck1", "Neck2")
+NECK_UNDER = 0.02
 SAMPLES, SIZE, FILM_SAMPLES, FILM_WIDTH = 64, 1200, 64, 720
 THREADS = 8
 TILE = 400  # the sheets' picture height (px)
@@ -179,6 +192,7 @@ def rig_step(out, person, name):
     run([sys.executable, REPO / "tools/characters/still_rig/still_rig.py", out / "swap" / f"{name}.glb",
          dressed_body(person), CLIPS, folder / "palette.json", folder, "--faces", RIG_FACES,
          "--person"], out / "rig.log")
+    print(f"rig points under the cut moved off the Head: {rig_necked(out, name)}", flush=True)
 
 
 def cloth_step(out, person):
@@ -217,6 +231,73 @@ def body_to_rig(swapped, rigged, seed=0):
     matrix[:3, :3] = found_scale * rotation
     matrix[:3, 3] = translation
     return matrix, rms
+
+
+def swap_on_rig(out, name):
+    """The swap's record, the swapped model's points (its glTF frame), the rig's meshes and the swapped body's frame
+    onto the rig's with the fit's rms (`body_to_rig`)."""
+    record = json.loads((out / "swap" / f"{name}.json").read_text())
+    swapped = np.asarray(trimesh.load(str(out / "swap" / f"{name}.glb"), force="mesh", process=False).vertices, float)
+    rigged = trimesh.load(str(out / "rig/body.glb"), process=False).geometry
+    shell = np.vstack([np.asarray(item.vertices) for key, item in rigged.items() if not key.startswith("far")])
+    to_rig, rms = body_to_rig(swapped, shell)
+    return record, swapped, rigged, to_rig, rms
+
+
+def neck_chained(weights, over, head, chain, chain_over):
+    """`weights` (points x joints) with the `head` joint's share under the cut moved down the neck chain: onto the
+    `chain` joints (their numbers, from the Chest up) by each point's height `over` the cut (body heights;
+    `chain_over` the joints', rising), each joint wholly at its own height and shared linearly between two; wholly
+    NECK_UNDER under the cut and lower, less and less up to none at the cut."""
+    if np.any(np.diff(chain_over) <= 0.0):
+        raise SystemExit(f"the neck chain's joints do not rise: {np.round(chain_over, 3).tolist()}")
+    profile = np.zeros_like(weights)
+    for number, joint in enumerate(chain):
+        profile[:, joint] = np.interp(over, chain_over, np.eye(len(chain))[number])
+    moved = weights[:, head] * np.clip(-over / NECK_UNDER, 0.0, 1.0)
+    out = weights.copy()
+    out[:, head] -= moved
+    return out + moved[:, None] * profile
+
+
+def rig_necked(out, name):
+    """<out>/rig/body.glb's Head share under the swap's cut moved down the neck chain (`neck_chained`), written over
+    its own JOINTS_0 and WEIGHTS_0 (still_rig's four strongest a point); how many points moved."""
+    path = out / "rig/body.glb"
+    record, _, _, to_rig, _ = swap_on_rig(out, name)
+    back = np.linalg.inv(to_rig)
+    level, height = float(record["cut_level_gltf_y"]), float(record["body_height_units"])
+
+    def over_of(points):
+        return ((points @ back[:3, :3].T + back[:3, 3])[:, 1] - level) / height
+
+    document, blob, names, bind, _ = cloth.still_rig.skeleton_of(path)
+    chain = [names.index(joint) for joint in NECK_CHAIN]
+    chain_over = over_of(bind[chain, :3, 3])
+    data = bytearray(path.read_bytes())
+    chunk = 20 + int.from_bytes(data[12:16], "little") + 8
+    node = next(found for found in document["nodes"] if found.get("name") == cloth.still_rig.OUTFIT)
+    moved = 0
+    for primitive in document["meshes"][node["mesh"]]["primitives"]:
+        attributes = primitive["attributes"]
+        points = cloth.skel_usd.accessor(document, blob, attributes["POSITION"]).astype(float)
+        joints = cloth.skel_usd.accessor(document, blob, attributes["JOINTS_0"]).astype(int)
+        shares = cloth.skel_usd.accessor(document, blob, attributes["WEIGHTS_0"]).astype(float)
+        weights = np.zeros((len(points), len(names)))
+        np.add.at(weights, (np.repeat(np.arange(len(points)), 4), joints.ravel()), shares.ravel())
+        chained = neck_chained(weights, over_of(points), names.index("Head"), chain, chain_over)
+        moved += int((np.abs(chained - weights).max(1) > 1e-6).sum())
+        for key, values in zip(("JOINTS_0", "WEIGHTS_0"), cloth.still_rig.strongest(chained)):
+            found = document["accessors"][attributes[key]]
+            view = document["bufferViews"][found["bufferView"]]
+            kind = np.dtype(cloth.skel_usd._COMPONENTS[found["componentType"]])
+            if view.get("byteStride", kind.itemsize * 4) != kind.itemsize * 4:
+                raise SystemExit(f"{path}: {key} is interleaved; only packed weights are written")
+            start = chunk + view.get("byteOffset", 0) + found.get("byteOffset", 0)
+            packed = np.ascontiguousarray(values, kind).tobytes()
+            data[start:start + len(packed)] = packed
+    path.write_bytes(bytes(data))
+    return moved
 
 
 def removed_faces(faces, kept):
@@ -288,14 +369,10 @@ def pieces_of(out, name):
     middles of still_rig's fans across the cut's loops (`neck_fans`), of the rig's faces round the neck that are the
     swapped body's own (`released_centres`, fans left out) and of its head's faces on the hair (`hair_read_centres`;
     `neck_roles`), all in the rig's glTF frame."""
-    record = json.loads((out / "swap" / f"{name}.json").read_text())
-    swapped = trimesh.load(str(out / "swap" / f"{name}.glb"), force="mesh", process=False).vertices
-    rigged = trimesh.load(str(out / "rig/body.glb"), process=False).geometry
-    shell = np.vstack([np.asarray(item.vertices) for key, item in rigged.items() if not key.startswith("far")])
-    to_rig, rms = body_to_rig(np.asarray(swapped, float), shell)
+    record, swapped, rigged, to_rig, rms = swap_on_rig(out, name)
     triangles = np.vstack([np.asarray(item.vertices)[np.asarray(item.faces)] for key, item in rigged.items()
                            if not key.startswith("far")])
-    fans = neck_fans(np.asarray(swapped, float), to_rig, float(record["cut_level_gltf_y"]),
+    fans = neck_fans(swapped, to_rig, float(record["cut_level_gltf_y"]),
                      float(record["body_height_units"]), triangles)
     model = trimesh.load(str(out / "head/head.glb"), force="mesh", process=False)
     kept = trimesh.load(str(out / "hair/kept.glb"), force="mesh", process=False)
