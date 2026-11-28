@@ -63,6 +63,29 @@ EASED_SHARE = 0.5  # an eased point keeps this share of its shift
 EASED_LEAST = 0.0005  # a shift eased under this (body heights, under 1 mm) lets the point go: it follows the band
 PAINT_BAND = 0.015  # the paint's band above the cut (2.5 cm): the head's paint blends from the body's across it (wider,
 # the body's soft paint would reach the chin)
+# The body's own neck under the cut toned to the photo's skin over it (`neck_move`; the hoodie man's neck in his hood
+# opening stood a flat pink slab under his photo's skin, 2026-11-28): wholly down to the first depth under the cut
+# (body heights, 11 cm), eased back to its own paint at the second (18 cm); over the cut the head's own paint, the
+# body's at the cut (`paint_blended`), takes the same move eased out over PAINT_BAND, so no line shows at the seam.
+NECK_TONE_UNDER = (0.06, 0.1)
+NECK_SPREAD = (0.67, 1.0)  # the spread's ratio held in this: never widened (the photo's spread is its pores and
+# stubble, drawn by the library's skin and the stubble shade; widened 1.5 times, the paint's broad blotches and a pale
+# streak at the stairwell woman's shirt edge stood out, 2026-11-28)
+# A body face round the neck is its skin only where its paint is skin's: hue (Lab, degrees from +a) within SKIN_HUE
+# and chroma at least SKIN_CHROMA (`skin_like`). The kinds alone held the older woman's white scarf round her neck as
+# skin (2026-11-28; her paint there L 87, a 3, b 8; the hoodie man's neck a 20, b 19, the stairwell woman's a 14,
+# b 24). Left: the scarf's pink flecks at its rim (hue 33 to 38) pass, joined by points to her neck under the head.
+SKIN_HUE = (30.0, 80.0)
+SKIN_CHROMA = 12.0
+NECK_PHOTO_BAND = 0.02  # the photo's skin read on the head's points this high over the cut (3.6 cm: under the jaw) ...
+NECK_PHOTO_LEAST = 100  # ... the band doubled until this many points wear the photo
+NECK_PHOTO_SHARE = 0.9  # a point wears the photo where its share (the face texture's alpha on the front) is this
+# Where the body's toned neck meets the head's lower edge, its paint takes the head's own colour there (the photo's
+# under the jaw, read as a mean SEAM_MEAN_M round the head's nearest point), eased out SEAM_FADE_M off the head's skin
+# (`seam_offsets`): a median move matches the neck as a whole, not the shade the photo wears at the seam (eased over
+# 3 cm, a line stayed at the head's lower edge).
+SEAM_MEAN_M = 0.01
+SEAM_FADE_M = 0.06
 NORMAL_AGREE = 0.3  # two surfaces face the same way when their normals' dot is over this (a neck and a collar's
 # inside do not)
 NORMAL_REACH = 0.004  # within this of the cut (7 mm) the two sides' shading normals are averaged: no shading line
@@ -77,6 +100,10 @@ NECK_FALLBACK = 0.048  # the neck's reach (8 cm) where a hood lies against it wi
 # puffer collar stood 9 to 13 cm out within 40 to 80 degrees of the front, the head model's copy of it was kept there
 # and drawn over the body's as torn shards and black holes (whole person round 5, 2026-11-27)
 HOOD_GAP = 0.003  # an empty ring at least this wide (5 mm) parts them; narrower, nothing is round the neck there
+SRGB_TO_XYZ = np.array([[0.4124564, 0.3575761, 0.1804375], [0.2126729, 0.7151522, 0.0721750],
+                        [0.0193339, 0.1191920, 0.9503041]])
+D65 = np.array([0.95047, 1.0, 1.08883])
+LAB_EDGE = 6 / 29
 TEXEL_SLACK = 0.02  # barycentric slack so a triangle's edge texels are painted too (no unblended rim)
 # The chin over the cut (`chin_over_cut`), in body heights: read on slices 4 mm high of the face's middle column (2.7 cm
 # wide), up to 13 cm over the cut; the chin is the lowest slice standing 2.5 cm forward of the throat (the woman of
@@ -265,6 +292,106 @@ def eased(height, band):
     """The seam's weight at `height` above the cut: 1 at the cut, easing (smoothstep) to 0 at `band`, 0 above."""
     share = np.clip(1.0 - np.asarray(height, float) / band, 0.0, 1.0)
     return share * share * (3.0 - 2.0 * share)
+
+
+def lab_of(srgb):
+    """sRGB colours (0 to 1, encoded) in CIELAB (D65), plain numpy (Blender's Python has no scikit-image)."""
+    xyz = linear_of(srgb) @ SRGB_TO_XYZ.T / D65
+    cubed = np.where(xyz > LAB_EDGE ** 3, np.cbrt(np.maximum(xyz, 0.0)), xyz / (3 * LAB_EDGE ** 2) + 4 / 29)
+    return np.stack([116 * cubed[..., 1] - 16, 500 * (cubed[..., 0] - cubed[..., 1]),
+                     200 * (cubed[..., 1] - cubed[..., 2])], axis=-1)
+
+
+def srgb_of(lab):
+    """CIELAB colours (D65) as sRGB (0 to 1, encoded, clipped)."""
+    lab = np.asarray(lab, float)
+    middle = (lab[..., 0] + 16) / 116
+    cubed = np.stack([middle + lab[..., 1] / 500, middle, middle - lab[..., 2] / 200], axis=-1)
+    xyz = np.where(cubed > LAB_EDGE, cubed ** 3, 3 * LAB_EDGE ** 2 * (cubed - 4 / 29)) * D65
+    linear = np.clip(xyz @ np.linalg.inv(SRGB_TO_XYZ).T, 0.0, 1.0)
+    return np.where(linear <= 0.0031308, linear * 12.92, 1.055 * linear ** (1 / 2.4) - 0.055)
+
+
+def skin_like(lab):
+    """Whether each Lab colour is a skin's: its hue within SKIN_HUE, its chroma at least SKIN_CHROMA."""
+    lab = np.asarray(lab, float)
+    hue = np.degrees(np.arctan2(lab[..., 2], lab[..., 1]))
+    return (np.hypot(lab[..., 1], lab[..., 2]) >= SKIN_CHROMA) & (hue >= SKIN_HUE[0]) & (hue <= SKIN_HUE[1])
+
+
+def neck_move(neck_lab, photo_lab):
+    """The move toning the body's neck paint (Lab) to the photo's skin over the cut (Lab): (the paint's median, the
+    spreads' ratio held in NECK_SPREAD, the photo's median), each channel's spread 1.4826 x its median absolute
+    deviation (`colour.robust`), so the paint's own shading and grain are kept, scaled to the photo's."""
+    paint_median, paint_spread = robust_lab(neck_lab)
+    photo_median, photo_spread = robust_lab(photo_lab)
+    return paint_median, np.clip(photo_spread / paint_spread, *NECK_SPREAD), photo_median
+
+
+def robust_lab(lab):
+    """Each Lab channel's median and spread (1.4826 x its median absolute deviation, never under 0.5)."""
+    lab = np.asarray(lab, float).reshape(-1, 3)
+    median = np.median(lab, 0)
+    return median, np.maximum(1.4826 * np.median(np.abs(lab - median), 0), 0.5)
+
+
+def moved_srgb(srgb, move):
+    """sRGB colours (0 to 1) moved in Lab by `neck_move`'s move."""
+    start, ratio, end = move
+    return srgb_of((lab_of(srgb) - start) * ratio + end)
+
+
+def neck_share(heights):
+    """Each point's share of the neck's move by its height over the cut (body heights): 1 down to NECK_TONE_UNDER's
+    first depth, easing (smoothstep) to 0 at its second; over the cut `eased` over PAINT_BAND, as the head's paint
+    blends to the body's."""
+    heights = np.asarray(heights, float)
+    low, high = NECK_TONE_UNDER
+    under = np.clip((high + heights) / (high - low), 0.0, 1.0)
+    return np.where(heights > 0.0, eased(heights, PAINT_BAND), under * under * (3.0 - 2.0 * under))
+
+
+def stubble_carried(shares, heights, carried):
+    """The body's neck points' stubble shares (`shares`, by their reach from the beard) never under `carried` (the
+    share of the head's skin over the cut nearest each, within PAINT_BAND) times their `neck_share`: the photo's
+    stubble runs down the neck to the hood, so the body's neck goes on as the head's leaves it (fading from the beard
+    alone, the hoodie man's neck under his stubbled throat stood bare, 2026-11-28)."""
+    return np.maximum(shares, np.asarray(carried) * neck_share(heights))
+
+
+def linear_of(srgb):
+    """sRGB colours (0 to 1, encoded) as linear."""
+    srgb = np.asarray(srgb, float)
+    return np.where(srgb <= 0.04045, srgb / 12.92, ((srgb + 0.055) / 1.055) ** 2.4)
+
+
+def seam_offsets(head_srgb, own_srgb, distances):
+    """Each body neck point's linear colour offset onto the head's colour at the seam (`head_srgb`, the mean round its
+    nearest head point) from its own toned paint (`own_srgb`), whole on the head's skin and eased (`eased`) to none
+    SEAM_FADE_M (`distances`, metres) off it."""
+    return (linear_of(head_srgb) - linear_of(own_srgb)) * eased(distances, SEAM_FADE_M)[:, None]
+
+
+def point_means(values, points, count):
+    """Per point the mean of its loops' `values` (zero for a point with none)."""
+    total = np.zeros((count, values.shape[1]))
+    np.add.at(total, points, values)
+    seen = np.bincount(points, minlength=count)[:, None]
+    return total / np.maximum(seen, 1)
+
+
+def photo_near_cut(heights, share):
+    """Which head points the photo's skin is read on: wearing the photo (`share` at least NECK_PHOTO_SHARE) from the
+    cut to NECK_PHOTO_BAND over it, the band doubled until NECK_PHOTO_LEAST points are in it (the stairwell woman's
+    collar hides her throat: 191 points in the first band); all photo points if never."""
+    wearing = np.asarray(share, float) >= NECK_PHOTO_SHARE
+    band = NECK_PHOTO_BAND
+    while band < 1.0:
+        found = wearing & (heights > 0.0) & (heights < band)
+        if found.sum() >= NECK_PHOTO_LEAST:
+            return found
+        band *= 2.0
+    return wearing
 
 
 def welded(points):

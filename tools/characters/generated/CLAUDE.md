@@ -401,7 +401,8 @@ under his beard's underside). There the two cut edges are one closed loop each: 
   and the stairwell woman's jaw flap (old hair hanging 3 cm off the collar, now in its sage; a quarter of her
   painted collar faces hang as far, so taking such faces off is not a safe rule). (2) The dark jagged line under the
   beard (the separate beard skin's open rims): gone with that skin, below. (3) The body's own neck
-  under the cut paler and pinker than the head's. (4) Dark trouser lumps at the thighs where the hands' lumps were.
+  under the cut paler and pinker than the head's: toned, below. (4) Dark trouser lumps at the thighs where the
+  hands' lumps were.
 - **A man's beard is the photo's own** (b_hoodie_man, 2026-11-28; two rounds of strand tuning on a separate smoothed
   beard skin, its points painted, read as a flat brown mat with a hard edge and a dark line under it). The skin step
   of a man whose style says `beard` (`head.made(beard=True)`, `--beard`) lays the photo over his beard too: its share
@@ -420,5 +421,20 @@ under his beard's underside). There the two cut edges are one closed loop each: 
   beard's flattened colour (`skin.beard_colour`; its lowest centimetre on the model's front is the photo's neck skin,
   L 65: the photo's jaw is smaller). Look at the 900 px close-up beside the photo: only it says whether the beard
   reads trimmed with the skin through it.
+- **The body's own neck under the cut wears the head's skin** (`blender_person.neck_skinned`, the numbers in
+  `head_swap`; 2026-11-28: the hoodie man's neck in his hood opening was the body model's flat pink paint in the
+  glTF's material under his photo's skin). Its skin kind's faces from just over the cut to NECK_TONE_UNDER under it,
+  painted as skin (`skin_like`: the kinds alone held the older woman's white scarf), take the library's skin as the
+  head does (`blender_skin.library_finished`; its pores on their rest points in metres), their paint moved in Lab
+  onto the photo's skin the head wears just over the cut (`photo_near_cut`, `neck_move`: medians matched, the spread
+  never widened), whole under the cut and eased out down the neck (`neck_share`); the head's own paint over the cut,
+  the body's at the cut, takes the same move eased over PAINT_BAND. Where it meets the head's lower edge its paint is
+  eased onto the head's own colour there over SEAM_FADE_M (`seam_offsets`: one median move left a line at the photo's
+  shade under the jaw), and a bearded man's neck stubble runs down it at the share the head's skin over the cut wears
+  (`stubble_carried`: fading from the beard alone it stood bare). The stubble step now runs after the garments, on the
+  neck's material too. Left: the neck's lowest rim at his hood keeps the paint's own darker pink band; the stairwell
+  woman's neck shows a faint pale highlight where its faces turn up at her shirt's edge (the oil coat on the body
+  model's ledge); the older woman's scarf rim keeps a few pink flecks labelled skin, joined to her neck under the head.
+  Look at the close-ups: a front and a three-quarter for the man, beside the photo.
 - **head.glb's paint is the skin step's sRGB paint as written** (`head.paint_picture`): encoded again, it came out a
   washed copy (L 0.30 to 0.55), and the hair's labels and the swap's head wore it until 2026-11-27.

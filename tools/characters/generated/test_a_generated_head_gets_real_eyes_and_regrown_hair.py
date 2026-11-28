@@ -267,6 +267,13 @@ first corner read for the whole triangle (a flat paint); TEXEL_REACH 0 (the tiny
 fitted line is taken off (`skin.hollows`), a stain on open skin kept. Breaks (each applied once, seen red, reverted,
 2026-11-27): `skin.MATTE_DARK` 0 (the skin between a brow and the lashes pressed as a highlight); `skin.HOLLOW`'s
 `shut` (5, 6) (the socket left 18% dark); `shut` (-2, -1) with `MATTE_DARK` 0 (the stain lifted).
+The body's own neck under the cut takes the head's skin (`head_swap.neck_move`, `neck_share`, `skin_like`,
+`stubble_carried`, `seam_offsets`; the hoodie man's neck a flat pink slab under his photo's skin, 2026-11-28): its
+pink paint moved in Lab onto the photo's skin median, its spread never widened; the move whole under the cut, eased out
+down the neck and over the head's paint band; a neck's paint is skin, a white scarf's or a black collar's not; the
+head's stubble share carried down the neck; the seam's colour whole on the head's skin, none past its fade. Breaks
+(each applied once, seen red, reverted, 2026-11-28): NECK_SPREAD (0.67, 1.5) (the paint's blotches widened);
+`neck_share` 0 under the cut (the neck left pink); SKIN_CHROMA 0 (the white scarf read as skin).
 """
 import functools
 import types
@@ -2413,6 +2420,30 @@ def tether_inside_read():
             int((truth > 0.001).sum())]
 
 
+def neck_toned():
+    """The body's neck under the cut toned to the head's skin: [its pink paint (L 61, a 20, b 19, spread 4) moved onto
+    the photo's skin (L 76, a 13, b 16, spread 10) lands within 0.5 of its median, its spread not widened; the move's
+    share 2 cm over the cut (over the paint's band), half way up the band, at the cut, 11 cm and 14 cm under it, 18 cm
+    under it; the hoodie man's neck, a white scarf, a black collar, the stairwell woman's neck read as skin; the
+    head's stubble share 0.4 carried 5 cm and 18 cm down; the seam's colour whole on the head and none past its
+    fade]."""
+    rng = np.random.default_rng(3)
+    paint = np.array([61.0, 20.0, 19.0]) + rng.normal(0.0, 4.0, (2000, 3))
+    photo = np.array([76.0, 13.0, 16.0]) + rng.normal(0.0, 10.0, (2000, 3))
+    move = head_swap.neck_move(paint, photo)
+    moved = head_swap.lab_of(head_swap.moved_srgb(head_swap.srgb_of(paint), move))
+    band = head_swap.PAINT_BAND
+    seam = head_swap.seam_offsets(np.full((2, 3), 0.6), np.full((2, 3), 0.8),
+                                  np.array([0.0, head_swap.SEAM_FADE_M]))
+    return [bool(np.abs(np.median(moved, 0) - np.median(photo, 0)).max() < 0.5),
+            bool(np.all(np.std(moved, 0) <= np.std(paint, 0) * 1.05)),
+            head_swap.neck_share([0.02, band / 2, 0.0, -0.06, -0.08, -0.1]).round(2).tolist(),
+            head_swap.skin_like(np.array([[60.8, 20.0, 19.2], [87.0, 3.0, 8.0], [10.0, 0.5, 0.5],
+                                          [67.1, 13.5, 23.5]])).tolist(),
+            head_swap.stubble_carried(np.zeros(2), np.array([-0.03, -0.1]), np.full(2, 0.4)).round(2).tolist(),
+            [bool(np.all(seam[0] < -0.1)), bool(np.all(seam[1] == 0.0))]]
+
+
 @pytest.mark.parametrize("case, made_value, wanted", [
     ("each painted pupil is found on the face", pupils_found, [True, True]),
     ("the eyeball sits behind its lid margins, its cornea just behind their rim", behind_lids, [True, True]),
@@ -2576,6 +2607,9 @@ def tether_inside_read():
     ("a head loop under the jaw is laid all round the body's closed loop", seam_loop, [1.0, True, True]),
     ("a scarf rides from where it meets anything over the chest, a turtleneck's collar too",
      cloth_scarf_rides_round_neck, [True, True]),
+    ("the body's neck under the cut takes the photo's skin the head wears, whole under the cut, eased out, its "
+     "blotches never widened, the head's stubble carried down, a scarf never skin", neck_toned,
+     [True, True, [0.0, 0.5, 1.0, 1.0, 0.5, 0.0], [True, False, False, True], [0.4, 0.0], [True, True]]),
 ])
 def test_a_generated_head_gets_real_eyes_and_regrown_hair(case, made_value, wanted):
     assert made_value() == wanted, case

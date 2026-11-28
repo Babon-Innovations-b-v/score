@@ -130,6 +130,21 @@ def textured(tree, image, uv_name, colour_space):
     return node
 
 
+def library_finished(name, library):
+    """A new material `name` in the library's skin (SKIN: its gloss, index, light under the surface and oil coat; its
+    pores laid by the caller once its base colour is wired, `blender_face.scanned`); (material, record, its folder)."""
+    record = blender_face.library_record(library, SKIN)
+    entry = sorted((pathlib.Path(library) / "surface" / SKIN).glob("*/surface.json"))[-1].parent
+    material = bpy.data.materials.new(name)
+    material.use_nodes = True
+    principled = blender_face.principled_of(material)
+    principled.inputs["Roughness"].default_value = record["constants"]["roughness"]
+    principled.inputs["IOR"].default_value = record["constants"]["ior"]
+    blender_face.light_through(material, record["subsurface"])
+    blender_face.coated(material, record["coat"])
+    return material, record, entry
+
+
 def skin_material(head, library, folder, space):
     """The library skin with the face texture mixed into the model's paint (the skin step's paint.png where it wrote
     one: its skin toned to the photo's; its dark baked shading lifted by
@@ -137,16 +152,9 @@ def skin_material(head, library, folder, space):
     saw (`photo_front`), on the skin's faces; the light under the surface down to UNDER_DARK of the library's where
     the paint the photo does not cover was dark (`thin_dark`); the rest (hair, clothes) keeps the glTF's own
     material."""
-    record = blender_face.library_record(library, SKIN)
-    entry = sorted((pathlib.Path(library) / "surface" / SKIN).glob("*/surface.json"))[-1].parent
-    material = bpy.data.materials.new("generated_skin")
-    material.use_nodes = True
+    material, record, entry = library_finished("generated_skin", library)
     tree = material.node_tree
     principled = blender_face.principled_of(material)
-    principled.inputs["Roughness"].default_value = record["constants"]["roughness"]
-    principled.inputs["IOR"].default_value = record["constants"]["ior"]
-    blender_face.light_through(material, record["subsurface"])
-    blender_face.coated(material, record["coat"])
     own_uv = head.data.uv_layers[0].name
     toned = pathlib.Path(folder) / "paint.png"
     own = textured(tree, bpy.data.images.load(str(toned)) if toned.exists() else own_image(head), own_uv, "sRGB")
