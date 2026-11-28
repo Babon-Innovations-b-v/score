@@ -103,7 +103,7 @@ name) in one process, the scene composed once; it prints each step's answer.
 looks up, a shelf), or `wall:<object>` at `--height` over the floor (ready/). `check` tells, per object, everything that
 keeps the place from being physics ready (floating, penetration, no support, tipping, a door in no opening, a walkway
 under 0.9 m, a connector joined to nothing or with no floor, no collision geometry, unstable when let go in MuJoCo):
-one JSON line of counts, the full list in <folder>/ready.json.
+one JSON line of counts, the full list in <folder>/ready.json; a place not ready exits NOT_READY, so a chain stops there.
 `film` plans the place's film (film.py): still on the concept's view, a clear glide down, then through the stops at
 eye height (or in free air), clear of every solid the check reads, written to <folder>/film/path.json with its
 measures; `film-render` renders every `--every`th frame through the card queue (half size at the review's samples, or
@@ -631,16 +631,22 @@ def parser():
     return made
 
 
+NOT_READY = 3  # `check`'s exit when the place is not physics ready (its counts still printed)
+
+
 def main():
     args = parser().parse_args(with_negatives(sys.argv[1:]))
     try:
-        print(json.dumps(run(args)))
+        answer = run(args)
+        print(json.dumps(answer))
     except place_build.Refused as why:
         print(json.dumps({"refused": str(why)}))
         sys.exit(2)
     except RuntimeError as why:  # a render that wrote no picture (render.RenderFailed)
         print(json.dumps({"failed": str(why)}))
         sys.exit(1)
+    if args.step == "check" and not answer.get("ready"):
+        sys.exit(NOT_READY)
 
 
 if __name__ == "__main__":

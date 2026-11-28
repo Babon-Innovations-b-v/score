@@ -97,6 +97,7 @@ Breaks that turn this red (each applied once and seen red, then reverted):
 - render.views: the named views left out -> the inside view is not rendered
 - render.views: `review` kept True when final -> the final render runs at the review's samples
 - dome_shell.chamfered_box: the outward flip dropped -> a block's solid has negative volume (faces inward)
+- place_build.main: a check not ready exiting 0 again -> a chain goes on past a failed check to package the place
 - place_build.blocks: the structure role not written -> a building's blocks read as a loose prop to the check
 - cockpit_kit.near_hole: THROUGH dropped -> a porthole's axis, run on across the room, cuts its hole in the far
   wall too
@@ -1159,6 +1160,7 @@ def test_a_laid_scene_holds_its_library_entries_where_the_agent_put_them(tmp_pat
     hinged_converted(tmp_path / "hinged")
     footprinted(tmp_path)
     crowded(tmp_path / "crowded")
+    checked_exits()
 
 
 def kitted(tmp_path):
@@ -1607,6 +1609,22 @@ def footprinted(tmp_path):
     with pytest.raises(place_build.Refused, match="would cut wall_a, wall_b"):
         place_build.put(folder, "bench", "model/old_bench")
     assert not place_build.opened(folder)[0].GetPrimAtPath("/slot/Objects/bench"), "a refused bench left laid"
+
+
+def checked_exits():
+    """`check` exits NOT_READY when the place is not ready, its counts still printed; 0 when it is ready (the pad's
+    chain went on to package a place whose check said ready: false)."""
+    from score.stages.place_build import __main__ as command
+    for ready_now, code in ((False, command.NOT_READY), (True, None)):
+        with pytest.MonkeyPatch.context() as patch:
+            patch.setattr(command, "run", lambda args, ready_now=ready_now: {"ready": ready_now})
+            patch.setattr(command.sys, "argv", ["place_build", "check", "somewhere", "--no-settle"])
+            try:
+                command.main()
+                exited = None
+            except SystemExit as stop:
+                exited = stop.code
+        assert exited == code, (ready_now, exited)
 
 
 def skied(tmp_path, root, files):
