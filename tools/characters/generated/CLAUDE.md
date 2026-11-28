@@ -366,6 +366,13 @@ under his beard's underside). There the two cut edges are one closed loop each: 
   Run: `python -m tools.characters.generated.person <name> <sources> <out> [--from <step> | --only <step>]` (head
   2 min, hair 5, swap 1.5, rig 3.5, cloth 5 to 10 at nice 19; the render some hours: 13 sheet frames and the 96-frame
   film with 240k strands, 5.7 GB).
+- **The hair lies on and over the clothes** (`over_cloth.py`, laid by `blender_person.hair_over_cloth` at every
+  drawn frame, `posed_at`; 2026-11-28, owner's close-ups: the stairwell woman's hair ran through her puffer's high
+  collar standing and walking, and had since af909fbfd kept the body's own collar). The strands ride the Head
+  rigidly and the cloth moves on its own, so each frame every strand near a garment is followed from its root, its
+  rest steps carried along, and a step that meets the garments as they stand then is slid along the cloth CLEAR_M off
+  it on the side the strand came from (a garment is two-sided and wound either way: never the normal's side), its
+  length kept.
 - **A man's beard comes through the whole route** (b_hoodie_man, 2026-11-27): `blender_person.groomed` lays the hair
   step's beard skin and beard strands as `blender_sheet.groomed` does (without them the painted beard was taken off
   and the head's hollow showed as a flat brown slab). **A hood is the garment under the jacket**: `cloth.allowed`

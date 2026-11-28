@@ -70,6 +70,7 @@ import blender_eyes  # noqa: E402  (loaded above with the head's arguments)
 import blender_sheet  # noqa: E402
 import blender_skin  # noqa: E402
 import head_swap  # noqa: E402
+import over_cloth  # noqa: E402
 import render  # noqa: E402
 from blender_eyes import blender_face  # noqa: E402
 
@@ -570,6 +571,74 @@ def groomed(frame, pieces, head, axis):
         items += blender_sheet.strand_pieces("beard", groom["beard_counts"], groom["beard_points"],
                                              groom["beard_radius"], fibre["beard"], space)
     return items
+
+
+def hair_rest():
+    """[(strand object, its points at rest in its own frame)] of the hair and beard: what `hair_over_cloth` lays
+    again each frame from the same rest."""
+    found = []
+    for item in bpy.data.objects:
+        if item.type == "CURVES" and item.name.split("_")[0] in ("hair", "beard"):
+            points = np.zeros(len(item.data.points) * 3, np.float32)
+            item.data.attributes["position"].data.foreach_get("vector", points)
+            found.append((item, points.reshape(-1, 3).astype(np.float64)))
+    return found
+
+
+def cloth_surface(garments):
+    """The garments as they stand in the scene now: (points, triangles)."""
+    points, triangles, count = [], [], 0
+    for garment, _ in garments.values():
+        world = np.array(garment.matrix_world)
+        local = coordinates(garment.data)
+        points.append(local @ world[:3, :3].T + world[:3, 3])
+        mesh = garment.data
+        mesh.calc_loop_triangles()
+        corners = np.zeros(len(mesh.loop_triangles) * 3, np.int64)
+        mesh.loop_triangles.foreach_get("vertices", corners)
+        triangles.append(corners.reshape(-1, 3) + count)
+        count += len(local)
+    return np.vstack(points), np.vstack(triangles)
+
+
+def caster(tree):
+    """`over_cloth.laid_over`'s cast on a BVH tree: (hit, location, normal) of each ray's first face."""
+    def cast(origins, ways, reaches):
+        hit = np.zeros(len(origins), bool)
+        location, normal = np.zeros((len(origins), 3)), np.zeros((len(origins), 3))
+        for number, (origin, way, reach) in enumerate(zip(origins, ways, reaches)):
+            found = tree.ray_cast(Vector(origin), Vector(way), float(reach))
+            if found[0] is not None:
+                hit[number], location[number], normal[number] = True, found[0], found[1]
+        return hit, location, normal
+    return cast
+
+
+def hair_over_cloth(hair, garments):
+    """Each strand of `hair` (`hair_rest`) laid on and over the garments as they stand now (`over_cloth`); how many
+    moved. The strands ride the Head and the cloth moves on its own: laid rigidly they ran through the stairwell
+    woman's puffer collar (2026-11-28)."""
+    points, triangles = cloth_surface(garments)
+    tree = BVHTree.FromPolygons([tuple(point) for point in points], triangles.tolist())
+    edges = np.linalg.norm(points[triangles] - points[np.roll(triangles, 1, axis=1)], axis=2)
+    cast = caster(tree)
+    moved = 0
+    for item, rest in hair:
+        world = np.array(item.matrix_world)
+        strands = (rest @ world[:3, :3].T + world[:3, 3]).reshape(len(item.data.curves), -1, 3)
+        size = over_cloth.voxel_size(np.linalg.norm(np.diff(strands, axis=1), axis=2), edges)
+        laid, count = over_cloth.laid_over(strands, cast, over_cloth.cloth_keys(points, triangles, size), size)
+        local = (laid.reshape(-1, 3) - world[:3, 3]) @ np.linalg.inv(world[:3, :3]).T
+        item.data.attributes["position"].data.foreach_set("vector", local.astype(np.float32).ravel())
+        item.data.update_tag()
+        moved += count
+    return moved
+
+
+def posed_at(armature, action, garments, data, key, index, holder, hair):
+    """`cloth.at` (the person posed, the cloth laid) with the hair laid on and over the cloth."""
+    cloth.at(armature, action, garments, data, key, index, holder)
+    print(f"{key} {index}: strands laid over the cloth {hair_over_cloth(hair, garments)}", flush=True)
 
 
 def nearest(points, wanted):
@@ -1076,8 +1145,9 @@ def main():
     bpy.context.view_layer.update()
     metric(space, frame)
     scene = bpy.context.scene
+    hair = hair_rest()
     standing = cloth.playing(armature, "standing")
-    cloth.at(armature, standing, garments, data, "standing/standing", 0, holder)
+    posed_at(armature, standing, garments, data, "standing/standing", 0, holder, hair)
     items = [item for item in scene.objects if item.type == "MESH" and not item.hide_render]
     low, high = render.bounds(items)
     middle = Vector((0.0, 0.0, (low.z + high.z) / 2))
@@ -1108,9 +1178,9 @@ def main():
     walking = cloth.playing(armature, "walking")
     for view, degrees in cloth.VIEWS:
         for point in ("left_ahead", "passing", "right_ahead"):
-            cloth.at(armature, walking, garments, data, f"walking/{point}", 0, holder)
+            posed_at(armature, walking, garments, data, f"walking/{point}", 0, holder, hair)
             render.drawn(scene, turntable, degrees, out, f"walk_{view}_{point}")
-    cloth.at(armature, walking, garments, data, "walking/passing", 0, holder)
+    posed_at(armature, walking, garments, data, "walking/passing", 0, holder, hair)
     render.drawn(scene, turntable, 0.0, out, "walk_back_passing")
     print("SHEET RENDER DONE", flush=True)
     if not int(FILM_SAMPLES):  # a check of the sheet alone
@@ -1123,7 +1193,7 @@ def main():
         path = film / f"{index:03d}.png"
         if path.exists():
             continue
-        cloth.at(armature, walking, garments, data, "walking/film", index, holder)
+        posed_at(armature, walking, garments, data, "walking/film", index, holder, hair)
         turntable.rotation_euler = (0.0, 0.0, -math.radians(cloth.FILM_DEGREES))
         scene.render.filepath = str(path)
         bpy.ops.render.render(write_still=True)

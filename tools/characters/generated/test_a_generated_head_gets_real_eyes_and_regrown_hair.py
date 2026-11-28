@@ -279,6 +279,14 @@ lifted the hoodie man's under-jaw to L 76 against his face's 60, 2026-11-28), th
 neck within reach (`landed`), and the body's neck is cut level under the head (`level_plane`). Breaks (each applied
 once, seen red, reverted, 2026-11-28): NECK_FACE_BAND (0, 0.02) (the under-jaw read); `landed` with no reach (the far
 copy dragged 3 cm); `level_plane`'s normal negated (the plane's up turned down).
+
+The strands laid on and over the cloth (`over_cloth.laid_over`; the stairwell woman's hair through her puffer collar,
+2026-11-28): strands hanging down through a sloped plate wound face down (a two-sided garment's normal points either
+way) lie on its top CLEAR_M off it with their steps' lengths kept, slide off its low edge, and a strand beside it is
+not moved. Breaks that turn the row red (each applied once, seen red, reverted, 2026-11-28): the side read off the
+face's normal alone (`slid`'s side 1: the hair pushed through to the plate's underside); the voxel reach without the
+step (`voxel_size` of the edges alone: the crossing steps never looked at); the length not kept (`slid`'s
+keep_length dropped: steps shortened on the plate).
 """
 import functools
 import types
@@ -289,7 +297,8 @@ import trimesh
 from scipy.spatial import cKDTree
 
 from tools.characters.generated import (__main__, beard, cloth, cloth_tether, colour, curl, eyes, fibre, flow,
-                                        head, head_swap, labels, lids, painted, person, scalp, skin, strands, volume)
+                                        head, head_swap, labels, lids, over_cloth, painted, person, scalp, skin,
+                                        strands, volume)
 from tools.characters.whole import hair
 
 NOSE_Y = 0.06
@@ -2467,6 +2476,33 @@ def neck_toned():
             [bool(np.all(seam[0] < -0.1)), bool(np.all(seam[1] == 0.0))]]
 
 
+def plate_cast(origins, ways, reaches):
+    """The first meeting of each ray with a plate z = 0.2 x over |x|, |y| < 0.1 wound face down."""
+    normal = np.array([0.2, 0.0, -1.0]) / np.sqrt(1.04)
+    rise = ways[:, 2] - 0.2 * ways[:, 0]
+    along = -(origins[:, 2] - 0.2 * origins[:, 0]) / np.where(np.abs(rise) > 1e-12, rise, 1e-12)
+    location = origins + ways * along[:, None]
+    hit = (along >= 0.0) & (along <= reaches) & (np.abs(location[:, :2]) < 0.1).all(axis=1)
+    return hit, location, np.tile(normal, (len(origins), 1))
+
+
+def hair_over_plate():
+    """[strands moved, every point over the plate at least CLEAR_M over it, every step 5 cm still, a strand slid off
+    the plate's low edge, the strand beside the plate unchanged]."""
+    heights = np.linspace(0.125, -0.125, 6)
+    strands = np.array([[[x, 0.0, z] for z in heights] for x in (-0.05, -0.025, 0.0, 0.025, 0.05, 0.3)])
+    grid = np.stack(np.meshgrid(np.linspace(-0.1, 0.1, 41), np.linspace(-0.1, 0.1, 41)), -1).reshape(-1, 2)
+    points = np.c_[grid, 0.2 * grid[:, 0]]
+    size = over_cloth.voxel_size(np.linalg.norm(np.diff(strands, axis=1), axis=2), [0.005])
+    laid, moved = over_cloth.laid_over(strands, plate_cast, over_cloth.cloth_keys(points, np.zeros((0, 3), int), size),
+                                       size)
+    over = (np.abs(laid[..., :2]) < 0.1).all(axis=-1)
+    height = (laid[..., 2] - 0.2 * laid[..., 0]) / np.sqrt(1.04)
+    steps = np.linalg.norm(np.diff(laid, axis=1), axis=2)
+    return [moved, bool(height[over].min() >= over_cloth.CLEAR_M - 1e-9), bool(np.allclose(steps, 0.05)),
+            bool((laid[0, -1, 0] < -0.09) & (laid[0, -1, 2] < -0.05)), bool(np.array_equal(laid[-1], strands[-1]))]
+
+
 @pytest.mark.parametrize("case, made_value, wanted", [
     ("each painted pupil is found on the face", pupils_found, [True, True]),
     ("the eyeball sits behind its lid margins, its cornea just behind their rim", behind_lids, [True, True]),
@@ -2635,6 +2671,8 @@ def neck_toned():
     ("the body's neck under the cut takes the photo's skin the head wears, whole under the cut, eased out, its "
      "blotches never widened, the head's stubble carried down, a scarf never skin", neck_toned,
      [True, True, [0.0, 0.5, 1.0, 1.0, 0.5, 0.0], [True, False, False, True], [0.4, 0.0], [True, True]]),
+    ("strands hanging through a garment lie on and over it on their roots' side, their steps kept, the rest untouched",
+     hair_over_plate, [5, True, True, True, True]),
 ])
 def test_a_generated_head_gets_real_eyes_and_regrown_hair(case, made_value, wanted):
     assert made_value() == wanted, case
