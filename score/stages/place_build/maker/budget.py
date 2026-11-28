@@ -9,7 +9,7 @@ a flat panel as on a knob, so the waste is where the surface is flat, and a face
     with_cut(document, binary, bound)      -> (document, binary): every mesh cut within `bound` in its scene's frame
     budgeted(final, near)                  -> the made GLB at `final` cut in place; its counts
     nearest(folder)                        -> {made entry: metres from the nearest walker's eye} in a laid place
-    rebudgeted(folder, entry, near)        -> a made entry cut and taken in again (same draft)
+    rebudgeted(folder, entry, near, cut)   -> a made entry cut and taken in again (same draft); refused without `cut`
 
 A cut is meshoptimizer's quadric-error simplification (meshopt_simplifyWithAttributes, MIT) with an absolute error:
 the surface may move by what a pixel of 2099's walker camera (VIEW_DEGREES tall on VIEW_ROWS rows) subtends at the
@@ -22,9 +22,11 @@ faces' locked, else collapsed only along it), only existing vertices are kept (e
 was) and no face is added. Each primitive's indices and vertex attributes are the cut's; the rest of the GLB (nodes
 and their matrices, moving parts, materials, pictures) is kept byte for byte.
 
-`make` knows no distance and cuts at NEAREST; `budget <folder>`, after a place is laid, reads how near the walkers'
+Nothing cuts by default (2026-11-28: the cut caps the average error, not the worst point; 124 of the prologue's
+first 148 cut models stood over their bound, typically 1.6 times, and every cut was undone): `make --cut` cuts at
+NEAREST; `budget <folder>`, after a place is laid, reads how near the walkers'
 eyes come to each made model (the scene package's eyes: ready's walkers' floor with every door open, LOOK_HEIGHTS over
-it) and `budget <folder> --entry <e> --near <m>` cuts each to that, taking it into score_lib again.
+it) and `budget <folder> --entry <e> --near <m> --cut` cuts each to that, taking it into score_lib again.
 """
 import json
 import math
@@ -261,13 +263,16 @@ def library_record(entry, version):
     return json.loads(path.read_text())
 
 
-def rebudgeted(folder, entry, near):
+def rebudgeted(folder, entry, near, cut=False):
     """The made `entry` (its version the place laid, else the library's newest; its files the library's, never the
     place's copies, which `put` converted: the pad's rocket laid only its USD, 2026-11-28) cut within error_bound(near)
     and taken into score_lib again as the same draft (take-in writes a changed draft over), its record's `budget` the
-    counts; its hulls, physics and moving parts as made. Nothing taken in when the cut drops no face. The counts."""
+    counts; its hulls, physics and moving parts as made. Nothing taken in when the cut drops no face. The counts.
+    Refused without `cut`: a cut overshoots its bound (the module's docstring)."""
     from score.stages import place_build
     from score.stages.place_build import maker
+    if not cut:
+        raise place_build.Refused(f"{entry}: no cut without --cut (the simplifier did not hold its max-error bound)")
     version = entry_version(folder, entry)
     record = library_record(entry, version)
     if record.get("state") != "draft":

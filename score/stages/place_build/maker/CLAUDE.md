@@ -58,7 +58,12 @@ score_lib as a draft `model/<name>_trellis.<place>` entry. `__init__.py` is the 
   signed volume of an open piece turned real parts inside out); a vertex normal pointing against its faces set to
   theirs (`facing_normals`, #159: the printer box's normals turned into its body drew black holes through its
   front). The bench's shape measures moved by 0.005 at most.
-- **Its faces cut to what shows** (budget.py, 2099's prologue 2026-11-28: every model over 2 m came at 500k faces, the
+- **Its faces kept as made; the cut is off by default** (2026-11-28, after the owner's "make sure u dont loosse all
+  the quality with the simplification"): the cut below caps meshoptimizer's average error, not its worst point, so
+  124 of the 2099 prologue's first 148 cut models stood over their bound, typically 1.6 times, and all 332 were put
+  back to their uncut meshes in score_lib. No make or budget step cuts unless called with `--cut` (`make(cut=True)`,
+  `rebudgeted(..., cut=True)`, refused without it); its code and test stay for a cut that holds the worst point.
+  What the cut does when asked (budget.py, 2099's prologue 2026-11-28: every model over 2 m came at 500k faces, the
   prologue's made models at 28 million, past what a game draws and what the laying checks held; a face count set by
   the projected density at the nearest eye kept every face, since a walker comes within 0.3 m of nearly everything):
   `faces_for` is only the generation's ceiling; the final model is cut by meshoptimizer's quadric-error simplifier
@@ -70,8 +75,8 @@ score_lib as a draft `model/<name>_trellis.<place>` entry. `__init__.py` is the 
   part's split: a primitive each), under SEAM_FREE (1 cm) a UV seam's vertices and those of every face touching it too
   (else a chart's edge crosses its atlas gutter: dark specks on a lamp and a door handle), only existing vertices are
   kept with every attribute, no face is added; only each primitive's indices and vertex attributes change, every node,
-  matrix, moving part and picture kept. `make` knows no distance and cuts at NEAREST; once a place is laid, `budget
-  <folder>` gives each laid made entry's nearest eye and `budget <folder> --entry <e> --near <m>` cuts it (from the
+  matrix, moving part and picture kept. `make --cut` knows no distance and cuts at NEAREST; once a place is laid,
+  `budget <folder>` gives each laid made entry's nearest eye and `budget <folder> --entry <e> --near <m> --cut` cuts it (from the
   library's own files, never the place's converted copies) and takes it in again as the same draft.
 - **Only a cut-out goes in** (#156: the capsule's throttle, levers on a console top, came out a cube): `concept/<n>`
   is refused without its SAM 3 mask, and any picture whose opaque part is its own rectangle (no transparency, or a

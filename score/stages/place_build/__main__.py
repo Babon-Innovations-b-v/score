@@ -321,11 +321,11 @@ def run(args):
         from score.stages.place_build import maker
         return maker.make(args.folder, args.name, args.source, args.material, args.like, args.height,
                           numbers(args.size) if args.size else None, not args.no_take_in,
-                          args.card_only, args.near)
+                          args.card_only, args.near, args.cut)
     if args.step == "budget":
         from score.stages.place_build.maker import budget
         if args.entry:
-            return budget.rebudgeted(args.folder, args.entry, args.near)
+            return budget.rebudgeted(args.folder, args.entry, args.near, args.cut)
         return budget.nearest(args.folder)
     if args.step == "route":
         from score.stages.place_build import ready
@@ -569,11 +569,15 @@ def parser():
     step.add_argument("--card-only", action="store_true", help="the card step alone: TRELLIS.2's model kept in "
                       "made/<entry>/ for a make after it to finish on the processor")
     step.add_argument("--near", type=float, help="metres from the nearest a walker's eye comes (maker/budget.py)")
+    step.add_argument("--cut", action="store_true", help="cut its faces within a pixel at --near (off: the cut "
+                      "did not hold its max-error bound, 2026-11-28)")
     step = steps.add_parser("budget", help="a laid place's made models: how near the walkers' eyes come to each "
                             "(no --entry), or one cut within a pixel seen from --near and taken in again")
     step.add_argument("folder")
     step.add_argument("--entry", help="a made entry laid here (<name>_trellis.<place>)")
     step.add_argument("--near", type=float, help="metres from its nearest eye (`budget <folder>`'s answer)")
+    step.add_argument("--cut", action="store_true", help="with --entry: cut it (refused without; the cut did not "
+                      "hold its max-error bound, 2026-11-28)")
     step = steps.add_parser("crowd", help="the laid crowd faced to --toward, the floor round it packed and walkers' "
                             "lanes laid, all measured clear on the scene's solids (crowd.py)")
     step.add_argument("folder")

@@ -20,7 +20,9 @@ Breaks that turn this red (each applied once and seen red, then reverted):
   ridge goes flat and its points stand 3 mm off the cut; budget.smooth_normals summed per vertex, not per position ->
   the bent knob's seam vertices take half a fan's normal; budget.simplified's seam lock dropped -> the plate's UV seam
   is collapsed along to a few vertices (the capsule's indicator lamp drew its atlas gutter as dark specks); its faces'
-  vertices left free -> the row beside the seam goes (the stairwell's door handle drew a speck)
+  vertices left free -> the row beside the seam goes (the stairwell's door handle drew a speck); maker.make's `cut`
+  defaulting to True or budget.rebudgeted cutting without `cut` -> a model is cut unasked (the cut overshot its
+  max-error bound on 124 of the prologue's first 148, 2026-11-28)
 - reach.surface_chunks reading the mesh's own face_normals and area (trimesh keeps them) -> a mesh read for the
   walkers' floor keeps its corners, cross products, normals and areas, about 200 bytes a face more, every mesh
   of the place at once (2099's square, 2026-11-28: budget's nears of 73 million faces killed at 12 GB)
@@ -101,6 +103,7 @@ Breaks that turn this red (each applied once and seen red, then reverted):
   the second image's bytes read back wrong
 """
 import importlib.util
+import inspect
 import json
 import pathlib
 import sys
@@ -343,6 +346,7 @@ def test_a_made_model_fits_its_place_its_paint_and_its_weight(tmp_path, monkeypa
     heading, how = fit.headed(points, cut, 35.0, 15.0, lambda matrices: front.picked(
         "desk", slab, tmp_path / "slab.png", cut, 35.0, 15.0, matrices, ask=nearest_hole))
     assert how["open"] == [0.0, 180.0] and how["yaw"] == 180.0 and how["front"] == "the cable hole", how
+    from score.stages import place_build
     from score.stages.place_build import maker
     from score.stages.place_build.maker import generate
     assert [maker.faces_for(size) for size in (0.3, 1.0, 3.0, None)] == [maker.LEAST_FACES, 125000, generate.FACES,
@@ -354,6 +358,12 @@ def test_a_made_model_fits_its_place_its_paint_and_its_weight(tmp_path, monkeypa
     assert not [key for key, value in sphere._cache.cache.items() if np.ndim(value) and len(value) == len(sphere.faces)]
     level = sphere.copy().face_normals[:, 1] >= np.cos(np.radians(ready.reach.MAX_SLOPE))
     assert len(points) and np.all(points[:, 1] > -1e-9) and level.any()  # the floor faces' points, read as trimesh's
+    assert inspect.signature(maker.make).parameters["cut"].default is False  # no cut unasked
+    try:
+        budget.rebudgeted(tmp_path, "lever_trellis.flat", 0.3)
+        raise AssertionError("rebudgeted cut without --cut")
+    except place_build.Refused as why:
+        assert "--cut" in str(why)
     assert budget.error_bound(0.3) == budget.error_bound(None) == budget.LEAST_ERROR  # 0.34 mm a pixel, 0.5 mm kept
     assert abs(budget.error_bound(10.0) - 10.0 * np.radians(70.0) / 1080) < 1e-12  # a pixel at 10 m: 11.3 mm
     pivot = np.eye(4)
