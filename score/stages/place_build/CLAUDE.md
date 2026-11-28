@@ -251,7 +251,9 @@ one command at a time and reads `compare.png` and the measures to choose the nex
   `display` (a screen's dark glass part `glass`, `header` bezel over it for its lit label), `attitude_ball` (part
   `ball_sky` over `ball_ground`, the front half of a ball standing on its plate, which the game turns round its
   middle), `gauge` (part `dial`), `console_desk` (cockpit_kit.console's box), `porthole` (sleeve, flanges, bolts and
-  pane through the cabin wall, in the capsule's frame). The game's faces (GAME_FACES) are written turned half round
+  pane through the cabin wall, in the capsule's frame). `hatch_door` (rows side hatch door, hatch window, hatch handles): an oval leaf with
+  a round window, a rim band and grab handles, built in a made model's frame and laid shut in the hatch frame's bore at
+  `hatch_spot` (its own axes square to the wall: the door checks read a door's frame from its prim's axes). The game's faces (GAME_FACES) are written turned half round
   y, front -z as the game's cockpit reads a display, and laid turned back. No body of a piece overlaps another (LIFT).
 - **The launch kit** (`kit`, batch only; launch_kit.py, the pad, the 2099 judge 2026-11-23: "the wrong ship and looks
   messy", "a plain grey rectangular slab box", "stair-stepped block zigzags"): a launch site's big pieces in code at

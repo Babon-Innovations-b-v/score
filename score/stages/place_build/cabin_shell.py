@@ -31,10 +31,11 @@ Every piece is built in the capsule's frame (y up the cone's axis, the floor's t
 import math
 
 import numpy as np
+from scipy.spatial.transform import Rotation
 
 from score.stages.place_build.cockpit_kit import (Cone, about, bolt_ring, box, circle_path, collar_flange, console,
-                                                  frame_ring, grid_solid, in_cut, moved, near_hole, piece, placed,
-                                                  sleeve, turned, written)
+                                                  frame_ring, grid_solid, in_cut, moved, near_hole, outline_slab, piece,
+                                                  placed, sleeve, tube, turned, written)
 
 COURSES = (0.0, 1.80)  # the wall's course lines, metres up the cone from the floor: one tall panel a joint, as a
 # real cabin's wall (the inventory's lining panels, 0.8 x 1.9 m); the shoulder runs from the last to the ceiling ring
@@ -679,9 +680,53 @@ def porthole(at=(76.0, 1.54), radius=0.18, wall=0.012, flange=0.05, bolts=12, ou
     return found
 
 
+def superellipse_path(half_x, half_y, square, steps=96):
+    """The counter-clockwise plan of a superellipse `half_x` by `half_y` round its middle, of exponent `square` (2 an
+    ellipse, higher squarer), `steps` points."""
+    turns = np.arange(steps) * 2 * math.pi / steps
+    bend = 2 / square
+    return [(half_x * math.copysign(abs(math.cos(turn)) ** bend, math.cos(turn)),
+             half_y * math.copysign(abs(math.sin(turn)) ** bend, math.sin(turn))) for turn in turns]
+
+
+def hatch_door(wide=0.77, high=1.21, thick=0.05, window=0.23, square=2.8, **_):
+    """The side hatch's door (rows side hatch door, hatch window, hatch handles), built in a made model's frame
+    (origin at its foot's middle, y up, its inside face +z, its thickness centred on z = 0) and laid at `hatch_spot`:
+    an oval leaf `wide` x `high` (part leaf) `thick` thick, its outline a superellipse of exponent `square` (2 an
+    ellipse; the side hatch frame's bore is fuller at its corners than one), a round window `window` across through
+    its middle (part glass, set within the leaf's thickness), a raised band round its inside edge and a bezel round
+    the window (part rim) and two grab handles on its inside face either side of the window (part handle)."""
+    low, top = -thick / 2, thick / 2
+    hole = window / 2
+    oval = lambda inset: superellipse_path(wide / 2 - inset, high / 2 - inset, square)  # noqa: E731 (one line)
+    disc = lambda radius: circle_path(radius, radius, steps=96)[:-1]  # noqa: E731 (one line)
+    found = frame_ring("leaf", oval(0.0), disc(hole), low, top)
+    found += outline_slab("glass", disc(hole - 0.001), low + 0.012, top - 0.012)
+    found += frame_ring("rim", oval(0.004), oval(0.05), top + LIFT, top + 0.015)
+    found += frame_ring("rim", disc(hole + 0.035), disc(hole - 0.003), top + LIFT, top + 0.012)
+    for side in (-1.0, 1.0):  # a grab bar each side of the window, standing off the leaf's face on its two feet
+        x = side * (hole + 0.11)
+        found += tube("handle", [(x, -0.13, top + 0.001), (x, -0.13, top + 0.032), (x, -0.112, top + 0.05),
+                                 (x, 0.112, top + 0.05), (x, 0.13, top + 0.032), (x, 0.13, top + 0.001)], 0.011, 12)
+    return moved(found, offset=(0.0, high / 2, 0.0))
+
+
+def hatch_spot(at=(268.0, 1.0), centre=(-0.035, 0.0), depth=-0.02, high=1.21, **sizes):
+    """Where `hatch_door` is laid shut in its frame's bore through the wall at `at` [theta (degrees), y], in the
+    capsule's frame: its middle `centre` metres right and up of the hole's middle (square to the wall) and `depth`
+    metres along the wall's normal off the hull's inner face, its inside facing into the cabin; (at, turn) as a
+    kit step takes them (its foot's middle, XYZ degrees)."""
+    cone = Cone(**sizes)
+    angle = math.radians(at[0])
+    right, up, axis = cone.frame(angle)
+    middle = cone.at(angle, at[1]) + centre[0] * right + centre[1] * up + depth * axis
+    turn = Rotation.from_matrix(np.stack([right, up, axis], axis=1)).as_euler("xyz", degrees=True)
+    return [round(float(value), 5) for value in middle - up * high / 2], [round(float(value), 5) for value in turn]
+
+
 KINDS = {"cabin_wall": cabin_wall, "cabin_floor": cabin_floor, "cabin_ceiling": cabin_ceiling,
          "instrument_panel": instrument_panel, "display": display, "attitude_ball": attitude_ball, "gauge": gauge,
-         "console_desk": console_desk, "porthole": porthole}
+         "console_desk": console_desk, "porthole": porthole, "hatch_door": hatch_door}
 
 
 def write(path, kind, sizes):

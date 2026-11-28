@@ -127,6 +127,8 @@ Breaks that turn this red (each applied once and seen red, then reverted):
   solid
 - cabin_shell.flat_panel: a panel's face bowed onto the cone (or puffed) again -> a wall panel's face is not flat
 - cabin_shell.panel_fasteners: the fades left out -> a fastener stands on the porthole's flange
+- cabin_shell.hatch_door: a handle's end left open or the door placed by a left-handed frame -> a body of the
+  hatch door is no closed solid facing out
 - cabin_shell.cabin_floor: the deck laid as a solid disc down to the bulkhead again -> the bay under the deck is filled
 - place_build.kit: a cabin shell piece laid under the cockpit kit's address -> the wall is not algorithm/cabin_shell
 - cabin_shell.ball_quarter: the ball's two halves laid meeting at the horizon again -> the attitude ball's halves
@@ -1296,7 +1298,8 @@ def cabined(folder):
     built = {kind: cabin_shell.KINDS[kind](**sizes) for kind, sizes in (
         ("cabin_wall", {"holes": holes, "fades": fades, "cut": cut, "sector": [16.0, 112.0]}),
         ("cabin_floor", {}), ("cabin_ceiling", {}), ("instrument_panel", {}), ("display", {"header": 0.08}),
-        ("attitude_ball", {"header": 0.1}), ("gauge", {}), ("console_desk", {}), ("porthole", {"at": [28.0, 1.54]}))}
+        ("attitude_ball", {"header": 0.1}), ("gauge", {}), ("console_desk", {}), ("porthole", {"at": [28.0, 1.54]}),
+        ("hatch_door", {}))}
     for kind, pieces in built.items():
         points, triangles = cockpit_kit.welded(np.vstack([found[1] for found in pieces]), np.vstack(
             [found[2] + sum(len(earlier[1]) for earlier in pieces[:number]) for number, found in enumerate(pieces)]))
