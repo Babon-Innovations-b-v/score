@@ -236,6 +236,11 @@ A beard is as dense as its style's `beard_density_m2` (`beard.beard_strands`). B
 reverted, 2026-11-28): the style's density unread (beard.DENSITY alone: ratio 1.0).
 A jeans hem resting on a shoe turns with the foot (`cloth.hem_on_shoes`). Break (applied once, seen red, reverted,
 2026-11-27): HEM_SHOE_M 0 (the hem left on the shin, sliding in and out of the shoe).
+A garment's seam to a skinned kind takes none of the cloth's move (`cloth.seam_eased`). Break (applied once, seen
+red, reverted, 2026-11-28): SEAM_EASE_M 1e-9 (the seam moved in full: the jeans stood off the shoes and the puffer
+off its own neck by up to 1.5 cm, ragged hems and a torn collar top).
+A cloth garment's weights are smoothed over its own surface (`cloth.weights_smoothed`). Break (applied once, seen
+red, reverted, 2026-11-28): WEIGHT_SMOOTH_ROUNDS 0 (the foot's speckled share tore the hems into fins at each stride).
 still_rig's fan across the cut's loop (`person.neck_fans`) is found, the neck tube and a fan far under the cut kept.
 Breaks (each applied once, seen red, reverted, 2026-11-27): `FAN_BAND` 1 (the armpit's fan taken too); `FAN_OFF_M` 1
 with `FAN_MIDDLE_M` 1 (no cut fan found); `FAN_MIDDLE_M` 1 (the wedge reaching out over the band kept); 2026-11-28:
@@ -1855,6 +1860,51 @@ def hem_turns_with_shoe():
     return [round(float(found[hem, 1]), 3), round(float(found[up, 1]), 3), bool(np.allclose(found.sum(1), 1.0))]
 
 
+def seam_held_to_shoe():
+    """`hem_turns_with_shoe`'s jeans over its shoe (`cloth.seam_eased`): the hem's row on the shoe takes none of the
+    cloth's move, the row 1 cm up a third, the row 5 cm up all of it."""
+    x, y = np.meshgrid(np.linspace(-0.15, 0.15, 31), np.r_[np.linspace(0.0, 0.07, 8), np.linspace(0.08, 0.30, 23)])
+    points = np.round(np.c_[x.ravel(), y.ravel(), np.zeros(x.size)], 6)
+    corner = (np.arange(30)[:, None] * 31 + np.arange(30)[None]).ravel()
+    faces = np.r_[np.c_[corner, corner + 1, corner + 32], np.c_[corner, corner + 32, corner + 31]]
+    shoe = (points[faces][:, :, 1] <= 0.07).all(1)
+    kinds = np.where(shoe, cloth.KINDS.index("shoes"), cloth.KINDS.index("jeans"))
+    used, own = cloth.garment_of({"faces": faces}, kinds, "jeans")
+    share = cloth.seam_eased({"points": points, "faces": faces}, kinds, "jeans", used, own)
+    rows = [int(np.flatnonzero(used == np.flatnonzero((points[:, 0] == 0.0) & (points[:, 1] == height))[0])[0])
+            for height in (0.07, 0.08, 0.12)]
+    return [round(float(share[row]), 2) for row in rows]
+
+
+def grid_sheet(count=21, spacing=0.01):
+    """A flat sheet of count x count points `spacing` apart (z 0) and its triangles."""
+    x, y = np.meshgrid(np.arange(count) * spacing, np.arange(count) * spacing)
+    points = np.c_[x.ravel(), y.ravel(), np.zeros(x.size)]
+    corner = (np.arange(count - 1)[:, None] * count + np.arange(count - 1)[None]).ravel()
+    faces = np.r_[np.c_[corner, corner + 1, corner + count + 1], np.c_[corner, corner + count + 1, corner + count]]
+    return points, faces
+
+
+def jeans_weights_smoothed():
+    """A jeans sheet over a row of shoe faces, each point's shin and foot shares speckled 0 to 0.3 apart from its
+    neighbours (`cloth.weights_smoothed`): the jeans' own points' shares within a tenth of the speckle of their
+    neighbours', the points the shoes share kept, every row summing to one."""
+    points, faces = grid_sheet()
+    rng = np.random.default_rng(4)
+    foot = rng.uniform(0.0, 0.3, len(points))
+    weights = np.c_[1.0 - foot, foot]
+    shoe = points[faces].mean(1)[:, 1] < 0.02
+    kinds = np.where(shoe, cloth.KINDS.index("shoes"), cloth.KINDS.index("jeans"))
+    found = cloth.weights_smoothed({"points": points, "faces": faces, "weights": weights}, kinds, "jeans")
+    shared = np.zeros(len(points), bool)
+    shared[faces[shoe].ravel()] = True
+    edges = faces[~shoe][:, [0, 1]]
+    edges = edges[~shared[edges].any(1)]
+    return [bool(np.abs(found[edges[:, 0], 1] - found[edges[:, 1], 1]).mean()
+                 < np.abs(weights[edges[:, 0], 1] - weights[edges[:, 1], 1]).mean() / 10),
+            bool(np.allclose(found[shared], weights[shared])), bool(np.allclose(found.sum(1), 1.0))]
+
+
 def cloth_short_edge_collapsed():
     """A tiny triangle of 1 mm sides set in a 1 cm hexagon (no corner under ANGLE_LEAST) collapsed: no edge under
     3 mm is left (the hoodie man's jeans kept a 1 mm edge, read as a stretch of 0.68)."""
@@ -2636,6 +2686,10 @@ def hair_over_plate():
     ("a long coat under the hip joints hangs from both thighs and the pelvis as a skirt; its cuff, its top and a "
      "short jacket keep their own; a hand on it eases it in", cloth_skirted,
      [0.6, True, [0.0, 0.0, 1.0], True, True, True, True, 0.135]),
+    ("a garment's seam to a skinned kind takes none of the cloth's move, eased in over SEAM_EASE_M", seam_held_to_shoe,
+     [0.0, 0.33, 1.0]),
+    ("the jeans' weights are smoothed over their own surface, their seams to other kinds kept",
+     jeans_weights_smoothed, [True, True, True]),
     ("a jeans hem resting on a shoe takes the foot's weights, the leg above keeps the shin's", hem_turns_with_shoe,
      [0.667, 0.0, True]),
     ("a remeshed edge under a third of the mesh's edge is collapsed", cloth_short_edge_collapsed, [True, True]),

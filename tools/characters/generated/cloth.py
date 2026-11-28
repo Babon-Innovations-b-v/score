@@ -54,9 +54,10 @@ and the jacket shredded; free cloth was stopped for the tether.
 6. `resampled` and `cloth_mesh.displaced`: the run read back at the film's FPS from WARM_CYCLES on, each frame with
    the clip's time and the walk's travel taken out (the armature in Blender plays the clip in place), and the
    sheet's stride points (left foot ahead, passing, right foot ahead) in the last cycle, the drawn surface its own
-   skinned place moved by as much as the sim mesh there stands off its target and shaded by its own smooth normals
-   as skinning turns them (`skinned_normals`; the skinned person's own, so a cloth on its targets is drawn exactly
-   as the skinned person is); `measures`: each garment's deepest loose point inside the body (the sim mesh's and
+   skinned place moved by as much as the sim mesh there stands off its target (none where it meets another kind,
+   eased in over SEAM_EASE_M: `seam_eased`, so a seam to a skinned kind never opens) and shaded by its own smooth
+   normals as skinning turns them (`skinned_normals`; the skinned person's own, so a cloth on its targets is drawn
+   exactly as the skinned person is); `measures`: each garment's deepest loose point inside the body (the sim mesh's and
    the drawn surface's), its largest stretch, its drift off the skin and its jitter, beside the same numbers for
    plain skinning, and the jeans' flap at the passing step (`flap`: the farthest a lower-leg point stands off the
    body; `swing`: the farthest beyond its standoff at rest) and each garment's hem swing off its skinned place
@@ -158,6 +159,19 @@ HEM_SWING_M = 0.08  # a garment's hem (`hem_swing`): its loose sim points this n
 # stairwell woman's wide hem slid in and out of her shoes as each foot turned: 755 drawn points inside the shoes'
 # hulls on the film's frames, 101 changing from frame to frame (whole person round 5, 2026-11-27).
 HEM_SHOE_M = 0.03
+# A garment's drawn points where it meets another kind stay on their own skinned place, as the kind beside them is
+# drawn (`seam_eased`): the cloth's move there reaches its full share only SEAM_EASE_M over the garment's surface from
+# that border. Moved in full to the border, the stairwell woman's jeans stood off her shoes and her puffer off its
+# own neck by 1.1 to 1.5 cm (the 90th percentile of the film's worst frame) while the faces beside them stayed:
+# the hems drawn ragged over the shoes and the collar's top torn (2026-11-28)
+SEAM_EASE_M = 0.03
+# Each cloth garment's weights are smoothed over its own surface (`weights_smoothed`): each point not on another
+# kind's face averaged with its neighbours this many rounds. still_rig's weights on the 300k-face shell (RIG_FACES,
+# 2026-11-27) mix the foot's 5 to 24% unevenly into neighbours 2 to 4 mm apart round the ankle, and with the foot's
+# share at the shoes (`hem_on_shoes`) the hem's faces tore into dark fins at each stride (the stairwell woman: 0.4% of
+# the skinned edges under the knees grown past twice their length over the walk, 0.04% smoothed; her puffer's 0.95%
+# 0.48%, the hoodie man's overshirt's 1.45% 1.0%, the width of their backs unchanged; 2026-11-28)
+WEIGHT_SMOOTH_ROUNDS = 60
 SKIRT_BLEND_M = 0.08  # metres under the hip joints over which the garment's own weights give way to the skirt's
 SKIRT_HIPS = (0.3, 0.6)  # the pelvis's share in the middle between the legs at the hip joints and at the hem
 ARM_LEAST = 0.05  # a point with this much of its weight on an arm is on it (`skirted`)
@@ -617,6 +631,36 @@ def hem_on_shoes(person, kinds):
     return weights
 
 
+def seam_eased(person, kinds, kind, used, faces):
+    """Each of a garment's points' share of the cloth's move (0 to 1): none where it meets another kind, all of it
+    SEAM_EASE_M over its surface from there (module docstring 6)."""
+    border = borders(person, kinds, kind, [other for other in KINDS if other != kind])
+    local = np.full(len(person["points"]), -1)
+    local[used] = np.arange(len(used))
+    found = local[border]
+    reach = over_surface(person["points"][used], faces, found[found >= 0])
+    return np.clip(reach / SEAM_EASE_M, 0.0, 1.0)
+
+
+def weights_smoothed(person, kinds, kind):
+    """The person's weights with `kind`'s points on none of the other kinds' faces averaged with their neighbours over
+    its faces WEIGHT_SMOOTH_ROUNDS times (the points it shares with other kinds held, so its seams stay theirs)."""
+    faces, weights = person["faces"], person["weights"].copy()
+    own = kinds == KINDS.index(kind)
+    free = np.zeros(len(weights), bool)
+    free[faces[own].ravel()] = True
+    free[faces[~own].ravel()] = False
+    if not free.any():
+        return weights
+    edges = np.concatenate([faces[own][:, [0, 1]], faces[own][:, [1, 2]], faces[own][:, [2, 0]]])
+    graph = coo_matrix((np.ones(len(edges)), (edges[:, 0], edges[:, 1])), shape=(len(weights),) * 2).tocsr()
+    graph = ((graph + graph.T) > 0).astype(float)
+    degree = np.maximum(np.asarray(graph.sum(1)).ravel(), 1.0)
+    for _ in range(WEIGHT_SMOOTH_ROUNDS):
+        weights[free] = (graph @ weights)[free] / degree[free, None]
+    return weights
+
+
 def jeans_off_arms(person, kinds):
     """The person's weights with the jeans' points (but those of still_rig's laid hands) carrying none of the arms'
     (ARMS' upper arm to hand): each such point's other weights scaled up to one, or, with nothing left, the nearest
@@ -1018,6 +1062,8 @@ def made(body_glb, rig_path, out, height, reach=None, neck=None):
     # with the trousers, its faces by the hands stretched from the hips to the wrists (the hoodie man, 2026-11-28)
     jacket_seam = np.unique(person["faces"][fused_trousers(person, kinds)])
     person = {**person, "weights": jeans_off_arms(person, kinds)}
+    for kind in worn(kinds):
+        person = {**person, "weights": weights_smoothed(person, kinds, kind)}
     jacket_weights = person["weights"].copy()
     jacket_weights[jacket_seam] = before_jeans[jacket_seam]
     body = body_under(person, dict(np.load(rig_path)))
@@ -1046,10 +1092,11 @@ def made(body_glb, rig_path, out, height, reach=None, neck=None):
             carried = skinned(sim["points"], sim["weights"], timing["moves"])
             rest = garment["points"] * scale
             own = skinned(rest, garment["weights"], timing["moves"])
+            eased = seam_eased(person, kinds, kind, garment["used"], garment["faces"])[None, :, None]
             shape = {"points": len(rest), "sim_points": len(sim["points"]), "sim_faces": len(sim["faces"]),
                      "riding_share": round(float(sim["riding"].mean()), 3)}
             for label, positions in (("garments", cloth), ("skinned", carried)):
-                drawn = own + cloth_mesh.displaced(sim["binding"], positions, carried, sim["faces"])
+                drawn = own + eased * cloth_mesh.displaced(sim["binding"], positions, carried, sim["faces"])
                 found = measures(positions, sim, carried, drawn, ~garment["riding"], body_posed, body[1])
                 run[label][kind] = {**shape, **found}
                 if clip == "walking":
@@ -1067,7 +1114,7 @@ def made(body_glb, rig_path, out, height, reach=None, neck=None):
                 run.setdefault("rig_skinned", {})[kind] = between_legs(
                     skinned(person["points"][used] * scale, rig_weights[used], timing["moves"]),
                     person["points"][used] * scale, faces, legs[0], legs[1])
-            drawn = own + cloth_mesh.displaced(sim["binding"], cloth, carried, sim["faces"])
+            drawn = own + eased * cloth_mesh.displaced(sim["binding"], cloth, carried, sim["faces"])
             normals = skinned_normals(garment["normals"], garment["weights"], timing["moves"])
             del own
             for name in ("used", "faces", "riding"):

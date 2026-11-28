@@ -225,6 +225,18 @@ own paint) and brings in only what the generator cannot make, from the repo's ow
   swings with it: a pelvis share over the thighs let the lifted thigh 11 to 12.7 cm through the coat's front, and
   pushing the targets out of the body point by point tore it (stretch 4.5). The hands' depth in
   the trunk and legs is recorded (`hands_in`); the arms are kept out of the coat in still_rig (`arms_kept_out`).
+  Round 7 (2026-11-28, owner: "in the loops some parts that were quite clean got messy"): a garment's seam to a
+  skinned kind never opens (`seam_eased`: its drawn points take none of the cloth's move where they meet another
+  kind, all of it SEAM_EASE_M over the garment from there; moved in full, the jeans stood off the shoes and the
+  puffer off its neck by 1.1 to 1.5 cm), and every cloth garment's weights are smoothed over its own surface, its
+  seams held (`weights_smoothed`: still_rig's weights on the 300k-face shell mix the foot's share unevenly into
+  neighbours a few mm apart, and the hem tore into dark fins at each stride). Open: the stairwell woman's collar top
+  is her body model's own shoulder-length locks painted over as the collar (8160 points, up to 6.6 cm off it), a
+  jagged frill; laid smooth (60 rounds) its layers folded into dark slits, laid onto the collar's tangent plane they
+  drew as flat faceted shards, and taken off (round 6) the collar's hollow showed. And a fused sleeve rides its arm,
+  so where a clip holds the arms out further than the shell's own (still_rig's `hands_cleared`), the back between
+  them is pulled into a wide cape; reweighting the back panel to the trunk tore it (the hoodie man's skinned edges
+  past twice their length 1.3% to 5.3%).
   **Free cloth is stopped** (coordinator, 2026-11-26): two free runs on Newton's VBD tore (the jeans stretched 90 cm
   down to and between the shoes, 19 cm inside the body; the jacket shredded). The tether makes the result at least as
   stable as plain skinning; cloth.json records every garment's numbers both ways (`garments` tethered, `skinned`).
