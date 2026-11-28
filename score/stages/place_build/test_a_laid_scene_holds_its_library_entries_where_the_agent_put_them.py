@@ -55,6 +55,7 @@ Breaks that turn this red (each applied once and seen red, then reverted):
 - pipe_run.wall_way: the round wall's side ignored -> the silo pipe's brackets stand off away from the silo
 - pipe_run.catenary: the hang's sign turned -> the lantern string's middle rises over its ends
 - place_build.pipe: the missing looks check left out -> a run with bare parts is laid
+- place_build.pipe: a look given as {address, colour} read as an address -> the drain's run is refused, its brackets bare
 - place_build.snap: `on_grid` on the height too -> the lifted piece drops to the grid
 - place_build.tinted: the colour set on the diffuse input though a map feeds it -> the sand's map keeps no tint
 - place_build.look_shader: `strongerThanDescendants` made `weakerThanDescendants` -> the piece's own look wins
@@ -831,7 +832,7 @@ def test_a_laid_scene_holds_its_library_entries_where_the_agent_put_them(tmp_pat
     drain = {"profile": "round", "radius": 0.05, "path": [[0, 6, 0], [0, 0.3, 0], [0.4, 0, 0]], "wall": [0, 0, -1]}
     piped = place_build.batch(folder, [
         {"step": "pipe", "name": "drain", "spec": drain, "at": [30, 0, 30], "role": "mount", "support": "wall:wall",
-         "looks": {"pipe": hull, "fitting": hull, "bracket": "surface/steel"}},
+         "looks": {"pipe": hull, "fitting": hull, "bracket": {"address": "surface/steel", "colour": "#5f6066"}}},
         {"step": "pipe", "name": "string", "spec": {"profile": "cord", "radius": 0.005, "path": [[0, 5, 0], [10, 5, 0]],
                                                     "sag": 0.6, "hang": 2.0}, "at": [30, 0, 40], "looks": {"cable": hull}},
         {"step": "pipe", "name": "bare", "spec": drain, "looks": {"pipe": hull}},

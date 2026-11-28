@@ -1402,7 +1402,8 @@ def pipe(folder, name, spec, at=(0.0, 0.0, 0.0), turn=(0.0, 0.0, 0.0), role="fix
     """A long thin run (pipe_run.py: its `spec`'s path, profile, sag, fittings and brackets) laid as Objects/<name>
     of `role` (PIPE_ROLES; a mount with its `support`, wall:<object>), or with `ground` walked on (a cable ramp), its
     file written once under the place's assets by its spec and the algorithm's code; each of its parts then wears its
-    look from `looks` ({part: surface address, `palette/<variant>` too}), refused when a part has none. Its answer
+    look from `looks` ({part: surface address, `palette/<variant>` too, or {address, colour} for a recipe in a
+    palette colour, as `kit` takes}), refused when a part has none. Its answer
     names its parts, its centreline's length and its `hang` spots in the scene's frame (where a string's lanterns
     are laid)."""
     if role not in PIPE_ROLES and not ground:
@@ -1430,7 +1431,11 @@ def pipe(folder, name, spec, at=(0.0, 0.0, 0.0), turn=(0.0, 0.0, 0.0), role="fix
     spots = [[round(value, 4) for value in frame.Transform(Gf.Vec3d(*spot))] for spot in made["spots"]]
     saved(stage)
     for part in made["parts"]:
-        surface(folder, name, looks[part], part=part)
+        look = looks[part]
+        if isinstance(look, dict):
+            surface(folder, name, look["address"], colour=look.get("colour"), part=part)
+        else:
+            surface(folder, name, look, part=part)
     return {"name": name, "address": PIPE, "usd": relative, "parts": made["parts"], "length": made["length"],
             **({"spots": spots} if spots else {})}
 
