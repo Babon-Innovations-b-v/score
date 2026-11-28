@@ -993,6 +993,26 @@ def surface_under(solids, top):
     return height_at
 
 
+def surface_below(solids, over):
+    """The highest face of `solids` ({name: triangles n x 3 x 3}, the scene's frame) under each of an array of points,
+    rays cast down from `over` metres above each (so a point under a table finds the floor), nan where none is."""
+    import trimesh
+    found = [tris for tris in solids.values() if len(tris)]
+    if not found:
+        return lambda points: np.full(len(np.asarray(points)), np.nan)
+    corners = np.concatenate(found).reshape(-1, 3)
+    mesh = trimesh.Trimesh(corners, np.arange(len(corners)).reshape(-1, 3), process=False)
+
+    def height_below(points):
+        starts = np.asarray(points, dtype=np.float64) + [0.0, over, 0.0]
+        hits, rays, _ = mesh.ray.intersects_location(starts, np.tile([0.0, -1.0, 0.0], (len(starts), 1)),
+                                                     multiple_hits=False)
+        heights = np.full(len(starts), np.nan)
+        heights[rays] = hits[:, 1]
+        return heights
+    return height_below
+
+
 def ground_surface(stage, place, lines, margin=3.0):
     """The laid ground's height as a function of arrays of x and z over the box round `lines` (polylines of [x, z]):
     the highest of its faces over each spot, as ground_height reads one, found for a whole route at once by rays cast
@@ -1428,13 +1448,16 @@ def pipe(folder, name, spec, at=(0.0, 0.0, 0.0), turn=(0.0, 0.0, 0.0), role="fix
     of `role` (PIPE_ROLES; a mount with its `support`, wall:<object>), or with `ground` walked on (a cable ramp), its
     file written once under the place's assets by its spec and the algorithm's code; each of its parts then wears its
     look from `looks` ({part: surface address, `palette/<variant>` too, or {address, colour} for a recipe in a
-    palette colour, as `kit` takes}), refused when a part has none. Its answer
+    palette colour, as `kit` takes}), refused when a part has none or its look is refused (the run then laid not at
+    all); a flexible run with no sag and no wall draped over what is under it (pipe_run.draped). Its answer
     names its parts, its centreline's length and its `hang` spots in the scene's frame (where a string's lanterns
     are laid)."""
     if role not in PIPE_ROLES and not ground:
         raise Refused(f"a pipe run is a {', '.join(PIPE_ROLES)}, not {role}")
     import hashlib
     from score.stages.place_build import pipe_run
+    if pipe_run.drapes(spec):
+        spec = draped_spec(folder, name, spec, at, turn)
     code = hashlib.sha256(pathlib.Path(pipe_run.__file__).read_bytes()).hexdigest()
     key = hashlib.sha256(json.dumps([spec, code], sort_keys=True).encode()).hexdigest()[:16]
     target = pathlib.Path(folder) / "assets" / "algorithm" / PIPE.split("/", 1)[1] / f"run_{key}.usda"
@@ -1455,14 +1478,37 @@ def pipe(folder, name, spec, at=(0.0, 0.0, 0.0), turn=(0.0, 0.0, 0.0), role="fix
     frame = UsdGeom.Xformable(prim).ComputeLocalToWorldTransform(Usd.TimeCode.Default())
     spots = [[round(value, 4) for value in frame.Transform(Gf.Vec3d(*spot))] for spot in made["spots"]]
     saved(stage)
-    for part in made["parts"]:
-        look = looks[part]
-        if isinstance(look, dict):
-            surface(folder, name, look["address"], colour=look.get("colour"), part=part)
-        else:
-            surface(folder, name, look, part=part)
+    try:
+        for part in made["parts"]:
+            look = looks[part]
+            if isinstance(look, dict):
+                surface(folder, name, look["address"], colour=look.get("colour"), part=part)
+            else:
+                surface(folder, name, look, part=part)
+    except Refused as why:  # a run whose look is refused is laid not at all, never left with a part in no finish
+        remove(folder, name)  # (2099 #161: the flat's cords in palette/rubber_black, which its palette lacks, drawn white)
+        raise Refused(f"{name}: {why}; laid nothing") from why
     return {"name": name, "address": PIPE, "usd": relative, "parts": made["parts"], "length": made["length"],
             **({"spots": spots} if spots else {})}
+
+
+def draped_spec(folder, name, spec, at, turn):
+    """A flexible run's `spec` with its path (its `paths` each) draped (pipe_run.draped) over the place's solids under
+    it as laid at `at` and `turn` (every object a walker meets, the run's own earlier laying left out), carried back
+    into the run's own frame."""
+    from scipy.spatial.transform import Rotation
+    from score.stages.place_build import pipe_run
+    from score.stages.place_build import ready
+    solids = {other: triangles for other, triangles in ready.solids(folder).items() if other != name}
+    turned = Rotation.from_euler("xyz", [float(value) for value in turn], degrees=True)
+    shift = np.asarray(at, dtype=np.float64)
+    paths = spec["paths"] if spec.get("paths") else [spec["path"]]
+    radius = float(spec.get("radius") or 0.0)
+    height_below = surface_below(solids, radius + pipe_run.DRAPE_LIES + 0.01)
+    laid = [turned.inv().apply(pipe_run.draped(turned.apply(np.asarray(path, dtype=np.float64)) + shift, height_below,
+                                               radius) - shift) for path in paths]
+    rounded = [[[round(float(value), 5) for value in point] for point in path] for path in laid]
+    return {**spec, **({"paths": rounded} if spec.get("paths") else {"path": rounded[0]})}
 
 
 HOLLOW_LEAST = 0.02  # metres: a box's piece left thinner than this by a hollow is dropped (a sliver, no wall)

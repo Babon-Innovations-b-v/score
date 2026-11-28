@@ -18,7 +18,9 @@ stands where its points say. `spec`:
   of the rails under the top one, `posts` the most metres between posts, `post` and `rail` their radii, `infill`
   none, `bars` (balusters, `bar` their radius, BAR_RADIUS by default) or `glass`);
 - `sag` metres a flexible run hangs between each two of its points (a catenary: an overhead cable, a lantern
-  string, a cord between a lamp and its socket);
+  string); a flexible run given neither `sag` nor `wall` is draped when laid (`draped`, place_build.pipe): it is held
+  only at its ends and where it lies on something, hangs by gravity between those holds and lies on the surfaces
+  under it (a lamp's or a TV's cord, 2099 #161: cords laid on their given points stood in the air as stiff lines);
 - `bend` the bend radius at each corner (BEND_RADII of its radius by default; a cable's wider, FLEXIBLE_RADII);
 - `face` the way a flat, box or channel section's depth points (default up), carried along the run;
 - `wall` the way from the run to the wall it is held on (or a round wall, {"axis": [x, z], "side": "out" | "in"}: a
@@ -63,6 +65,10 @@ BAR_GLASS = 0.012  # metres: a railing's glass infill's thickness
 INFILL_LOW = 0.1  # metres over the floor a railing's infill starts
 BARS_GAP = 0.12  # metres between a railing's bars (a building code's 0.1 m sphere does not pass)
 BAR_RADIUS = 0.008  # metres: a railing's bar's radius, when none is given
+FLEXIBLE = ("cord", "bundle", "corrugated")  # the sections a laid run drapes when no sag or wall holds them
+DRAPE_STEP = 0.05  # metres between a draped run's points
+DRAPE_SLACK = 0.04  # a draped run's sag between two holds, a share of their span (a cord is longer than its chord)
+DRAPE_LIES = 0.02  # metres over the surface under it, past its own radius, a point lies on that surface: a hold
 PENNANT = {"wide": 0.2, "drop": 0.25, "thick": 0.002}  # metres: a bunting flag's, when its sizes are not given
 
 
@@ -120,6 +126,36 @@ def catenary(start, end, sag, up=(0.0, 1.0, 0.0)):
     parameter = math.sqrt(low * high)
     hang = parameter * (math.cosh(span / (2 * parameter)) - np.cosh((along - 0.5) * span / parameter))
     return start + np.outer(along, end - start) - np.outer(hang, up)
+
+
+def drapes(spec):
+    """Whether a laid run is draped (`draped`): a flexible section with neither a `sag` nor a `wall` holding it."""
+    return spec.get("profile") in FLEXIBLE and not spec.get("sag") and not spec.get("wall")
+
+
+def draped(points, height_below, radius):
+    """The path `points` (the scene's frame) as a flexible run lies under gravity: held at its two ends and at every
+    point lying on the surface under it (within DRAPE_LIES past `radius`), its points in the air not held (a cord
+    goes where it falls, never where it was drawn); each span between holds hung DRAPE_SLACK of its span on a
+    catenary, then lifted wherever it would pass into the surface under it, so it lies on the floor, a table or a step
+    it crosses. `height_below(points)` is the height of the highest surface under each point, looked for from a
+    little over it (DRAPE_LIES past `radius`: a cord under a table lies on the floor, never on the table top), nan
+    where none is (the span hangs free there)."""
+    points = np.asarray(points, dtype=np.float64)
+    under = np.asarray(height_below(points), dtype=np.float64)
+    lying = ~np.isnan(under) & (points[:, 1] - under <= radius + DRAPE_LIES)
+    holds = points[[index for index in range(len(points)) if index in (0, len(points) - 1) or lying[index]]]
+    hung = []
+    for start, end in zip(holds, holds[1:]):
+        span = float(np.linalg.norm(end - start))
+        stretch = resampled(catenary(start, end, DRAPE_SLACK * span), DRAPE_STEP)
+        hung.append(stretch if not hung else stretch[1:])
+    laid = np.vstack(hung)
+    floor = np.asarray(height_below(laid), dtype=np.float64) + radius
+    inside = ~np.isnan(floor) & (laid[:, 1] < floor)
+    inside[[0, -1]] = False  # the ends are where the run is plugged in, never moved
+    laid[inside, 1] = floor[inside]
+    return laid
 
 
 def resampled(points, step):

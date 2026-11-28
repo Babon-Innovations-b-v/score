@@ -58,6 +58,9 @@ Breaks that turn this red (each applied once and seen red, then reverted):
 - pipe_run.catenary: the hang's sign turned -> the lantern string's middle rises over its ends
 - pipe_run.pennants: the drop left off its tip -> the bunting's flags are slivers along its string, none hanging
 - pipe_run.railing_run: `bar` ignored -> the stair's balusters stand 16 mm thick where the row says 20
+- place_build.pipe: a run laid before its looks are refused -> the unlooked run stays in the scene, a part in no finish
+- pipe_run.draped: a cord's points in the air kept, or its spans not hung or not lifted onto what is under them -> the
+  lamp cord stands in the air at its drawn point, runs straight from the table to the floor, or passes into the floor
 - place_build.pipe: the missing looks check left out -> a run with bare parts is laid
 - place_build.pipe: a look given as {address, colour} read as an address -> the drain's run is refused, its brackets bare
 - place_build.snap: `on_grid` on the height too -> the lifted piece drops to the grid
@@ -850,7 +853,12 @@ def test_a_laid_scene_holds_its_library_entries_where_the_agent_put_them(tmp_pat
         {"step": "pipe", "name": "string", "spec": {"profile": "cord", "radius": 0.005, "path": [[0, 5, 0], [10, 5, 0]],
                                                     "sag": 0.6, "hang": 2.0}, "at": [30, 0, 40], "looks": {"cable": hull}},
         {"step": "pipe", "name": "bare", "spec": drain, "looks": {"pipe": hull}},
-        {"step": "pipe", "name": "sagging", "spec": {**drain, "sag": 0.2}, "looks": {"pipe": hull}}])
+        {"step": "pipe", "name": "sagging", "spec": {**drain, "sag": 0.2}, "looks": {"pipe": hull}},
+        {"step": "pipe", "name": "lamp_cord", "spec": {"profile": "cord", "radius": 0.0035,
+                                                       "path": [[0, 1, 0], [0, 1, 0.6], [0, 0.0035, 0.6]]},
+         "at": [50, 0, 50], "looks": {"cable": hull}},
+        {"step": "pipe", "name": "unlooked", "spec": drain, "looks": {"pipe": "palette/no_such_paint", "fitting": hull,
+                                                                      "bracket": hull}}])
     pipe_stage = Usd.Stage.Open(str(folder / "scene.usda"))
     drain_prim = pipe_stage.GetPrimAtPath("/yard/Objects/drain")
     drain_mesh = UsdGeom.Mesh(pipe_stage.GetPrimAtPath(drain_prim.GetPath().AppendPath(Sdf.Path("geo"))))
@@ -869,6 +877,8 @@ def test_a_laid_scene_holds_its_library_entries_where_the_agent_put_them(tmp_pat
     hung = np.asarray(piped[1]["spots"])
     assert len(hung) == 5 and np.allclose(hung[:, 2], 40) and abs(hung[2, 1] - 4.4) < 0.02 and hung[0, 1] > hung[2, 1]
     assert "no look for its part(s) bracket, fitting" in piped[2]["refused"] and "rigid" in piped[3]["refused"]
+    assert 1.16 < piped[4]["length"] < 1.3  # laid draped: its corner in the air let fall, hung from its two ends
+    assert "laid nothing" in piped[5]["refused"]  # a refused look lays no run with a part in no finish
     silo = pipe_run.write(tmp_path / "silo.usda", {"profile": "round", "radius": 0.1, "path": [[2.4, 0, 0], [2.4, 3, 0]],
                                                    "wall": {"axis": [0, 0], "side": "in"}, "stand": 0.4})
     silo_stage = Usd.Stage.Open(str(tmp_path / "silo.usda"))
@@ -889,9 +899,24 @@ def test_a_laid_scene_holds_its_library_entries_where_the_agent_put_them(tmp_pat
     assert bunting["parts"] == ["cable", "pennant"] and len(bunting["spots"]) == 8 \
         and abs(flags[:, 1].min() - (4 - 0.2 - 0.004 - 0.25)) < 0.01  # a flag at each spot, hanging its drop under the sag
     assert balusters["parts"] == ["bracket", "infill", "post", "rail"] and np.isclose(np.abs(bars[:, 2]).max(), 0.01, atol=1e-4)
+    def table_room(points):  # a floor at 0 and a table top at 0.75 over 0 <= x <= 1, seen from a little over each point
+        points = np.asarray(points, dtype=np.float64)
+        over = 0.0035 + pipe_run.DRAPE_LIES + 0.01
+        return np.where((points[:, 0] >= 0) & (points[:, 0] <= 1) & (points[:, 1] + over >= 0.75), 0.75, 0.0)
+    cord = pipe_run.draped([[0.5, 0.7535, 0], [0.98, 0.7535, 0], [1.2, 0.5, 0], [1.6, 0.0035, 0], [3.0, 0.0035, 0],
+                            [3.2, 0.3, 0]], table_room, 0.0035)
+    lies = table_room(cord) + 0.0035
+    chord = np.interp(cord[:, 0], [0.98, 1.6], [0.7535, 0.0035])
+    off_table = (cord[:, 0] > 1.0) & (cord[:, 0] < 1.6)
+    assert pipe_run.drapes({"profile": "cord"}) and not pipe_run.drapes({"profile": "cord", "sag": 0.3}) \
+        and np.all(cord[:, 1] >= lies - 1e-9) and not np.any(np.linalg.norm(cord - [1.2, 0.5, 0], axis=1) < 0.03) \
+        and np.all(cord[off_table, 1] <= chord[off_table] + 1e-9) and (cord[off_table, 1] < chord[off_table] - 0.005).any() \
+        and np.allclose(cord[(cord[:, 0] > 1.7) & (cord[:, 0] < 2.9), 1], 0.0035) \
+        and np.allclose(cord[[0, -1]], [[0.5, 0.7535, 0], [3.2, 0.3, 0]])  # a cord lies on what is under it, hangs between its holds
     del pipe_stage
     place_build.remove(folder, "drain")
     place_build.remove(folder, "string")
+    place_build.remove(folder, "lamp_cord")
     batched =place_build.batch(folder, [
         {"step": "put", "name": "floor", "address": "kit/box_piece", "at": [0, -2, 0], "scale": 4, "ground": True},
         {"step": "put", "name": "missing", "address": "kit/plan_only"},
