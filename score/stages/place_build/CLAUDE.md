@@ -290,6 +290,15 @@ one command at a time and reads `compare.png` and the measures to choose the nex
   `bracket`, `post`, `infill`, `buckle`, `pennant`) wears its look from `looks`, refused when one has none. Its answer gives the
   run's length and its `hang` spots in the scene's frame, where a string's lanterns are `put`. Cached by spec and
   code under `assets/algorithm/pipe_run/`.
+- **The ground field** (`kit` piece `ground_field`, batch only; ground_field.py, `algorithm/ground_field`, 2099 #161,
+  the owner on the pad: "this smoke and terrain is shit"): a place's shaped outside ground, the coast's relief
+  (launch_kit.coast_heights: shoreline, sea bed, shore band, hills with ridges, `sites` levelled) as one closed
+  heightfield solid, `cell` metres apart and finer in each `fine` box [x0, z0, x1, z1, cell]; each top face takes the
+  part of the first of its `bands` its height (`below`, `above`) and slope in degrees (`steeper`, `gentler`) meet,
+  the last band the rest, the limits moved by a seeded patch relief (`blend` {height, slope}) so library surfaces
+  meet in patches, never along a contour; each part wears its library surface from `looks` (an image surface with
+  a palette `colour` is tinted). Lay it `--ground` so `put --on-ground` stands trees and rocks on it. The kit's file
+  name hashes ground_field.py only: delete it under `assets/algorithm/ground_field/` after changing coast_heights.
 - **A night** (`night`, batch only): no sky picture; the night's physics (score/stages/light/night.py worked out for
   the place: the moonlit and city-lit air, the moon) passed in as the Environment's light, background and exposure
   and a moon light; its `sky` names what of the night is drawn, each a library surface (refused for another kind or

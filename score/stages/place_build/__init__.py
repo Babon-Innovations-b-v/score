@@ -126,6 +126,7 @@ STAIRS = "algorithm/stair_core"  # the stair core algorithm's (stair_core.py)
 KIT = "algorithm/place_build"  # the cockpit kit's (cockpit_kit.py, part of the placing tool's own algorithm entry)
 PIPE = "algorithm/pipe_run"  # the pipe run algorithm's (pipe_run.py): pipes, cables, hoses, straps, ribs, railings
 CABIN = "algorithm/cabin_shell"  # the cabin shell algorithm's (cabin_shell.py: a capsule's flat-panelled wall, deck, ceiling)
+GROUND_FIELD = "algorithm/ground_field"  # the ground field algorithm's (ground_field.py: a shaped ground in library surfaces by slope and height)
 
 
 class Refused(ValueError):
@@ -1385,7 +1386,8 @@ def kit(folder, name, piece, sizes=None, at=(0.0, 0.0, 0.0), turn=(0.0, 0.0, 0.0
         looks=None, ground=False):
     """A piece built in code at its real size (cockpit_kit.py: the capsule's hull and quilted lining, an instrument
     panel, a toggle, a seat; cabin_shell.py, laid as algorithm/cabin_shell: the cabin's flat-panelled wall, its deck
-    over the underfloor bay and its ceiling; launch_kit.py: a ship, a launch ring, a tower's bracing, a far city's tower) laid as
+    over the underfloor bay and its ceiling; ground_field.py, laid as algorithm/ground_field: a place's shaped ground, its
+    faces in library surfaces by slope and height; launch_kit.py: a ship, a launch ring, a tower's bracing, a far city's tower) laid as
     Objects/<name> of `role` (BLOCK_ROLES; a mount with its `support`, wall:<object>) or, with `ground`, as the
     place's walked ground (the cabin's floor, the gantry), its file written once under the place's assets for its
     kind and `sizes`; each of its parts then wears its look from `looks` ({part: surface address,
@@ -1395,14 +1397,14 @@ def kit(folder, name, piece, sizes=None, at=(0.0, 0.0, 0.0), turn=(0.0, 0.0, 0.0
     if role not in BLOCK_ROLES and not ground:
         raise Refused(f"a kit piece is a {', '.join(BLOCK_ROLES)}, not {role}")
     import hashlib
-    from score.stages.place_build import cabin_shell, cockpit_kit, launch_kit
-    kinds = {**cockpit_kit.KINDS, **launch_kit.KINDS, **cabin_shell.KINDS}
+    from score.stages.place_build import cabin_shell, cockpit_kit, ground_field, launch_kit
+    kinds = {**cockpit_kit.KINDS, **launch_kit.KINDS, **cabin_shell.KINDS, **ground_field.KINDS}
     if piece not in kinds:
         raise Refused(f"no kit piece {piece!r} (pieces are {', '.join(sorted(kinds))})")
     sizes = dict(sizes or {})
     maker = (launch_kit if piece in launch_kit.KINDS else cabin_shell if piece in cabin_shell.KINDS
-             else cockpit_kit)
-    address = CABIN if maker is cabin_shell else KIT
+             else ground_field if piece in ground_field.KINDS else cockpit_kit)
+    address = CABIN if maker is cabin_shell else GROUND_FIELD if maker is ground_field else KIT
     # The file's name holds the kit's own code too, so a changed kit writes its piece again rather than the place
     # keeping the file an older kit wrote for the same sizes (2099 #161: the coast houses' roofs never landed).
     code = hashlib.sha256(pathlib.Path(maker.__file__).read_bytes()).hexdigest()

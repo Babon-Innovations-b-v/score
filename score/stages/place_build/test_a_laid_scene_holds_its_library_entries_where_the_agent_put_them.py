@@ -165,6 +165,11 @@ Breaks that turn this red (each applied once and seen red, then reverted):
 - launch_kit.hatch_band: a hatch row's run laid as a whole ring -> the hatched ship's skin stands across its hatch
 - launch_kit.hatched: the band laid on the hull with no gap -> the hatched ship's hull shares a face with its band
 - launch_kit.door_wall: the rows' sill row left out of the doorway -> the wall's volume is a round doorway's short
+- ground_field.closing: the sides left off -> the ground field is no closed solid
+- ground_field.banded: the patch relief left off its limits -> the sea bed and the shore band meet along one contour
+- ground_field.axis: the fine boxes unread -> the fine box's cells are not 2 m
+- ground_field.checked_bands: a last band with a limit let through -> no ValueError for a field with faces no band takes
+- place_build.kit: ground_field's pieces left out of its makers -> no kit piece 'ground_field'
 - place_build.kit: a door wall's doorway not recorded -> place.json holds no doorway arm_end_door to join at
 - place_build.kit: the doorway left in the wall's own frame -> the recorded doorway's inward is not the turned +x
 - place_build.remove: a removed door wall's doorway and join kept -> the pad's walkway still joins at a wall gone
@@ -1280,6 +1285,45 @@ def kitted(tmp_path):
             only_watertight=False)), kind
     cabined(folder)
     launched(folder)
+    fielded(folder)
+
+
+FIELD_BANDS = [{"part": "sea_bed", "below": -0.5}, {"part": "shore", "below": 2.0}, {"part": "cliff", "steeper": 30.0},
+               {"part": "scrub", "steeper": 8.0}, {"part": "grass"}]
+
+
+def fielded(folder):
+    """A ground field (ground_field.py, `kit` as algorithm/ground_field, laid as the ground): one closed heightfield
+    solid; its faces in the first band their height and slope meet, the bands' limits moved in patches (the sea bed and
+    the shore band meet over a spread of heights, never along one contour); its cells finer inside a fine box; its site
+    levelled, read so by the laid ground; a band with an unknown limit and a last band with a limit refused."""
+    from score.stages.place_build import ground_field
+    sizes = {"wide": 400.0, "deep": 200.0, "sea": 100.0, "rise": 40.0, "shore": 10.0, "cell": 10.0, "seed": 3,
+             "fine": [[-30.0, -100.0, 30.0, -40.0, 2.0]], "sites": [[0.0, -70.0, 20.0, 4.0]], "bands": FIELD_BANDS,
+             "blend": {"height": 1.5, "slope": 6.0}}
+    pieces = ground_field.ground_field(**sizes)
+    points, triangles = cockpit_kit.welded(np.vstack([found[1] for found in pieces]), np.vstack(
+        [found[2] + sum(len(earlier[1]) for earlier in pieces[:number]) for number, found in enumerate(pieces)]))
+    assert trimesh.Trimesh(points, triangles, process=False).is_watertight, "the ground field is no closed solid"
+    tops = {part: found_points[found_triangles] for part, found_points, found_triangles, _ in pieces}
+    assert sorted(tops) == sorted(band["part"] for band in FIELD_BANDS), sorted(tops)
+    sea_top = tops["sea_bed"][(tops["sea_bed"][:, :, 1] > tops["sea_bed"][:, :, 1].min() + 2.5).all(axis=1)]
+    assert sea_top[:, :, 1].mean(axis=1).max() > tops["shore"][:, :, 1].mean(axis=1).min() + 0.5, \
+        "the sea bed and the shore band meet along one contour"
+    assert sea_top[:, :, 1].mean(axis=1).max() < -0.5 + 1.5 + 1e-6, "a sea bed face lies over its band's moved limit"
+    lines = np.unique(np.round(points[:, 0], 4))
+    near = np.diff(lines[(lines > -28.0) & (lines < 28.0)])
+    assert near.max() < 2.0 + 1e-6 and np.diff(lines).max() > 9.0, "the fine box's cells are not 2 m, or all are"
+    with pytest.raises(ValueError, match="no limit"):
+        ground_field.ground_field(**{**sizes, "bands": [{"part": "rock", "under": 1.0}, {"part": "grass"}]})
+    with pytest.raises(ValueError, match="takes every face"):
+        ground_field.ground_field(**{**sizes, "bands": [{"part": "grass", "below": 9.0}]})
+    looks = {band["part"]: "palette/hull_paint" for band in FIELD_BANDS}
+    laid = place_build.kit(folder, "land", "ground_field", sizes, ground=True, looks=looks)
+    assert laid["address"] == "algorithm/ground_field" and sorted(laid["parts"]) == sorted(looks), laid
+    stage = Usd.Stage.Open(str(folder / "scene.usda"))
+    assert stage.GetPrimAtPath("/pod/Objects/land").GetAttribute("score:ground").Get() is True
+    assert abs(place_build.ground_height(stage, "pod", 0.0, -70.0) - 4.0) < 1e-3, "the field's site is not level"
 
 
 def cabined(folder):
