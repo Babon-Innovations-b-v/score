@@ -320,6 +320,18 @@ under his beard's underside). There the two cut edges are one closed loop each: 
   the same side column, passed. The middle column now runs through the nose's tip (`head_swap.face_column`), the hood
   holds the chin within the column's reach from the chin's bottom to the hood (`face_reach`), and `chin_whole` refuses
   a cut that leaves the chin's front more than CHIN_HELD back. The older woman's face is centred: her cut is unchanged.
+  Round 11 (2026-11-28), ray cast off the close-ups: the pleated fan of skin triangles from her chin to her collar was
+  one still_rig fan (685 faces) closing the swapped body's open loop round the neck, 0.041 under the cut to 0.03 over
+  it; its middle lay 2 mm off the body's hood layer kept over the cut, so `neck_fans` found only the faces reaching out
+  past FAN_OFF_M and the rest lay folded along the neck. A fan is now taken whole: every face from FAN_BAND under the
+  cut up round a point FAN_SHARED found faces share (`person.fans_completed`; the older woman's and the hoodie man's
+  fans unchanged). With the fan gone the slit between the head's and the body's cut edges (her seam 43% laid) showed
+  as a dark line to the collar's inside; the head's open edge at the cut now hangs a skirt 1.3 cm down and 5 mm in
+  (`head_swap.skirt`, `blender_person.skirted`), each copy wearing its point's texture place. Open: as she walks, the
+  rig's own front-neck faces at its base (0.015 to 0.04 under the cut, on the body's outer surface at the bind) fold
+  over and are drawn from behind as flat pale shards (the fan had covered them); still_rig's outer surface also lacks
+  half her front neck from 0.02 to 0.04 under the cut (hidden under the chin inside the puffer collar), unseen in the
+  close-ups.
   Run: `python -m tools.characters.generated.person <name> <sources> <out> [--from <step> | --only <step>]` (head
   2 min, hair 5, swap 1.5, rig 3.5, cloth 5 to 10 at nice 19; the render some hours: 13 sheet frames and the 96-frame
   film with 240k strands, 5.7 GB).

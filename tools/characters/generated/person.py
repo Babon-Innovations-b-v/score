@@ -86,6 +86,14 @@ FAN_OFF_M = 0.012
 # swapped model is a fan too (whole person round 6, 2026-11-27: fans closing the hair's loops out under it stood as
 # wedges by the chin; a real face's middle lies at most 5.7 mm off, the jacket's round the neck)
 FAN_MIDDLE_M = 0.008
+# A fan is whole or not at all: a point shared by FAN_SHARED or more faces found above is a fan's middle (an ordinary
+# point of the thinned shell has some 6 faces round it), and every face round it from FAN_BAND under the cut up is
+# the fan's (`fans_completed`).
+# Whole person round 11 (2026-11-28), ray cast off the close-ups: the stairwell woman's neck was a pleated fan of
+# skin-coloured triangles from her chin to her collar, all one fan of 685 faces (the swapped body's open loop round
+# the neck, 0.041 under the cut to 0.03 over it), its middle 2 mm off the body's own hood layer kept over the cut, so
+# only its faces reaching out over FAN_OFF_M were found (about half) and the rest lay along the neck, folded.
+FAN_SHARED = 8
 # still_rig's head part is every face within 25 cm of the head's middle over the neck (`still_rig.parts_of`), so on
 # the swapped body it took the body's own puffer collar top and its own old hair kept round the neck by the swap's
 # hood: the collar's top drawn skinned beside the cloth's collar and torn where the sphere cut it, the old hair as
@@ -224,14 +232,26 @@ def neck_fans(swapped, to_rig, level, height, faces_points):
     """Which rig faces (`faces_points`, each face's three points in the rig's glTF frame) are still_rig's fans across
     the cut's loops: within FAN_BAND of the swapped body's `level` (its glTF y; `height` its height) with a point
     more than FAN_OFF_M off every point of the swapped model (`swapped`, its glTF frame; `to_rig` onto the rig's), or
-    from FAN_BAND under it up with the middle more than FAN_MIDDLE_M off."""
+    from FAN_BAND under it up with the middle more than FAN_MIDDLE_M off, or from FAN_BAND under it up round the middle
+    of a fan so found (`fans_completed`; under the band the hoodie man's hood fans are left as they were)."""
     on_rig = swapped @ to_rig[:3, :3].T + to_rig[:3, 3]
     off = cKDTree(on_rig).query(faces_points.reshape(-1, 3))[0].reshape(-1, 3).max(axis=1)
     back = np.linalg.inv(to_rig)
     heights = (faces_points.mean(axis=1) @ back[:3, :3].T + back[:3, 3])[:, 1]
     middle_off = cKDTree(on_rig).query(faces_points.mean(axis=1))[0]
-    return (((np.abs(heights - level) < FAN_BAND * height) & (off > FAN_OFF_M))
-            | ((heights > level - FAN_BAND * height) & (middle_off > FAN_MIDDLE_M)))
+    over_band = heights > level - FAN_BAND * height
+    found = (((np.abs(heights - level) < FAN_BAND * height) & (off > FAN_OFF_M))
+             | (over_band & (middle_off > FAN_MIDDLE_M)))
+    return found | (fans_completed(faces_points, found) & over_band)
+
+
+def fans_completed(faces_points, found):
+    """`found` (per face of `faces_points`, each face's three points) with every face round a point that FAN_SHARED or
+    more found faces share (a fan's middle: its faces lying along the model are its too)."""
+    points, which = np.unique(faces_points.reshape(-1, 3), axis=0, return_inverse=True)
+    which = which.reshape(-1, 3)
+    shared = np.bincount(which[found].ravel(), minlength=len(points))
+    return found | (shared[which] >= FAN_SHARED).any(axis=1)
 
 
 def neck_roles(head_points, body_points, to_rig, level, height, middles, hair, skin):

@@ -103,6 +103,11 @@ CHIN_DEPTHS = 0.25  # the column is scanned no deeper than this under the crown
 CHIN_BACK = 0.025
 CHIN_WINDOW = 0.0075
 CUT_UNDER_CHIN = 0.005  # 8 mm
+# The skirt hung from the head's open edge at the cut (`skirt`, drawn by blender_person): from the edge's points under
+# SKIRT_EDGE over the cut, SKIRT_DEPTH down and SKIRT_IN in (body heights; 1.3 cm and 5 mm), under the body's neck
+SKIRT_EDGE = 0.004
+SKIRT_DEPTH = 0.008
+SKIRT_IN = 0.003
 CHIN_HELD = 0.006  # with a hood: the front's faces from the chin's bottom up stay the head's this far past the reach
 # of the face's middle column from the axis between the chin's bottom and the hood's depth (`face_reach`)
 
@@ -263,6 +268,37 @@ def welded(points):
     _, first, inverse = np.unique(np.round(np.asarray(points) / WELD).astype(np.int64), axis=0, return_index=True,
                                   return_inverse=True)
     return first[inverse.ravel()]
+
+
+def skirt(points, triangles, low, down, depth, inward):
+    """A skirt hung from the open edges of `triangles` whose two points are `low` (per point): each such edge's points
+    copied `depth` along `down` (a unit vector) and `inward` towards the edges' middle across it, and the edge joined
+    to its copy by two triangles turned as the face the edge borders; (the copies' points, each copy's point, the new
+    triangles indexed after `points`). The swap's head and body meet at the cut as two open edges, laid only in part
+    where the body's edge hooks back (the stairwell woman's: 43%): still_rig's fan across them hid the slit, and with
+    the fan taken off the neck showed a dark line where one saw between the edges to the collar's inside (whole
+    person round 11, 2026-11-28)."""
+    points = np.asarray(points, float)
+    same = welded(points)
+    corners = same[np.asarray(triangles)]
+    directed = np.vstack([corners[:, [0, 1]], corners[:, [1, 2]], corners[:, [2, 0]]])
+    width = len(points)
+    keys = directed[:, 0].astype(np.int64) * width + directed[:, 1]
+    backs = directed[:, 1].astype(np.int64) * width + directed[:, 0]
+    open_edges = np.unique(directed[~np.isin(keys, backs) & np.asarray(low)[directed].all(axis=1)], axis=0)
+    if not len(open_edges):
+        return np.zeros((0, 3)), np.zeros(0, np.int64), np.zeros((0, 3), np.int64)
+    hung, copy_of = np.unique(open_edges, return_inverse=True)
+    copy_of = copy_of.reshape(-1, 2) + width
+    down = np.asarray(down, float)
+    middle = points[hung].mean(axis=0)
+    towards = middle - points[hung]
+    towards -= np.outer(towards @ down, down)
+    towards /= np.maximum(np.linalg.norm(towards, axis=1), 1e-12)[:, None]
+    copies = points[hung] + depth * down + inward * towards
+    first, second = open_edges[:, 0], open_edges[:, 1]
+    faces = np.vstack([np.c_[second, first, copy_of[:, 0]], np.c_[second, copy_of[:, 0], copy_of[:, 1]]])
+    return copies, hung, faces
 
 
 def edges_counted(triangles):

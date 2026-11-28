@@ -211,6 +211,37 @@ def shell_cut(shell, head, pieces, garment):
     return len(doomed)
 
 
+def skirted(head, pieces):
+    """The head's open edge at the cut hung with `head_swap.skirt` (down and in along the body's own up, in the head
+    model's units), each copy wearing its point's texture place (left at none, the skirt read the texture's corner
+    and drew a grey line round the neck); how many faces it added."""
+    local = coordinates(head.data)
+    images = in_body(np.vstack([np.eye(3), np.zeros(3)]))
+    up = np.linalg.solve((images[:3] - images[3]).T, np.array([0.0, 1.0, 0.0]))  # one body height up, model units
+    unit = float(np.linalg.norm(up))
+    triangles = np.array([polygon.vertices[:] for polygon in head.data.polygons])
+    low = over_cut(local, pieces) < head_swap.SKIRT_EDGE
+    copies, sources, faces = head_swap.skirt(local, triangles, low, -up / unit, head_swap.SKIRT_DEPTH * unit,
+                                             head_swap.SKIRT_IN * unit)
+    edit = bmesh.new()
+    edit.from_mesh(head.data)
+    edit.verts.ensure_lookup_table()
+    layers = list(edit.loops.layers.uv.values())
+    uv_at = [{loop.vert.index: loop[layer].uv.copy() for face in edit.faces for loop in face.loops} for layer in layers]
+    made = [edit.verts.new(Vector(point)) for point in copies]
+    every = list(edit.verts[:len(local)]) + made
+    source = np.r_[np.arange(len(local)), sources]
+    for face in faces:
+        new = edit.faces.new([every[int(index)] for index in face])
+        for loop, index in zip(new.loops, face):  # the copy wears its point's paint, not the texture's corner
+            for layer, found in zip(layers, uv_at):
+                loop[layer].uv = found[int(source[int(index)])]
+    edit.to_mesh(head.data)
+    edit.free()
+    head.data.update()
+    return len(faces)
+
+
 def garment_cut(head, shell, garment):
     """The swap head's faces that are a cloth garment's (`garment`, per shell polygon) taken off the head: those whose
     nearest rig face is a garment's within GARMENT_MATCH_M (both at the bind; the rig is the thinned swap, so each of
@@ -384,6 +415,7 @@ def head_dressed(armature, shell, pieces, data):
     garment = np.isin(cloth.face_kinds(shell, data), simulated)
     print(f"head faces the cloth draws taken off: {garment_cut(head, shell, garment)}", flush=True)
     print(f"rig faces under the head taken off: {shell_cut(shell, head, pieces, garment)}", flush=True)
+    print(f"skirt faces under the head's edge at the cut: {skirted(head, pieces)}", flush=True)
     blender_skin.attributes(head, skin)
     blender_skin.face_uv(head, skin["box"])
     print(f"painted skin faces: {skin_marked(head, lids, skin)}", flush=True)

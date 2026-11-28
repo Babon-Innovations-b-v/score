@@ -213,7 +213,12 @@ A jeans hem resting on a shoe turns with the foot (`cloth.hem_on_shoes`). Break 
 2026-11-27): HEM_SHOE_M 0 (the hem left on the shin, sliding in and out of the shoe).
 still_rig's fan across the cut's loop (`person.neck_fans`) is found, the neck tube and a fan far under the cut kept.
 Breaks (each applied once, seen red, reverted, 2026-11-27): `FAN_BAND` 1 (the armpit's fan taken too); `FAN_OFF_M` 1
-with `FAN_MIDDLE_M` 1 (no cut fan found); `FAN_MIDDLE_M` 1 (the wedge reaching out over the band kept). The rig's faces round the neck by
+with `FAN_MIDDLE_M` 1 (no cut fan found); `FAN_MIDDLE_M` 1 (the wedge reaching out over the band kept); 2026-11-28:
+`FAN_SHARED` 10**9 (8 of the collar fan's 26 faces, those along the tube,
+kept: the stairwell woman's pleated neck). The head's open edge at the cut is hung with a skirt (`head_swap.skirt`).
+Break (applied once, seen red, reverted, 2026-11-28): the skirt's triangles turned as the edge (first, second,
+copy), not as its neighbour (half the skirt facing in, drawn from inside as dark wedges).
+The rig's faces round the neck by
 where they came from (`person.neck_roles`): the body's own collar over the cut released, the head's neck and the body
 far under the cut not; the head's faces on its hair read as the hair, those on its skin not. Breaks (each applied
 once, seen red, reverted, 2026-11-27): `RELEASE_BAND` 1 (the body far under the cut released); `HAIR_ON_M` 0 (the face
@@ -1881,8 +1886,9 @@ def person_hair_removed():
 
 def neck_fans_found():
     """A neck tube open at the cut (the swapped model's points) and a rig made of its faces, a fan from the cut loop's
-    middle and one from a loop far under it (an armpit's): `person.neck_fans` finds the cut's fan alone (its faces
-    found, the tube's kept, the armpit's kept)."""
+    middle, one from a loop far under it (an armpit's), and one from a loop along the tube's front just under the cut
+    and back round a collar over it, its middle on the model (a hood layer kept there): `person.neck_fans` finds the
+    cut's fan and the whole collar fan, those faces lying along the tube too (the tube's kept, the armpit's kept)."""
     angles = np.linspace(0.0, 2.0 * np.pi, 48, endpoint=False)
     heights = np.linspace(0.0, 0.2, 41)
     ring = np.stack([np.cos(angles) * 0.05, np.zeros(48), np.sin(angles) * 0.05], -1)
@@ -1898,10 +1904,36 @@ def neck_fans_found():
     low_ring = ring * 0.6 + (0.3, -0.2, 0.0)
     low_fan = np.stack([low_ring, np.roll(low_ring, -1, 0), np.tile((0.3, -0.2, 0.0), (48, 1))], 1)
     wedge = np.array([[[0.05, 0.3, 0.0], [0.09, 0.33, 0.03], [0.1, 0.36, -0.02]]])  # out under the hair, over the band
-    swapped = np.concatenate([tube, low_ring])
-    found = person.neck_fans(swapped, np.eye(4), 0.2, 1.7, np.concatenate([tube_faces, cut_fan, low_fan, wedge]))
+    turns = np.linspace(-np.pi / 2, np.pi / 2, 13)
+    loop = np.concatenate([np.stack([np.sin(turns) * 0.05, np.full(13, 0.19), np.cos(turns) * 0.05], -1),
+                           np.stack([np.sin(turns[::-1]) * 0.09, np.full(13, 0.23), np.cos(turns[::-1]) * 0.09], -1)])
+    collar_fan = np.stack([loop, np.roll(loop, -1, 0), np.tile(loop.mean(0), (len(loop), 1))], 1)
+    around = np.linspace(-np.pi, np.pi, 200)
+    collar = np.stack([np.sin(around) * 0.09, np.full(200, 0.23), np.cos(around) * 0.09], -1)
+    swapped = np.concatenate([tube, low_ring, collar, loop.mean(0)[None]])
+    found = person.neck_fans(swapped, np.eye(4), 0.2, 1.7,
+                             np.concatenate([tube_faces, cut_fan, low_fan, wedge, collar_fan]))
+    rest = len(tube_faces) + 97
     return [int(found[len(tube_faces):len(tube_faces) + 48].sum()), int(found[:len(tube_faces)].sum()),
-            int(found[len(tube_faces) + 48:-1].sum()), int(found[-1])]
+            int(found[len(tube_faces) + 48:rest - 1].sum()), int(found[rest - 1]), int(found[rest:].sum())]
+
+
+def head_edge_skirted():
+    """A neck tube open at its foot (the head's edge at the cut) and closed nowhere else: `head_swap.skirt` hangs one
+    copy of each foot point 1.3 cm down and 5 mm in and joins each open edge to its copies by two triangles facing
+    out as the tube does: [new faces, the copies' lowest, their farthest from the axis, the share facing out]."""
+    angles = np.linspace(0.0, 2.0 * np.pi, 24, endpoint=False)
+    ring = np.stack([np.cos(angles) * 0.05, np.sin(angles) * 0.05, np.zeros(24)], -1)
+    points = np.concatenate([ring + (0.0, 0.0, height) for height in (0.0, 0.01, 0.02)])
+    faces = np.array([face for level in range(2) for step in range(24) for face in
+                      ([level * 24 + step, level * 24 + (step + 1) % 24, 24 + level * 24 + (step + 1) % 24],
+                       [level * 24 + step, 24 + level * 24 + (step + 1) % 24, 24 + level * 24 + step])])
+    copies, _, made = head_swap.skirt(points, faces, points[:, 2] < 0.005, (0.0, 0.0, -1.0), 0.013, 0.005)
+    corners = np.r_[points, copies][made]
+    normals = np.cross(corners[:, 1] - corners[:, 0], corners[:, 2] - corners[:, 0])
+    out = np.einsum("ij,ij->i", normals[:, :2], corners.mean(axis=1)[:, :2]) > 0
+    return [len(made), round(float(copies[:, 2].min()), 4), round(float(np.hypot(*copies[:, :2].T).max()), 4),
+            float(out.mean())]
 
 
 def neck_roles_read():
@@ -2214,8 +2246,10 @@ def tether_inside_read():
     ("the beard takes a pale chin joined to the lips, never the lips", beard_chin_under_lip, [False, True, False]),
     ("under a hood open in front (a hoodie's) the head keeps its whole front, chin and beard, down to the cut",
      lambda: hood_kept(open_front=True), [True, True, True, False, True, False, True]),
-    ("still_rig's fan across the cut's loop and one out over it are found, the neck and an armpit's fan are kept",
-     neck_fans_found, [48, 0, 0, 1]),
+    ("still_rig's fan across the cut's loop, one out over it and a collar's whole are found, the neck and an "
+     "armpit's fan are kept", neck_fans_found, [48, 0, 0, 1, 26]),
+    ("the head's open edge at the cut is hung with a skirt down and in, facing out", head_edge_skirted,
+     [48, -0.013, 0.045, 1.0]),
     ("the body's own collar over the cut is released, the head's neck and the body under not; the hair read on it",
      neck_roles_read, [True, False, False, True, False]),
     ("the body's own faces round the neck take their kind by paint, its old hair and the rest stay the head",
