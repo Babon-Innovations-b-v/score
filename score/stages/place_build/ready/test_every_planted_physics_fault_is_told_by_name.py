@@ -24,7 +24,7 @@ wall left out (a cut-away built into the
 building) is told open to the outside, and the room built without its roof, its floor under nothing so its looks judge
 nothing, is told no roof (passed in an outside place, a walled yard); in an outside place (place.json `kind`) that open-fronted room is a covered
 stretch of the outside (an arcade) and passes, while a shop's room, one structure with a glassless window gap, is told
-open. The check's memory stays bounded: a surface's points are read a chunk at a
+open, and the same shop laid as a fixed model (a hull's hollow, a rocket's engine bay) is no room and passes. The check's memory stays bounded: a surface's points are read a chunk at a
 time (the very points trimesh's sample_surface draws), so a floor of 6.6 million points holds under 64 MB; a post
 300 m off, stretching the walkers' grid past the memory budget, is refused by name before the grid is read; and the
 settle runs as many models side by side as fit the budget, refusing when not even its largest fits. A room seated
@@ -89,6 +89,7 @@ Breaks that turn this red (each applied once and seen red, then reverted):
 - ready.cast: the rays embree gave up on left uncast -> the look past a face lying along it meets nothing, and the
   wall behind is never met
 - ready.open_faults: `rooms` left out of an outside place -> the open-fronted arcade (the cut room under the sky) is told
+- ready.rooms: the cover's role not asked (BUILT) -> the fixed model's hollow reads a room and its window gap is told open
 - ready.rooms: the cover's own object not asked (only doors close) -> the shop's room is no room and its open window
   passes
 - ready.seated_among: the neighbour's seat taken alone (this place's own seat not undone) -> the hall's wall stands
@@ -385,10 +386,10 @@ def joined_room(folder):
     return folder
 
 
-def shop(folder, crates=False):
+def shop(folder, crates=False, role="structure"):
     """A shop's room 4 x 4 m inside as one structure (walls, roof) on a ground disc, a window 1.2 m wide from 0.3 to
     2.0 m left open in its front wall, a glassless gap; in an outside place it is a room of a structure. `crates`:
-    nine crates 2 m high standing through the room (its furniture, props)."""
+    nine crates 2 m high standing through the room (its furniture, props); `role` the shop's (a fixed model's hollow)."""
     folder.mkdir()
     concept = folder / "concept.png"
     Image.new("RGB", (8, 8)).save(concept)
@@ -397,7 +398,7 @@ def shop(folder, crates=False):
     place_build.ground(folder, "ground", 6.0, (0.0, -0.02, 0.0))
     stage, place = place_build.opened(folder)
     holder = UsdGeom.Xform.Define(stage, f"/{place}/Objects/shop").GetPrim()
-    holder.CreateAttribute("score:role", Sdf.ValueTypeNames.String).Set("structure")
+    holder.CreateAttribute("score:role", Sdf.ValueTypeNames.String).Set(role)
     for name, size, low in (("left", (0.2, 2.5, 4.4), (-2.2, 0.0, -2.2)), ("right", (0.2, 2.5, 4.4), (2.0, 0.0, -2.2)),
                             ("back", (4.4, 2.5, 0.2), (-2.2, 0.0, -2.2)), ("roof", (4.4, 0.2, 4.4), (-2.2, 2.5, -2.2)),
                             ("front_left", (2.2, 2.5, 0.2), (-2.2, 0.0, 2.0)), ("front_right", (1.0, 2.5, 0.2), (1.2, 0.0, 2.0)),
@@ -608,6 +609,7 @@ def test_every_planted_physics_fault_is_told_by_name(tmp_path, monkeypatch):
                                    ("arcade", lambda folder: room(folder, True), "outside", None),
                                    ("shop", shop, "outside", seen),
                                    ("cluttered", lambda folder: shop(folder, crates=True), "outside", seen),
+                                   ("hollow", lambda folder: shop(folder, role="fixed"), "outside", None),
                                    ("porch", lambda folder: room(folder, False, porch=2.0), "inside", None),
                                    ("joined", joined_room, "inside", None),
                                    ("hooded", lambda folder: room(folder, False, hood=0.6), "inside", None),

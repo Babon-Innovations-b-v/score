@@ -124,6 +124,7 @@ COVER = 12.0  # metres over a floor point a roof, slab or flight must stand for 
 ROOFED = 0.05  # an inside place with less of its walkers' floor under a roof, slab or flight has none (#128,
 # 2026-11-20: roofless engineroom@1 0.01; built closed: hangar 0.15, shiplock 0.17, stairwell 0.29, engineroom 0.33,
 # their plazas and roof tops counted)
+BUILT = ("structure", "shell", "connector")  # what an outside place's rooms are rooms of: never a model's own hollow
 INSIDE_SHARE = 0.6  # a covered point whose rays meet something at least this often is inside (under an awning, less)
 DOOR_REACH = 4.0  # metres round a door's leaf and its width where its swing or slide is judged (door_window)
 LOOK_HEIGHTS = (0.5, 1.6)  # metres over the walkers' floor the looks start (a child's, a grown walker's eyes)
@@ -1035,7 +1036,9 @@ def rooms(laid, points):
     an awning, an arcade or a building's overhang the looks run out along the street or meet the building across it,
     so a covered stretch of the outside is no room (#128, 2026-11-20: the street's pavement under its buildings read
     711 points open). The looks pass through props (unmoved): a small room's furniture is not its walls (#154: a
-    cluttered room read 0 of 76 covered points a room, so it passed empty)."""
+    cluttered room read 0 of 76 covered points a room, so it passed empty). The cover must be built (BUILT): the
+    hollow inside a fixed model, its own ledges read as floor, is no room (2099 #161: the pad's rocket read its engine
+    bay and nose ledge open to the outside)."""
     covers = nearest_owners(laid, points, np.tile([0.0, 1.0, 0.0], (len(points), 1)), COVER)
     level = look_ways()[:LOOK_AZIMUTHS]
     seen = np.array(nearest_owners(laid, np.repeat(points, len(level), axis=0), np.tile(level, (len(points), 1)),
@@ -1045,7 +1048,8 @@ def rooms(laid, points):
     closing = np.array([[owner is not None and (owner == cover or laid.roles[owner] == "door"
                                                 or mounted_on[owner] == cover) for owner in row]
                         for cover, row in zip(covers, seen)], dtype=bool).reshape(len(points), len(level))
-    return closing.mean(axis=1) >= INSIDE_SHARE
+    built = np.array([cover is not None and laid.roles[cover] in BUILT for cover in covers], dtype=bool)
+    return built & (closing.mean(axis=1) >= INSIDE_SHARE)
 
 
 def unmoved(laid):
