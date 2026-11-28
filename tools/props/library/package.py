@@ -115,7 +115,8 @@ and instances:
                          looks {part: look id; EVERY_PART for every part}}], with version 1's per-copy blocks
 
 The version 2 check refuses a piece list with a library piece the library does not hold, has withdrawn or holds at
-another digest, names a gltf its entry does not hold, or whose mesh is missing, hashes otherwise or does not hold its
+another digest, names a gltf its entry does not hold or one with a surface that takes none of its parts (as 2099's
+reader gives a surface its part: unmapped_surfaces), or whose mesh is missing, hashes otherwise or does not hold its
 parts as named meshes, a made piece whose file is missing, hashes otherwise or does not hold its parts as named meshes, a
 picture under made/pictures or held in `pictures` over HELD_TEXELS a side, a held picture missing or hashing otherwise,
 an environment whose exposure is no positive number, a piece no copy uses, a copy of no piece, a matrix that is no transform, a part of a copy's piece with no look, a look
@@ -372,8 +373,9 @@ def piece_problems(out, name, piece, held):
         if entry["digest"] != piece.get("digest"):
             return [f"piece {name}: its digest is not {piece['library']}'s ({entry['digest'][:12]})"]
         if "gltf" in piece:
-            return [] if piece["gltf"] in entry.get("files", ()) else [
-                f"piece {name}: {piece['library']} holds no {piece['gltf']}"]
+            if piece["gltf"] not in entry.get("files", ()):
+                return [f"piece {name}: {piece['library']} holds no {piece['gltf']}"]
+            return gltf_problems(name, piece)
         if "mesh" not in piece:
             return [f"piece {name}: no gltf of its entry and no mesh"]
     held_file = piece["made"] if "made" in piece else piece["mesh"]
@@ -391,6 +393,52 @@ def piece_problems(out, name, piece, held):
     meshes = {mesh.get("name") for mesh in json.loads(data[20:20 + length])["meshes"]}
     return [f"piece {name}: its part {part} is no mesh of {held_file}" for part in piece["parts"]
             if part not in meshes]
+
+
+def gltf_document(data):
+    """A glTF's JSON of its bytes: a .glb's JSON chunk, else the .gltf's own text."""
+    if data[:4] == b"glTF":
+        return json.loads(data[20:20 + int.from_bytes(data[12:16], "little")])
+    return json.loads(data)
+
+
+def unmapped_surfaces(document, parts):
+    """The surfaces of a glTF (each primitive of a node's unskinned mesh) that take none of `parts`, by the rule 2099's
+    place reader gives a surface its part (game/places/PieceModels.PartOf), which refuses the whole place over one: the
+    part named as the surface's material, else as its mesh, else as its node; with one part, every surface is it. A
+    material with no name names no part (place_build.gltf.part_name calls it `part_<n>`, which the glTF does not hold:
+    2099 #161, the pad's decal_plate, its face's material and its edge unnamed). [(mesh name, material name)]."""
+    if len(parts) == 1:
+        return []
+    materials = document.get("materials", [])
+    meshes = document.get("meshes", [])
+    found = []
+    for node in document.get("nodes", []):
+        if "mesh" not in node or "skin" in node or node["mesh"] >= len(meshes):
+            continue
+        mesh = meshes[node["mesh"]]
+        for primitive in mesh.get("primitives", []):
+            number = primitive.get("material")
+            material = (materials[number].get("name") or "") if number is not None and number < len(materials) else ""
+            if not {material, mesh.get("name") or "", node.get("name") or ""} & set(parts):
+                found.append((mesh.get("name") or "", material))
+    return found
+
+
+def gltf_problems(name, piece):
+    """What is wrong with a library piece's glTF as an engine reads it: not to be had from the library, or a surface
+    that takes none of the piece's parts (unmapped_surfaces)."""
+    import sys
+    if str(REPO / "tools/library") not in sys.path:
+        sys.path.insert(0, str(REPO / "tools/library"))
+    import library_files
+    reference = f"{piece['library']}/{piece['gltf']}"
+    path = library_files.resolve(reference)
+    if path is None or not pathlib.Path(path).is_file():
+        return [f"piece {name}: its glTF {reference} is not to be had from the library"]
+    return [f"piece {name}: a surface of {mesh} ({material}) in {piece['gltf']} is none of its parts "
+            f"{', '.join(piece['parts'])}" for mesh, material in
+            unmapped_surfaces(gltf_document(pathlib.Path(path).read_bytes()), piece["parts"])]
 
 
 def copy_problems(index, copy, scene):

@@ -9,7 +9,8 @@ as its matrix: a copy stretched unevenly stays a copy, its stretch in the matrix
 - a library piece (a model, take, kit piece, effect or ground laid from score_lib) by its address and the entry's
   content digest from the library's own index, so an engine knows when its held copy is stale; its geometry is the
   entry's: `gltf` names the entry's file an engine reads it from (its web3d/full.glb, else the glTF the laid USD was
-  converted from), and an entry that holds no glTF (a kit piece or model kept as USD alone) has its geometry as laid
+  converted from), and an entry that holds no glTF (a kit piece or model kept as USD alone), or one with a surface an
+  engine finds none of the piece's parts for (package.unmapped_surfaces: an unnamed material), has its geometry as laid
   written once as meshes/<name>.glb (`mesh`, `sha256`: positions, normals, texture coordinates (`paged`) and a primitive a part),
   still held by the engine once for its address and digest;
 - a made piece (an algorithm's: the stair core, blocks, dome shells, tubes, terrain, a ground disc; anything without
@@ -329,14 +330,17 @@ def engine_source(files, laid_name, parts):
     return {"gltf": WEB_COPY} if WEB_COPY in files else None
 
 
-def sourced(out, pieces, held, laid):
-    """Each library piece given its engine source: the entry's glTF (`gltf`), else its geometry as laid written once
-    at meshes/<name>.glb (`mesh`, `sha256`)."""
+def sourced(folder, out, pieces, held, laid):
+    """Each library piece given its engine source: the entry's glTF (`gltf`) when an engine finds each of its surfaces
+    a part (package.unmapped_surfaces), else its geometry as laid written once at meshes/<name>.glb (`mesh`,
+    `sha256`), a primitive a part by name."""
     for name, piece in pieces.items():
         if "library" not in piece:
             continue
         laid_name, corners = laid[name]
         source = engine_source(held.get(piece["library"], {}).get("files", ()), laid_name, piece["parts"])
+        if source is not None and unmapped(folder, piece["library"], source["gltf"], piece["parts"]):
+            source = None
         if source is not None:
             piece.update(source)
             continue
@@ -344,6 +348,15 @@ def sourced(out, pieces, held, laid):
         (out / MESHES).mkdir(exist_ok=True)
         (out / MESHES / f"{name}.glb").write_bytes(glb)
         piece.update(mesh=f"{MESHES}/{name}.glb", sha256=hashlib.sha256(glb).hexdigest())
+
+
+def unmapped(folder, address, gltf, parts):
+    """Whether the entry's glTF holds a surface an engine finds none of `parts` for (package.unmapped_surfaces);
+    False when the glTF is not to be had (the check names that)."""
+    path = library_file(folder, f"{address}/{gltf}")
+    if path is None or not pathlib.Path(path).is_file():
+        return False
+    return bool(package.unmapped_surfaces(package.gltf_document(pathlib.Path(path).read_bytes()), parts))
 
 
 def object_piece(out, prim, pieces, made, laid):
@@ -608,7 +621,7 @@ def written_pieces(folder, out, stage, place, seat):
     for piece in pieces.values():
         if "library" in piece:
             piece["digest"] = held.get(piece["library"], {}).get("digest")
-    sourced(out, pieces, held, first_laid)
+    sourced(folder, out, pieces, held, first_laid)
     doors, chambers = scene_package.doors_of(stage, place, [copy["name"] for copy in copies])
     for copy in copies:
         if copy["name"] in doors:

@@ -404,6 +404,8 @@ Breaks that turn this red (each applied once and seen red, then reverted):
 - pieces.library_address: every copy taken for made (no library piece) -> kerb2 is a made piece of its own, not
   box_piece
 - package.piece_problems: the digest left unchecked -> the box piece's stale digest passes the check
+- package.unmapped_surfaces: `return []` -> the cabinet's glTF, its body in an unnamed material, passes the check
+  and is its piece's source though 2099's reader refuses it (2099 #161, the pad's decal_plate)
 - pieces.engine_source: the laid USD's stem not matched -> a take of two glTFs names neither; the re-finished parts
   left unread -> the cup, cut into paint0, names a glTF that holds no such part
 - pieces.packaged: `scene["rests"]` left out of what it refuses -> the list whose kerb its check tells floating is
@@ -2250,7 +2252,13 @@ def pieced(folder, root, out):
                                             "parts": ["geo", "rim", "top"], "size": [1.0, 2.0, 0.5], "triangles": 14,
                                             "mesh": "meshes/box_piece.glb", "sha256": hashlib.sha256(mesh).hexdigest()}
     assert sorted(item["name"] for item in mesh_document["meshes"]) == ["geo", "rim", "top"]  # a USD-only kit piece
-    assert scene["pieces"]["cabinet"]["gltf"] == "cabinet.glb"  # the glTF its laid cabinet.usdc was converted from
+    # the glTF its laid cabinet.usdc was converted from holds its body in an unnamed material, a surface 2099's reader
+    # finds none of its parts door, part_0 for, so the cabinet is its geometry as laid (2099 #161, the pad's decal_plate)
+    assert scene["pieces"]["cabinet"]["mesh"] == "meshes/cabinet.glb" and "gltf" not in scene["pieces"]["cabinet"]
+    named = {"nodes": [{"name": "body", "mesh": 0}], "meshes": [{"name": "body", "primitives": [{"material": 0}]}],
+             "materials": [{}]}
+    assert (package.unmapped_surfaces(named, ["door", "body"]), package.unmapped_surfaces(named, ["door", "part_0"]),
+            package.unmapped_surfaces(named, ["part_0"])) == ([], [("body", "")], [])
     assert scene["pieces"]["cup"]["mesh"] == "meshes/cup.glb" and "gltf" not in scene["pieces"]["cup"]  # re-finished
     assert pieces.engine_source(["cup.glb", "cup-final.glb"], "cup-final.usdc", ["part_0"]) == {"gltf": "cup-final.glb"}
     assert scene["pieces"]["cup"]["library"] == "take/cup@1" and copies["cabinet"]["looks"] == {
@@ -2293,8 +2301,12 @@ def pieced(folder, root, out):
     del copies["crate"]["looks"]["top"]
     scene["environment"]["exposure"] = 0
     held_sand.write_bytes(held_sand.read_bytes() + b"    ")
+    scene["pieces"]["cabinet"] = {key: value for key, value in scene["pieces"]["cabinet"].items()
+                                  if key not in ("mesh", "sha256")} | {"gltf": "cabinet.glb"}
     (out / "scene.json").write_text(json.dumps(scene))
     found = package.problems(out)
+    assert any("piece cabinet: a surface of geometry_1 () in cabinet.glb is none of its parts door, part_0" in line
+               for line in found), found
     assert any("its exposure 0 is no positive number" in line for line in found) and any(
         "picture surface/sand@1/colour.jpg" in line and "does not hash" in line for line in found), found
     withdrawn = package.problems(out, held={"kit/box_piece@1": {"digest": "d-kit/box_piece@1", "state": "withdrawn"}})
