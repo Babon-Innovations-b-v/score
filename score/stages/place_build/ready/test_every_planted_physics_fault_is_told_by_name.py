@@ -24,7 +24,8 @@ wall left out (a cut-away built into the
 building) is told open to the outside, and the room built without its roof, its floor under nothing so its looks judge
 nothing, is told no roof (passed in an outside place, a walled yard); in an outside place (place.json `kind`) that open-fronted room is a covered
 stretch of the outside (an arcade) and passes, while a shop's room, one structure with a glassless window gap, is told
-open, and the same shop laid as a fixed model (a hull's hollow, a rocket's engine bay) is no room and passes. The check's memory stays bounded: a surface's points are read a chunk at a
+open, and the same shop laid as a fixed model (a hull's hollow, a rocket's engine bay), or marked an open frame (a
+lattice tower), is no room and passes. The check's memory stays bounded: a surface's points are read a chunk at a
 time (the very points trimesh's sample_surface draws), so a floor of 6.6 million points holds under 64 MB; a post
 300 m off, stretching the walkers' grid past the memory budget, is refused by name before the grid is read; and the
 settle runs as many models side by side as fit the budget, refusing when not even its largest fits. A room seated
@@ -89,6 +90,8 @@ Breaks that turn this red (each applied once and seen red, then reverted):
 - ready.cast: the rays embree gave up on left uncast -> the look past a face lying along it meets nothing, and the
   wall behind is never met
 - ready.open_faults: `rooms` left out of an outside place -> the open-fronted arcade (the cut room under the sky) is told
+- ready.rooms: the open frame's mark not asked (place_build.LATTICE) -> the shop marked a lattice reads a room and is
+  told open
 - ready.rooms: the cover's role not asked (BUILT) -> the fixed model's hollow reads a room and its window gap is told open
 - ready.rooms: the cover's own object not asked (only doors close) -> the shop's room is no room and its open window
   passes
@@ -416,6 +419,13 @@ def shop(folder, crates=False, role="structure"):
     return folder
 
 
+def latticed(folder):
+    """The shop marked an open frame (place_build.lattice: a lattice tower's frame)."""
+    place = shop(folder)
+    place_build.lattice(place, "shop")
+    return place
+
+
 def seated_rooms(folder, cut):
     """The room (its front wall left out when `cut`) without its back wall, and a neighbour place, `hall`, holding
     that wall with the doorway the room's door fills and, behind it, an alcove (a slab 0.1 m high, two side walls and a
@@ -610,6 +620,7 @@ def test_every_planted_physics_fault_is_told_by_name(tmp_path, monkeypatch):
                                    ("shop", shop, "outside", seen),
                                    ("cluttered", lambda folder: shop(folder, crates=True), "outside", seen),
                                    ("hollow", lambda folder: shop(folder, role="fixed"), "outside", None),
+                                   ("lattice", latticed, "outside", None),
                                    ("porch", lambda folder: room(folder, False, porch=2.0), "inside", None),
                                    ("joined", joined_room, "inside", None),
                                    ("hooded", lambda folder: room(folder, False, hood=0.6), "inside", None),

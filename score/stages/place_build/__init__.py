@@ -1294,6 +1294,24 @@ def door(folder, name, opens=False, move="hinge", lock=None, side=None, crouch=F
     return {"door": name, **{key: value for key, value in marks.items() if key != "role"}}
 
 
+LATTICE = "score:lattice"  # an open frame (a lattice tower, a truss): a look passes between its members (ready.rooms)
+
+
+def lattice(folder, name, open_frame=True):
+    """The laid object `name` marked an open frame (score:lattice): a lattice tower or a truss, whose members a look
+    passes between, so it closes no room of its own (ready.rooms); `open_frame` False takes the mark off."""
+    stage, place = opened(folder)
+    prim = stage.GetPrimAtPath(f"/{place}/Objects/{name}")
+    if not prim:
+        raise Refused(f"the scene holds no object {name} to mark an open frame")
+    if open_frame:
+        prim.CreateAttribute(LATTICE, Sdf.ValueTypeNames.Bool).Set(True)
+    else:
+        prim.RemoveProperty(LATTICE)
+    saved(stage)
+    return {"lattice": name, "open": bool(open_frame)}
+
+
 def ground(folder, name, radius, at=(0.0, 0.0, 0.0), address=DOME):
     """A flat ground disc of `radius` metres (dome_shell.disc_file) laid as Objects/<name> and marked as the place's
     ground (so the renderer lays no plane of its own); its one part `ground` ready for a surface."""
@@ -2461,7 +2479,7 @@ def refinish(folder, name, glow=None):
 
 
 STEPS = {"put": put, "palette": palette, "dome": dome, "ground": ground, "terrain": terrain, "tube": tube, "stairs": stairs, "surface": surface, "light": light, "snap": snap, "remove": remove,
-         "cut": camera_cut, "backdrop": backdrop, "hollow": hollow, "kind": kind, "door": door,
+         "cut": camera_cut, "backdrop": backdrop, "hollow": hollow, "kind": kind, "door": door, "lattice": lattice,
          "camera": camera, "sky": sky, "sky-at": sky_at, "view": view, "blocks": blocks, "kit": kit, "pipe": pipe, "night": night,
          "haze": haze, "shaft": shaft, "refinish": refinish, "hold": hold, "plan": plan, "dress": dress}
 

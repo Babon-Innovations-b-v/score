@@ -1038,7 +1038,9 @@ def rooms(laid, points):
     711 points open). The looks pass through props (unmoved): a small room's furniture is not its walls (#154: a
     cluttered room read 0 of 76 covered points a room, so it passed empty). The cover must be built (BUILT): the
     hollow inside a fixed model, its own ledges read as floor, is no room (2099 #161: the pad's rocket read its engine
-    bay and nose ledge open to the outside)."""
+    bay and nose ledge open to the outside). Nor is an open frame's (score:lattice, place_build.lattice): a lattice
+    tower's members stop most level looks yet it stands in the open air (2099 #161: the pad's tower frame read its
+    decks and its foot as rooms open to the outside)."""
     covers = nearest_owners(laid, points, np.tile([0.0, 1.0, 0.0], (len(points), 1)), COVER)
     level = look_ways()[:LOOK_AZIMUTHS]
     seen = np.array(nearest_owners(laid, np.repeat(points, len(level), axis=0), np.tile(level, (len(points), 1)),
@@ -1048,7 +1050,8 @@ def rooms(laid, points):
     closing = np.array([[owner is not None and (owner == cover or laid.roles[owner] == "door"
                                                 or mounted_on[owner] == cover) for owner in row]
                         for cover, row in zip(covers, seen)], dtype=bool).reshape(len(points), len(level))
-    built = np.array([cover is not None and laid.roles[cover] in BUILT for cover in covers], dtype=bool)
+    built = np.array([cover is not None and laid.roles[cover] in BUILT and not laid.prims[cover].HasAttribute(
+        place_build.LATTICE) for cover in covers], dtype=bool)
     return built & (closing.mean(axis=1) >= INSIDE_SHARE)
 
 
