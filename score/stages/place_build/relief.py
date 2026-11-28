@@ -1,17 +1,20 @@
 """A real ground's relief (#128, the camp's third try: the owner found the flat ground disc "still very fake"): a
-heightfield read from a public-domain HiRISE digital terrain model of Mars, written once as a terrain model entry's
-mesh, and laid in a place with its building pads levelled.
+heightfield read from a public-domain digital terrain model (HiRISE's of Mars, LROC NAC's of the Moon: both PDS3
+labels over float32 rows), written once as a terrain model entry's mesh, and laid in a place with its building pads
+levelled.
 
 The mesh is one `geo` with one part `ground` (so `surface --part ground` dresses it as a ground disc is dressed),
 y up, metres, its origin the window's centre at height 0. Its posts are the DTM's own (about 1 m) out to `near` metres
 from the centre and grow wider beyond (FAR_GROWTH, at most FAR_POST), each far post the DTM smoothed over its own
 spacing, so a view across the plain to the horizon reads the real relief without a million points; the plain bends
-down with the planet (PLANET_RADIUS) so its far edge drops under the eye as the real horizon does.
+down with the planet (PLANET_RADIUS for Mars, else the radius the DTM's label names) so its far edge drops under the
+eye as the real horizon does.
 
     dtm_label(url)                                  the PDS label's numbers a window needs
     dtm_window(url, first_row, rows, first_col, cols)   heights in metres (gaps filled from the nearest)
     graded_axis(half, near)                          a post line from -half to half, fine near 0, wider out
-    heightfield_file(heights, post, path, near, half)    the terrain written as a USD file at `path`
+    heightfield_file(heights, post, path, near, half, source, radius)    the terrain written as a USD file at `path`
+    height_picture_file(heights, path)               the window's heights as a picture a game samples (16 bits in red and green)
     padded_file(source, path, pads, blend)           a copy of a terrain with level pads (x, z, radius) at height 0
 
 The DTM is read with HTTP range requests (only the rows a window needs), never downloaded whole.
@@ -34,7 +37,8 @@ LABEL_BYTES = 65536
 
 
 def dtm_label(url):
-    """{record_bytes, image_record, lines, samples, post, missing} of a HiRISE DTM's PDS label (its first bytes)."""
+    """{record_bytes, image_record, lines, samples, post, radius} of a DTM's PDS label (its first bytes); `radius` (metres)
+    the label's A_AXIS_RADIUS, None where it names none."""
     request = urllib.request.Request(url, headers={"Range": f"bytes=0-{LABEL_BYTES - 1}"})
     text = urllib.request.urlopen(request, timeout=60).read().decode("latin-1")
     ending = re.search(r"^END\s*$", text, re.MULTILINE)
@@ -45,9 +49,10 @@ def dtm_label(url):
         if found is None:
             raise ValueError(f"{url}: its label names no {key}")
         return float(found.group(1))
+    radius = re.search(r"^\s*A_AXIS_RADIUS\s*=\s*([0-9.]+)\s*<KM>", text, re.MULTILINE)
     return {"record_bytes": int(number("RECORD_BYTES")), "image_record": int(number(r"\^IMAGE")),
             "lines": int(number("LINES")), "samples": int(number("LINE_SAMPLES")),
-            "post": number("MAP_SCALE")}
+            "post": number("MAP_SCALE"), "radius": float(radius.group(1)) * 1000.0 if radius else None}
 
 
 def filled(heights):
@@ -142,9 +147,10 @@ def mesh_file(path, points, quads, extra=None):
     return path
 
 
-def heightfield_file(heights, post, path, near=NEAR, half=None, source=None):
+def heightfield_file(heights, post, path, near=NEAR, half=None, source=None, radius=PLANET_RADIUS):
     """The window's terrain written at `path`: graded posts (graded_axis) over the window's middle square of `half`
-    metres each way (all of it by default), heights relative to the centre's, bent down with the planet."""
+    metres each way (all of it by default), heights relative to the centre's, bent down with a planet of `radius`
+    metres (Mars by default)."""
     rows, cols = heights.shape
     half = half or post * (min(rows, cols) - 1) / 2.0
     xs = graded_axis(half, near, post)
@@ -152,9 +158,24 @@ def heightfield_file(heights, post, path, near=NEAR, half=None, source=None):
     found = sampled(heights, post, xs, zs)
     middle = sampled(heights, post, np.array([0.0]), np.array([0.0]))[0, 0]
     grid_x, grid_z = np.meshgrid(xs, zs)
-    lift = found - middle - (grid_x ** 2 + grid_z ** 2) / (2.0 * PLANET_RADIUS)
+    lift = found - middle - (grid_x ** 2 + grid_z ** 2) / (2.0 * radius)
     points = np.stack([grid_x, lift, grid_z], axis=-1).reshape(-1, 3)
     return mesh_file(path, points, grid_faces(len(xs), len(zs)), {"source": source} if source else None)
+
+
+def height_picture_file(heights, path):
+    """The window's heights written at `path` as a PNG a game samples: each post one texel, row 0 the window's first
+    line (north), its height from the window's lowest to its highest in 65,535 steps, the high byte in red and the
+    low in green (an engine reads 8 bits a channel, so a 16-bit grey picture would lose its steps); gives (lowest,
+    highest) in metres, which the entry's record keeps."""
+    from PIL import Image
+    lowest, highest = float(np.min(heights)), float(np.max(heights))
+    steps = np.round((heights - lowest) / max(highest - lowest, 1e-6) * 65535.0).astype(np.uint16)
+    texels = np.zeros(heights.shape + (3,), np.uint8)
+    texels[..., 0] = steps >> 8
+    texels[..., 1] = steps & 0xFF
+    Image.fromarray(texels, "RGB").save(str(path), optimize=True)
+    return lowest, highest
 
 
 def eased(distance, radius, blend):

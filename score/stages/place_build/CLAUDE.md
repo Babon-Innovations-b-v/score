@@ -70,9 +70,10 @@ one command at a time and reads `compare.png` and the measures to choose the nex
   `ground` lays the same flat disc alone as the place's ground.
   In a batch, a dome's `base` [high, wide] deepens its plinth ring, `oculus` crowns it with a ring where the meridians end, `strips`
   hangs thin lamp bands inside the glass at those heights (part `strip`, for a glowing palette variant).
-- **A real ground** (relief.py, `terrain`): a terrain entry is a heightfield model read from a public-domain HiRISE
-  DTM (range requests, never the whole file), its own posts near the centre and wider out to the horizon, bent with
-  the planet; `terrain --pad x,z,r` levels a building's site to the laid height and eases it into the ground.
+- **A real ground** (relief.py, `terrain`): a terrain entry is a heightfield model read from a public-domain DTM
+  (HiRISE's of Mars, LROC NAC's of the Moon: range requests, never the whole file), its own posts near the centre and
+  wider out to the horizon, bent with the planet (the label's radius); its heights also as a picture a game samples
+  (`height_picture_file`, 16 bits in red and green); `terrain --pad x,z,r` levels a building's site to the laid height and eases it into the ground.
 - **A tinted image surface**: `surface --colour` over an image surface multiplies its colour map (the texture's
   scale; Blender's reader brings it in as a multiply), so a scanned ground takes Mars' tint and keeps its grain; the
   preview displaces a laid ground by its surface's height map when surface.json names `displacement_metres`.

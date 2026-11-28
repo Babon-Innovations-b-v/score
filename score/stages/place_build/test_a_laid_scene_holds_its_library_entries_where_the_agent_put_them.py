@@ -97,6 +97,7 @@ Breaks that turn this red (each applied once and seen red, then reverted):
 - relief.filled: the gap left NaN -> the terrain holds a NaN height
 - relief.padded_file: the pad's share inverted (`keep = eased`) -> the pad keeps its slope, the far ground goes flat
 - relief.turned_pads: the turn's sine signs swapped -> the pad lands off the dome's spot on the turned terrain
+- relief.height_picture_file: the high and low bytes swapped -> the heights read back off the picture are not the window's
 - place_build.sun_frame: `towards` negated -> the sun shines up from under the ground
 - place_build.night_sky: the kind check left out -> a lamp entry is laid as the night's stars
 - scene_package.environment_of: the night's stars left out -> the package's night names no stars
@@ -1079,6 +1080,11 @@ def test_a_laid_scene_holds_its_library_entries_where_the_agent_put_them(tmp_pat
     assert laid_terrain.GetAttribute("score:ground").Get() and np.isfinite(ground_points).all()
     assert np.allclose(ground_points[in_pad, 1], 0.0) and np.ptp(ground_points[far, 1]) > 20.0
     assert posts.max() > 2.0 and np.isclose(posts.min(), 1.0)
+    window = np.add.outer(np.arange(5) * 0.37, np.arange(4) * 0.01) - 1900.0  # a Moon DTM's heights, under its radius
+    lowest, highest = relief.height_picture_file(window, tmp_path / "heights.png")
+    texels = np.asarray(Image.open(tmp_path / "heights.png")).astype(np.float64)
+    read_back = lowest + (texels[..., 0] * 256.0 + texels[..., 1]) / 65535.0 * (highest - lowest)
+    assert read_back.shape == window.shape and np.allclose(read_back, window, atol=3e-5)
     assert np.isclose(stone["at"][1], 0.5 + 8.0 - 0.1, atol=0.001)  # 80 m along the turned slope: 8 m up, on its face
     sun = UsdGeom.Xformable(stage.GetPrimAtPath("/yard/Lights/sun")).ComputeLocalToWorldTransform(0)
     shines = sun.TransformDir(Gf.Vec3d(0, 0, -1))
