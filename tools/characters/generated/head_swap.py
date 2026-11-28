@@ -77,9 +77,15 @@ NECK_SPREAD = (0.67, 1.0)  # the spread's ratio held in this: never widened (the
 # b 24). Left: the scarf's pink flecks at its rim (hue 33 to 38) pass, joined by points to her neck under the head.
 SKIN_HUE = (30.0, 80.0)
 SKIN_CHROMA = 12.0
-NECK_PHOTO_BAND = 0.02  # the photo's skin read on the head's points this high over the cut (3.6 cm: under the jaw) ...
+NECK_PHOTO_BAND = 0.02  # the photo's skin under the jaw read on the head's points this high over the cut (3.6 cm) ...
 NECK_PHOTO_LEAST = 100  # ... the band doubled until this many points wear the photo
 NECK_PHOTO_SHARE = 0.9  # a point wears the photo where its share (the face texture's alpha on the front) is this
+# The neck is toned to the photo's skin over the lower face (`photo_on_face`: this band over the cut, chin to eyes), not
+# to the photo under the jaw: the skin step divides the photo's light out as one first-order fit in the normal, and
+# under the jaw, facing down, the fit's shade divided out read L 76 on the hoodie man against his face's 60 (his photo's
+# lit neck 57 to 65): his neck and throat drew pale and pink (2026-11-28). The photo under the jaw
+# (`photo_near_cut`) is toned onto the same face skin too, eased out over NECK_PHOTO_BAND (`neck_share`'s band).
+NECK_FACE_BAND = (0.04, 0.08)
 # Where the body's toned neck meets the head's lower edge, its paint takes the head's own colour there (the photo's
 # under the jaw, read as a mean SEAM_MEAN_M round the head's nearest point), eased out SEAM_FADE_M off the head's skin
 # (`seam_offsets`): a median move matches the neck as a whole, not the shade the photo wears at the seam (eased over
@@ -135,6 +141,15 @@ CUT_UNDER_CHIN = 0.005  # 8 mm
 SKIRT_EDGE = 0.004
 SKIRT_DEPTH = 0.008
 SKIRT_IN = 0.003
+# Each skirt copy is landed on the body's nearest surface TRIM_UNDER or more under the cut within LAND_REACH of where it
+# hangs (`landed`), so the skirt bridges the head's edge to the body's neck wherever that stands (body heights; 2 cm):
+# hung straight down and in, it stood in front of the older woman's slimmer neck as a pleated, striped band with dark
+# gaps between its pleats (her head's edge 1 to 2 cm in front of her neck), and behind the hoodie man's wider neck
+# it showed through the notches of the neck's torn top as a tab (2026-11-28). The body's own neck faces reaching over
+# TRIM_UNDER under the cut by the head are cut level there (`level_plane`, `blender_person.shell_trimmed`): taken off
+# face by face, their top stood over the head's edge as a sawtooth 2 to 7 mm out.
+LAND_REACH = 0.012
+TRIM_UNDER = 0.004
 CHIN_HELD = 0.006  # with a hood: the front's faces from the chin's bottom up stay the head's this far past the reach
 # of the face's middle column from the axis between the chin's bottom and the hood's depth (`face_reach`)
 JAW_BAND = 0.008  # with a hood: from its depth this far down (1.3 cm) the head keeps, all round, its faces within that
@@ -392,6 +407,29 @@ def photo_near_cut(heights, share):
             return found
         band *= 2.0
     return wearing
+
+
+def photo_on_face(heights, share):
+    """Which head points the photo's skin over the lower face is read on: wearing the photo (`share` at least
+    NECK_PHOTO_SHARE) within NECK_FACE_BAND over the cut; all photo points if fewer than NECK_PHOTO_LEAST do."""
+    wearing = np.asarray(share, float) >= NECK_PHOTO_SHARE
+    heights = np.asarray(heights, float)
+    found = wearing & (heights > NECK_FACE_BAND[0]) & (heights < NECK_FACE_BAND[1])
+    return found if found.sum() >= NECK_PHOTO_LEAST else wearing
+
+
+def landed(copies, found, distances, reach):
+    """The skirt's copies moved onto the body's surface: each onto its `found` point (its nearest on the body under
+    the trim) where that lies within `reach` (`distances`: how far), else left hanging."""
+    near = np.asarray(distances, float) <= reach
+    return np.where(near[:, None], np.asarray(found, float), np.asarray(copies, float))
+
+
+def level_plane(linear, shift, level):
+    """The plane where an affine map (`linear` 3 x 3, `shift`) takes points to height `level` (its second coordinate:
+    the body's up), in the points' own frame: (a point on it, its normal pointing up)."""
+    normal = np.asarray(linear, float)[1]
+    return normal * (level - float(shift[1])) / float(normal @ normal), normal
 
 
 def welded(points):

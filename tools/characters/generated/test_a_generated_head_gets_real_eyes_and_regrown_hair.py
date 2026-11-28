@@ -274,6 +274,11 @@ down the neck and over the head's paint band; a neck's paint is skin, a white sc
 head's stubble share carried down the neck; the seam's colour whole on the head's skin, none past its fade. Breaks
 (each applied once, seen red, reverted, 2026-11-28): NECK_SPREAD (0.67, 1.5) (the paint's blotches widened);
 `neck_share` 0 under the cut (the neck left pink); SKIN_CHROMA 0 (the white scarf read as skin).
+The neck is toned to the photo's skin over the lower face, not under the jaw (`head_swap.photo_on_face`; the light fit
+lifted the hoodie man's under-jaw to L 76 against his face's 60, 2026-11-28), the skirt's copies land on the body's
+neck within reach (`landed`), and the body's neck is cut level under the head (`level_plane`). Breaks (each applied
+once, seen red, reverted, 2026-11-28): NECK_FACE_BAND (0, 0.02) (the under-jaw read); `landed` with no reach (the far
+copy dragged 3 cm); `level_plane`'s normal negated (the plane's up turned down).
 """
 import functools
 import types
@@ -2123,6 +2128,24 @@ def head_edge_skirted():
             float(out.mean())]
 
 
+def skirt_landed_neck_level():
+    """The neck's photo skin, the skirt's landing and the level cut: [the lower face's points read (under the jaw, the
+    face, the face with half a share, over the band), all photo points read when the face shows under
+    NECK_PHOTO_LEAST, the copies landed (the near on its found point, the far and the unfound left), a point on the
+    level plane at its height and its normal pointing up]."""
+    heights = np.r_[np.full(120, 0.05), 0.01, 0.05, 0.1]
+    share = np.r_[np.ones(120), 1.0, 0.5, 1.0]
+    face = head_swap.photo_on_face(heights, share)
+    few = head_swap.photo_on_face(heights[110:], share[110:])
+    copies = np.zeros((3, 3))
+    found = np.array([[0.0, 0.0, 0.004], [0.0, 0.0, 0.03], [9.0, 9.0, 9.0]])
+    landed = head_swap.landed(copies, found, [0.004, 0.03, np.inf], 0.02)
+    turn = np.array([[0.0, 0.0, 2.0], [0.0, 0.5, 0.0], [-2.0, 0.0, 0.0]])
+    point, normal = head_swap.level_plane(turn, np.array([0.1, 0.3, -0.2]), 0.8)
+    return [face[-4:].tolist(), int(few.sum()), bool(np.allclose(landed, [found[0], copies[1], copies[2]])),
+            bool(np.isclose((turn @ point)[1] + 0.3, 0.8)), bool((turn @ (point + normal))[1] + 0.3 > 0.8)]
+
+
 def neck_roles_read():
     """A swapped model's head (a neck tube from the cut up) and body (a neck tube under it and a collar ring 9 cm out
     over the cut), the head model's hair and skin middles beside the head: [the collar's face released, the head's
@@ -2518,6 +2541,8 @@ def neck_toned():
                          [1.0, 0.0, 0.0, 0.0]]),
     ("the head's open edge at the cut is hung with a skirt down and in, facing out", head_edge_skirted,
      [48, -0.013, 0.045, 1.0]),
+    ("the neck reads the photo's skin over the lower face, the skirt lands on the body's neck within reach, the "
+     "neck is cut level", skirt_landed_neck_level, [[True, False, False, False], 12, True, True, True]),
     ("the body's own collar over the cut is released, the head's neck and the body under not; the hair read on it",
      neck_roles_read, [True, False, False, True, False]),
     ("the body's own faces round the neck take their kind by paint, its old hair and the rest stay the head",

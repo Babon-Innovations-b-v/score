@@ -435,6 +435,17 @@ under his beard's underside). There the two cut edges are one closed loop each: 
   neck's material too. Left: the neck's lowest rim at his hood keeps the paint's own darker pink band; the stairwell
   woman's neck shows a faint pale highlight where its faces turn up at her shirt's edge (the oil coat on the body
   model's ledge); the older woman's scarf rim keeps a few pink flecks labelled skin, joined to her neck under the head.
+  Its target is the photo's skin over the lower face (`photo_on_face`, NECK_FACE_BAND), never the photo under the jaw:
+  the skin step's light fit, facing down there, lifted it to L 76 against the face's 60 (his lit neck in the photo 57
+  to 65) and the neck drew pale; the photo under the jaw is toned onto the same face skin, eased out over
+  NECK_PHOTO_BAND (`jaw_toned`). **The seam is bridged, not hung** (2026-11-28): the body's own neck faces reaching
+  over TRIM_UNDER under the cut by the head are cut level there (`shell_trimmed`: taken off face by face their top
+  stood over the head's edge as a sawtooth), the skirt's copies land on the body's neck within LAND_REACH (`landed`:
+  hung down and in, it stood as a pleated band in front of the older woman's slimmer neck and showed as a tab
+  through the hoodie man's), and the skirt is painted the head's mean colour round its point (`skirt_painted`: worn
+  as its points' texture places, each edge texel drew down it as a stripe; places over the edge lie in other atlas
+  islands and read garbage). Left: the older woman's skirt still shades as vertical pleats (the edge's zigzag; smooth
+  faces changed nothing), a faint step where the hoodie man's head edge meets his neck, and his neck's stubble.
   Look at the close-ups: a front and a three-quarter for the man, beside the photo.
 - **head.glb's paint is the skin step's sRGB paint as written** (`head.paint_picture`): encoded again, it came out a
   washed copy (L 0.30 to 0.55), and the hair's labels and the swap's head wore it until 2026-11-27.

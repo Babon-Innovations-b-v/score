@@ -93,6 +93,9 @@ STUBBLE_GRAIN_M = 0.0012  # the stubble's dots (a noise this fine on the rest po
 STUBBLE = "stubble"  # its paint (rgb, alpha the share) as a point attribute; STUBBLE + "_rest" its rest points
 NECK_TONE = "neck_tone"  # each point's share of the neck's move (`head_swap.neck_share`); NECK_TONE + "_rest" its rest
 NECK_SEAM = "neck_seam"  # each shell neck point's linear offset onto the head's colour (`head_swap.seam_offsets`)
+SKIRT = "skirt"  # the skirt's faces (a face attribute); SKIRT + "_from" each head point's place, a copy its point's
+SKIRT_COLOUR = "skirt_colour"  # the skirt's corners' paint (linear, alpha 1 on the skirt's corners, 0 elsewhere)
+JAW_TONE = "jaw_tone"  # each head point's share of the photo's move under the jaw onto its face skin (`neck_skinned`)
 NECK_OVER = 0.01  # a body skin face this little over the cut (body heights) is the neck's; higher, the old hair's
 # The swap eases the head's edge in onto the body's slimmer neck over its band, and neither the groom's neck tube (laid
 # TUCK_M under the head model's skin) nor the body's own skin faces over the cut that lie past COVER_M from the head
@@ -227,6 +230,52 @@ def shell_cut(shell, head, pieces, garment):
     return len(doomed)
 
 
+def body_affine(shell, head):
+    """The affine map from the shell's own frame to the swapped body's heights (`in_body` of the head model's frame):
+    (linear 3 x 3, shift)."""
+    to_head = head.matrix_world.inverted() @ shell.matrix_world
+    corners = np.array([(to_head @ Vector(point))[:] for point in np.vstack([np.eye(3), np.zeros(3)])])
+    images = in_body(corners)
+    return (images[:3] - images[3]).T, images[3]
+
+
+def shell_trimmed(shell, head, pieces, garment):
+    """The shell's own neck faces (every kind but the clothes', `garment`) reaching over `head_swap.TRIM_UNDER` under
+    the cut within COVER_M of the swap's head cut level there and their parts over it taken off (`head_swap.level_plane`),
+    so the body's neck ends on a level line under the head's skirt; how many faces were cut."""
+    linear, shift = body_affine(shell, head)
+    record = json.loads(swap_record().read_text())
+    level = float(pieces["level"]) / float(record["body_height_units"]) - head_swap.TRIM_UNDER
+    mesh = shell.data
+    heights = (coordinates(mesh) @ linear.T + shift)[:, 1] - level
+    tree = tree_of([head.matrix_world @ vertex.co for vertex in head.data.vertices])
+    chosen = [polygon.index for polygon in mesh.polygons if not garment[polygon.index]
+              and heights[list(polygon.vertices)].max() > 0.0
+              and tree.find(shell.matrix_world @ polygon.center)[2] < COVER_M]
+    if not chosen:
+        return 0
+    edit = bmesh.new()
+    edit.from_mesh(mesh)
+    edit.faces.ensure_lookup_table()
+    tag = edit.faces.layers.int.new("trimmed")
+    for index in chosen:
+        edit.faces[index][tag] = 1
+    faces = [edit.faces[index] for index in chosen]
+    edges = list({edge for face in faces for edge in face.edges})
+    verts = list({vert for face in faces for vert in face.verts})
+    point, normal = head_swap.level_plane(linear, shift, level)
+    bmesh.ops.bisect_plane(edit, geom=faces + edges + verts, dist=1e-9, plane_co=point, plane_no=normal)
+    cut = [face for face in edit.faces if face[tag]]
+    over = [face for face in cut if float(np.dot(normal, face.calc_center_median()) - np.dot(normal, point)) > 0.0]
+    bmesh.ops.delete(edit, geom=over, context="FACES")
+    bmesh.ops.triangulate(edit, faces=[face for face in edit.faces if face[tag] and len(face.verts) > 3])
+    edit.faces.layers.int.remove(tag)
+    edit.to_mesh(mesh)
+    edit.free()
+    mesh.update()
+    return len(chosen)
+
+
 def neck_axis(shell, head, pieces, garment):
     """The body's neck axis (its x and z in the body's heights, `in_body`): the middle of the shell's own neck (every
     face but the clothes', `garment`) within the swap's band under the cut, whole all round where the head's is not."""
@@ -278,18 +327,41 @@ def shell_outside(shell, head, pieces, garment, axis):
     return len(doomed)
 
 
-def skirted(head, pieces):
+def body_surface(shell, head, pieces):
+    """The shell's surface TRIM_UNDER or more under the cut (its faces' middles), in the head model's frame and units,
+    as a BVH tree."""
+    to_head = head.matrix_world.inverted() @ shell.matrix_world
+    points = np.array([(to_head @ vertex.co)[:] for vertex in shell.data.vertices])
+    faces = [polygon.vertices[:] for polygon in shell.data.polygons]
+    middles = np.array([points[list(face)].mean(axis=0) for face in faces])
+    under = np.flatnonzero(over_cut(middles, pieces) < -head_swap.TRIM_UNDER)
+    return BVHTree.FromPolygons(points.tolist(), [faces[int(index)] for index in under])
+
+
+def landed_on(copies, surface, reach):
+    """The skirt's copies (the head model's frame) landed on the body's `surface` (`body_surface`) within `reach`
+    (`head_swap.landed`)."""
+    found = [surface.find_nearest(Vector(copy)) for copy in copies]
+    places = np.array([item[0][:] if item[0] is not None else copy for item, copy in zip(found, copies)])
+    distances = np.array([item[3] if item[0] is not None else np.inf for item in found])
+    return head_swap.landed(copies, places, distances, reach)
+
+
+def skirted(head, shell, pieces):
     """The head's open edge at the cut hung with `head_swap.skirt` (down and in along the body's own up, in the head
-    model's units), each copy wearing its point's texture place (left at none, the skirt read the texture's corner
-    and drew a grey line round the neck); how many faces it added."""
+    model's units), each copy landed on the body's neck under the trim (`landed_on`, head_swap.LAND_REACH) and wearing
+    its point's texture place (left at none, the skirt read the texture's corner and drew a grey line round the neck),
+    its faces marked SKIRT and each point's own place or its copy's point's kept (SKIRT + "_from") for `skirt_painted`; (how many faces it
+    added, how many copies landed)."""
     local = coordinates(head.data)
     images = in_body(np.vstack([np.eye(3), np.zeros(3)]))
     up = np.linalg.solve((images[:3] - images[3]).T, np.array([0.0, 1.0, 0.0]))  # one body height up, model units
     unit = float(np.linalg.norm(up))
     triangles = np.array([polygon.vertices[:] for polygon in head.data.polygons])
     low = over_cut(local, pieces) < head_swap.SKIRT_EDGE
-    copies, sources, faces = head_swap.skirt(local, triangles, low, -up / unit, head_swap.SKIRT_DEPTH * unit,
-                                             head_swap.SKIRT_IN * unit)
+    hanging, sources, faces = head_swap.skirt(local, triangles, low, -up / unit, head_swap.SKIRT_DEPTH * unit,
+                                              head_swap.SKIRT_IN * unit)
+    copies = landed_on(hanging, body_surface(shell, head, pieces), head_swap.LAND_REACH * unit)
     edit = bmesh.new()
     edit.from_mesh(head.data)
     edit.verts.ensure_lookup_table()
@@ -298,15 +370,19 @@ def skirted(head, pieces):
     made = [edit.verts.new(Vector(point)) for point in copies]
     every = list(edit.verts[:len(local)]) + made
     source = np.r_[np.arange(len(local)), sources]
+    marked = edit.faces.layers.int.new(SKIRT)
     for face in faces:
         new = edit.faces.new([every[int(index)] for index in face])
+        new[marked] = 1
         for loop, index in zip(new.loops, face):  # the copy wears its point's paint, not the texture's corner
             for layer, found in zip(layers, uv_at):
                 loop[layer].uv = found[int(source[int(index)])]
     edit.to_mesh(head.data)
     edit.free()
+    head.data.attributes.new(SKIRT + "_from", "FLOAT_VECTOR", "POINT").data.foreach_set(
+        "vector", local[source].astype(np.float32).ravel())
     head.data.update()
-    return len(faces)
+    return len(faces), int(np.any(copies != hanging, axis=1).sum())
 
 
 def clothes_of(shell, data):
@@ -619,9 +695,10 @@ def loop_places(mesh, layer, polygons=None):
     return points[loops], uv[loops]
 
 
-def photo_skin(head, pieces):
-    """The photo's skin (sRGB) the head wears just over the cut (`head_swap.photo_near_cut`): the face texture at each
-    point's face UV where its share (the texture's alpha on the front, `photo_front`) holds."""
+def photo_skin(head, pieces, chosen):
+    """The photo's skin (sRGB) the head wears where `chosen` (`head_swap.photo_on_face` or `photo_near_cut`: by
+    heights over the cut and share) says: the face texture at each point's face UV where its share (the texture's
+    alpha on the front, `photo_front`) holds."""
     mesh = head.data
     points, uv = loop_places(mesh, blender_skin.FACE_UV)
     image = bpy.data.images.load(str(MADE / "renders_skin/face.png"), check_existing=True)
@@ -629,7 +706,7 @@ def photo_skin(head, pieces):
     front = np.zeros(len(mesh.vertices), np.float32)
     mesh.attributes["photo_front"].data.foreach_get("value", front)
     share = colour[:, 3] * front[points]
-    found = head_swap.photo_near_cut(over_cut(coordinates(mesh)[points], pieces), share)
+    found = chosen(over_cut(coordinates(mesh)[points], pieces), share)
     return colour[found, :3]
 
 
@@ -646,17 +723,18 @@ def toned_copy(image, move, name):
     return toned
 
 
-def toned_in(material, image, toned):
-    """Each of `material`'s image nodes reading `image` mixed toward the same place on `toned` by the point's
-    NECK_TONE share."""
+def toned_in(material, image, toned, share_name=NECK_TONE):
+    """Each of `material`'s image nodes reading `image` mixed toward the same place on `toned` by the point's share
+    (the attribute `share_name`); how many nodes."""
     tree = material.node_tree
-    for node in [node for node in tree.nodes if node.type == "TEX_IMAGE" and node.image == image]:
+    nodes = [node for node in tree.nodes if node.type == "TEX_IMAGE" and node.image == image]
+    for node in nodes:
         twin = tree.nodes.new("ShaderNodeTexImage")
         twin.image, twin.interpolation, twin.extension = toned, node.interpolation, node.extension
         if node.inputs["Vector"].is_linked:
             tree.links.new(node.inputs["Vector"].links[0].from_socket, twin.inputs["Vector"])
         share = tree.nodes.new("ShaderNodeAttribute")
-        share.attribute_name = NECK_TONE
+        share.attribute_name = share_name
         mix = tree.nodes.new("ShaderNodeMix")
         mix.data_type = "RGBA"
         first, second = (next(socket for socket in mix.inputs if socket.name == name and socket.type == "RGBA")
@@ -667,6 +745,7 @@ def toned_in(material, image, toned):
         tree.links.new(node.outputs["Color"], first)
         tree.links.new(twin.outputs["Color"], second)
         tree.links.new(share.outputs["Fac"], mix.inputs["Factor"])
+    return len(nodes)
 
 
 def neck_material(shell, image, toned):
@@ -689,11 +768,19 @@ def neck_material(shell, image, toned):
     return material
 
 
-def head_colours(head, own, toned, pieces):
+def point_values(mesh, name):
+    """The float point attribute `name` of `mesh`, noughts where it has none."""
+    values = np.zeros(len(mesh.vertices), np.float32)
+    if name in mesh.attributes:
+        mesh.attributes[name].data.foreach_get("value", values)
+    return values
+
+
+def head_colours(head, own, toned, face_toned, pieces):
     """Each head point's own colour (sRGB, before the stubble) where it lies under the paint's band over the cut (others
     nought): its own paint moved toward `toned` by NECK_TONE and lifted by `paint_gain`, and on the skin's faces the
-    face texture by its share (alpha times `photo_front`), as `blender_skin.skin_material` draws it; (colours, which
-    points)."""
+    face texture moved toward `face_toned` by JAW_TONE by its share (alpha times `photo_front`), as
+    `blender_skin.skin_material` draws it; (colours, which points)."""
     mesh = head.data
     count = len(mesh.vertices)
     low = over_cut(coordinates(mesh), pieces) < head_swap.PAINT_BAND
@@ -704,8 +791,7 @@ def head_colours(head, own, toned, pieces):
         loop_face[polygon.loop_start:polygon.loop_start + polygon.loop_total] = polygon.index
     kept = low[points]
     points, uv, face, loop_face = points[kept], uv[kept], face[kept], loop_face[kept]
-    share = np.zeros(count, np.float32)
-    mesh.attributes[NECK_TONE].data.foreach_get("value", share)
+    share = point_values(mesh, NECK_TONE)
     colour = head_swap.bilinear(head_swap.image_array(own), uv)[:, :3]
     colour += (head_swap.bilinear(head_swap.image_array(toned), uv)[:, :3] - colour) * share[points, None]
     skinned = np.array([polygon.material_index for polygon in mesh.polygons])[loop_face] == mesh.materials.find(
@@ -717,16 +803,18 @@ def head_colours(head, own, toned, pieces):
     mesh.attributes["photo_front"].data.foreach_get("value", front)
     image = bpy.data.images.load(str(MADE / "renders_skin/face.png"), check_existing=True)
     photo = head_swap.bilinear(head_swap.image_array(image), face)
+    jaw = point_values(mesh, JAW_TONE)
+    photo[:, :3] += (head_swap.bilinear(head_swap.image_array(face_toned), face)[:, :3] - photo[:, :3]) * jaw[points, None]
     wear = (photo[:, 3] * front[points] * skinned)[:, None]
     colour = colour * (1.0 - wear) + photo[:, :3] * wear
     return head_swap.point_means(colour, points, count), low
 
 
-def seamed(shell, faces, head, own, toned, pieces, space, shell_toned):
+def seamed(shell, faces, head, own, toned, face_toned, pieces, space, shell_toned):
     """The shell's neck points' NECK_SEAM offsets onto the head's colour at the seam (`head_colours`, its mean within
     `head_swap.SEAM_MEAN_M` of the nearest head point under the paint's band, in metres under `space`) from their own
     toned paint (`shell_toned`), eased out off the head's skin (`head_swap.seam_offsets`); how many points take any."""
-    colours, low = head_colours(head, own, toned, pieces)
+    colours, low = head_colours(head, own, toned, face_toned, pieces)
     to_groom = space.matrix_world.inverted()
     head_points = np.array([(to_groom @ (head.matrix_world @ vertex.co))[:] for vertex in head.data.vertices])[low]
     colours = colours[low]
@@ -747,6 +835,54 @@ def seamed(shell, faces, head, own, toned, pieces, space, shell_toned):
     return int((np.abs(offsets[:, :3]).sum(1) > 1e-4).sum())
 
 
+def skirt_painted(head, own, toned, face_toned, pieces, space):
+    """The skirt's corners painted the head's colour round its point (`head_colours`, the mean within
+    `head_swap.SEAM_MEAN_M` of each corner's point or its copy's point, SKIRT + "_from", metres under `space`), mixed over its texture
+    (SKIRT_COLOUR): wearing its points' texture places, every texel along the head's edge was drawn down the skirt as a
+    stripe, the older woman's throat and the hoodie man's neck barred, and the paint above them stands in other
+    islands of the atlas (worn as places over the edge, the skirt read garbage between them; 2026-11-28); how many
+    corners."""
+    mesh = head.data
+    colours, low = head_colours(head, own, toned, face_toned, pieces)
+    to_groom = space.matrix_world.inverted() @ head.matrix_world
+    places = np.array([(to_groom @ vertex.co)[:] for vertex in mesh.vertices])
+    tree = tree_of(places[low])
+    found = colours[low]
+    origins = np.zeros(len(mesh.vertices) * 3, np.float32)
+    mesh.attributes[SKIRT + "_from"].data.foreach_get("vector", origins)
+    origins = np.array([(to_groom @ Vector(point))[:] for point in origins.reshape(-1, 3)])
+    marked = np.zeros(len(mesh.polygons), np.int32)
+    mesh.attributes[SKIRT].data.foreach_get("value", marked)
+    corners = np.zeros((len(mesh.loops), 4), np.float32)
+    means = {}
+    for polygon in mesh.polygons:
+        if not marked[polygon.index]:
+            continue
+        for loop in range(polygon.loop_start, polygon.loop_start + polygon.loop_total):
+            point = mesh.loops[loop].vertex_index
+            key = tuple(np.round(origins[point], 6))
+            if key not in means:
+                near = [item[1] for item in tree.find_range(Vector(origins[point]), head_swap.SEAM_MEAN_M)]
+                means[key] = head_swap.linear_of(found[near].mean(axis=0) if near else colours[point])
+            corners[loop, :3], corners[loop, 3] = means[key], 1.0
+    mesh.color_attributes.new(SKIRT_COLOUR, "FLOAT_COLOR", "CORNER").data.foreach_set("color", corners.ravel())
+    for material in {slot.material for slot in head.material_slots if slot.material is not None}:
+        tree_nodes = material.node_tree
+        base = blender_face.principled_of(material).inputs["Base Color"]
+        reader = tree_nodes.nodes.new("ShaderNodeAttribute")
+        reader.attribute_name = SKIRT_COLOUR
+        mix = tree_nodes.nodes.new("ShaderNodeMix")
+        mix.data_type = "RGBA"
+        if base.is_linked:
+            tree_nodes.links.new(base.links[0].from_socket, mix.inputs["A"])
+        else:
+            mix.inputs["A"].default_value = base.default_value
+        tree_nodes.links.new(reader.outputs["Color"], mix.inputs["B"])
+        tree_nodes.links.new(reader.outputs["Alpha"], mix.inputs["Factor"])
+        tree_nodes.links.new(mix.outputs["Result"], base)
+    return int(corners[:, 3].sum())
+
+
 def seam_added(material):
     """The material's base colour plus the point's NECK_SEAM offset."""
     tree = material.node_tree
@@ -760,16 +896,38 @@ def seam_added(material):
     tree.links.new(added.outputs["Vector"], base)
 
 
+def jaw_toned(head, pieces, face_skin):
+    """The photo under the jaw (`head_swap.photo_near_cut`) moved in Lab onto the photo's skin over the lower face
+    (`face_skin`, Lab; `head_swap.neck_move`), whole at the cut and eased out over NECK_PHOTO_BAND (JAW_TONE): the
+    skin step's light fit lifted it, facing down, past the face's own (head_swap.NECK_FACE_BAND); the toned face
+    texture."""
+    move = head_swap.neck_move(head_swap.lab_of(photo_skin(head, pieces, head_swap.photo_near_cut)), face_skin)
+    image = bpy.data.images.load(str(MADE / "renders_skin/face.png"), check_existing=True)
+    toned = toned_copy(image, move, "face_jaw_toned")
+    heights = over_cut(coordinates(head.data), pieces)
+    head.data.attributes.new(JAW_TONE, "FLOAT", "POINT").data.foreach_set(
+        "value", head_swap.eased(heights, head_swap.NECK_PHOTO_BAND).astype(np.float32))
+    nodes = sum(toned_in(material, image, toned, JAW_TONE) for material in head.data.materials)
+    print(f"jaw move: photo Lab {np.round(move[0], 1).tolist()} spread x {np.round(move[1], 2).tolist()} to the face's "
+          f"{np.round(move[2], 1).tolist()} on {nodes} face texture nodes", flush=True)
+    return toned
+
+
 def neck_skinned(head, shell, pieces, data, space):
     """The shell's own neck under the cut (`neck_faces`, painted as skin: `head_swap.skin_like`) in the library's skin,
-    as the head's, its paint moved in Lab to the photo's skin the head wears over the cut (`photo_skin`,
-    `head_swap.neck_move`; the hoodie man's neck stood a flat pink slab under his photo's skin, 2026-11-28), wholly
+    as the head's, its paint moved in Lab to the photo's skin the head wears over the lower face (`photo_skin`,
+    `head_swap.photo_on_face`, `head_swap.neck_move`; the hoodie man's neck stood a flat pink slab under his photo's
+    skin, then pale toned to the photo under his jaw, 2026-11-28), wholly
     under the cut and eased out down the neck
     (`head_swap.neck_share`); the head's own paint over the cut, the body's at the cut, takes the same move eased
-    out over the paint's band, so no line shows. How many faces."""
+    out over the paint's band, so no line shows; the photo under the jaw is toned onto the face's (`jaw_toned`).
+    (How many faces, the head's (paint, toned paint, toned face texture) as `skirt_painted` reads them: untoned
+    where no neck is skin.)"""
+    own = cloth.base_image(blender_face.principled_of(head.data.materials[0]).inputs["Base Color"])
+    face = bpy.data.images.load(str(MADE / "renders_skin/face.png"), check_existing=True)
     faces, heights = neck_faces(shell, head, pieces, data)
     if not len(faces):
-        return 0
+        return 0, (own, own, face)
     mesh = shell.data
     image = cloth.base_image(blender_face.principled_of(mesh.materials[mesh.polygons[int(faces[0])].material_index])
                              .inputs["Base Color"])
@@ -781,11 +939,12 @@ def neck_skinned(head, shell, pieces, data, space):
     faces = faces[head_swap.skin_like(head_swap.lab_of(np.add.reduceat(paint, np.r_[0, np.cumsum(totals)[:-1]])
                                                        / totals[:, None]))]
     if not len(faces):
-        return 0
+        return 0, (own, own, face)
     points, uv = loop_places(mesh, painted_uv(mesh), faces)
     paint = head_swap.bilinear(pixels, uv)[shares[points] > 0.99, :3]
     del pixels
-    move = head_swap.neck_move(head_swap.lab_of(paint), head_swap.lab_of(photo_skin(head, pieces)))
+    face_skin = head_swap.lab_of(photo_skin(head, pieces, head_swap.photo_on_face))
+    move = head_swap.neck_move(head_swap.lab_of(paint), face_skin)
     print(f"neck move: paint Lab {np.round(move[0], 1).tolist()} spread x {np.round(move[1], 2).tolist()} "
           f"to the photo's {np.round(move[2], 1).tolist()}", flush=True)
     to_groom = space.matrix_world.inverted() @ shell.matrix_world
@@ -796,17 +955,17 @@ def neck_skinned(head, shell, pieces, data, space):
     mesh.materials.append(neck_material(shell, image, shell_toned))
     for index in faces:
         mesh.polygons[int(index)].material_index = len(mesh.materials) - 1
-    own = cloth.base_image(blender_face.principled_of(head.data.materials[0]).inputs["Base Color"])
     head_toned = toned_copy(own, move, "head_neck_toned")
     head.data.attributes.new(NECK_TONE, "FLOAT", "POINT").data.foreach_set(
         "value", head_swap.neck_share(over_cut(coordinates(head.data), pieces)).astype(np.float32))
     for material in head.data.materials:
         toned_in(material, own, head_toned)
+    face_toned = jaw_toned(head, pieces, face_skin)
     print(f"neck points eased onto the head's colour at the seam: "
-          f"{seamed(shell, faces, head, own, head_toned, pieces, space, shell_toned)}", flush=True)
+          f"{seamed(shell, faces, head, own, head_toned, face_toned, pieces, space, shell_toned)}", flush=True)
     seam_added(mesh.materials[-1])
     mesh.update()
-    return len(faces)
+    return len(faces), (own, head_toned, face_toned)
 
 
 def head_dressed(armature, shell, pieces, data):
@@ -824,8 +983,11 @@ def head_dressed(armature, shell, pieces, data):
     print(f"head faces the clothes draw taken off: {garment_cut(head, shell, garment)}", flush=True)
     print(f"rig faces under the head taken off: {shell_cut(shell, head, pieces, garment)}", flush=True)
     garment = clothes_of(shell, data)  # the shell's faces as they are now
+    print(f"rig neck faces cut level under the head: {shell_trimmed(shell, head, pieces, garment)}", flush=True)
+    garment = clothes_of(shell, data)
     axis = neck_axis(shell, head, pieces, garment)
-    print(f"skirt faces under the head's edge at the cut: {skirted(head, pieces)}", flush=True)
+    print(f"skirt faces under the head's edge at the cut, copies landed on the neck: {skirted(head, shell, pieces)}",
+          flush=True)
     blender_skin.attributes(head, skin)
     blender_skin.face_uv(head, skin["box"])
     print(f"painted skin faces: {skin_marked(head, lids, skin)}", flush=True)
@@ -898,7 +1060,9 @@ def main():
     head, frame, space, eyes = head_dressed(armature, shell, pieces, data)
     garments = cloth.garments_made(shell, data)
     groom_space = bpy.data.objects["groom_space"]
-    print(f"neck skin faces toned to the photo's: {neck_skinned(head, shell, pieces, data, groom_space)}", flush=True)
+    necked, images = neck_skinned(head, shell, pieces, data, groom_space)
+    print(f"neck skin faces toned to the photo's: {necked}", flush=True)
+    print(f"skirt corners painted the head's colour: {skirt_painted(head, *images, pieces, groom_space)}", flush=True)
     groom = np.load(MADE / "hair/groom.npz")
     skin = np.load(HEAD_DIR / "skin/skin.npz", allow_pickle=False)
     if len(groom["beard_skin_points"]) and "beard_colour" in skin:
