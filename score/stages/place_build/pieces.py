@@ -14,7 +14,9 @@ as its matrix: a copy stretched unevenly stays a copy, its stretch in the matrix
   still held by the engine once for its address and digest;
 - a made piece (an algorithm's: the stair core, blocks, dome shells, tubes, terrain, a ground disc; anything without
   a library entry) as its own small made/<name>.glb in the piece's own frame: positions, normals and one primitive a
-  part, no texture, no texture coordinates, no material; two copies of one content are one piece;
+  part, no texture, no material, and no texture coordinates but where a look it wears reads a picture (a decal, a
+  screen's picture: its box's, `boxed`, so the picture spans each face; a made TV picture drew one texel of it, a
+  blank white screen, 2099 #161); two copies of one content are one piece;
 - a character (a SkelRoot, a crowd's every copy) as its skinned glTF (skinned.py, as version 1 carries it: its own
   texture), made/<name>.glb, its copy's `plays`; its pictures apart, each once at made/pictures/<sha256>.<ending>.
 A piece's parts are its GeomSubsets by name (a model's colour regions), a laid layer as one part by the layer's name
@@ -201,6 +203,19 @@ def made_glb(corners, pages=False):
     return scene_package.packed(document, binary)
 
 
+MAP_INPUTS = ("diffuseColor", "roughness", "metallic", "normal", "emissiveColor")  # the inputs a look's maps feed
+
+
+def pictured(bound):
+    """Whether a look of `bound` ({part: look or None}) reads a picture through one of its MAP_INPUTS: the made piece
+    wearing it then carries texture coordinates for it."""
+    for look in bound.values():
+        shader = look.ComputeSurfaceSource()[0] if look is not None else None
+        if shader and any(scene_package.texture_of(shader, name) is not None for name in MAP_INPUTS):
+            return True
+    return False
+
+
 def size_of(corners):
     """A piece's box sides (x, y, z, metres) in its own frame and its triangle count."""
     points = np.vstack([positions for positions, _, _ in corners.values()])
@@ -231,7 +246,7 @@ def look_record(folder, look):
         opacity=round(float(scene_package.value_of(shader, "opacity", 1.0)), 6),
         glow=[round(float(value), 6) for value in scene_package.value_of(shader, "emissiveColor", (0.0, 0.0, 0.0))])
     maps = {}
-    for name in ("diffuseColor", "roughness", "metallic", "normal", "emissiveColor"):
+    for name in MAP_INPUTS:
         found = scene_package.texture_of(shader, name)
         if found is not None:
             reference = scene_package.library_reference(folder, found[0])
@@ -349,7 +364,7 @@ def object_piece(out, prim, pieces, made, laid):
         held["parts"] = sorted(set(held["parts"]) | set(corners))
         laid.setdefault(name, (laid_file(prim), corners))
         return name, bound
-    glb = made_glb(corners)
+    glb = made_glb(corners, pages=pictured(bound))
     digest = hashlib.sha256(glb).hexdigest()
     if digest not in made:
         name = prim.GetName()

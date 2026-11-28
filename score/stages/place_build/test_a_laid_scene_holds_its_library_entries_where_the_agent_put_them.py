@@ -58,6 +58,8 @@ Breaks that turn this red (each applied once and seen red, then reverted):
 - pipe_run.catenary: the hang's sign turned -> the lantern string's middle rises over its ends
 - pipe_run.pennants: the drop left off its tip -> the bunting's flags are slivers along its string, none hanging
 - pipe_run.railing_run: `bar` ignored -> the stair's balusters stand 16 mm thick where the row says 20
+- pieces.pictured: a look reading a picture not told -> a made piece wearing a page (the flat's TV picture) carries no
+  texture coordinates, and draws one texel of its picture, a blank white screen
 - place_build.pipe: a run laid before its looks are refused -> the unlooked run stays in the scene, a part in no finish
 - pipe_run.draped: a cord's points in the air kept, or its spans not hung or not lifted onto what is under them -> the
   lamp cord stands in the air at its drawn point, runs straight from the table to the floor, or passes into the floor
@@ -2277,6 +2279,15 @@ def pieced(folder, root, out):
     assert pieces.paged(own)["face"][2] is own["face"][2]  # its own coordinates kept where they lay a page
     glb = pieces.made_glb(own, pages=True)
     assert b"TEXCOORD_0" in glb and b"TEXCOORD_0" not in pieces.made_glb(own)  # a made piece carries none
+    door_b = UsdShade.Material.Get(copied, "/kit/door_b/looks/metal")
+    unpictured = pieces.pictured({"metal": door_b, "none": None})
+    picture = UsdShade.Shader.Define(copied, "/kit/door_b/looks/metal/picture")
+    picture.CreateIdAttr("UsdUVTexture")
+    Image.new("RGB", (4, 4), (200, 30, 30)).save(out / "page.png")
+    picture.CreateInput("file", Sdf.ValueTypeNames.Asset).Set(str(out / "page.png"))
+    UsdShade.Shader.Get(copied, "/kit/door_b/looks/metal/shader").GetInput("diffuseColor").ConnectToSource(
+        picture.ConnectableAPI(), "rgb")
+    assert not unpictured and pieces.pictured({"metal": door_b})  # a made TV picture wearing a page carries its coordinates
     ready_file = folder / "ready.json"  # the place's check, run after its last lay, tells the kerb floating
     checked = json.loads(ready_file.read_text())
     ready_file.write_text(json.dumps({**checked, "objects": {"kerb": [{"fault": "floating", "why": "floats 5.0 cm"}]}}))
