@@ -4,7 +4,8 @@ in it, and the words standing proud of the face as raised letters, each set in t
 (text_decals.FONTS, SIL OFL) and cut into runs of a raster's rows, so they read sharp from the street with no picture.
 Every part is a palette variant of its library recipe (car.painted), the face and letters glowing.
 
-    sign_parts(text, size, look, vertical)  the parts of a sign of `size` (across, tall, deep; y up, its face towards
+    mark_ink(mark)                  an attitude marker's symbol (MARKS) as a ROWS-square ink raster
+    sign_parts(text, size, look, vertical, relief, mark)  the parts of a sign of `size` (across, tall, deep; y up, its face towards
                                     +z, its foot on y 0, centred across and in depth): casing, face, letters; a
                                     vertical sign's characters stacked top to bottom, as a Hong Kong blade sign's
     build(text, size, palette, look, finishes, vertical, relief)  (trimesh.Scene, record): the parts painted from the palette,
@@ -40,6 +41,34 @@ LAMP_FINISHES = {"pole": ("painted_metal", "gunmetal_steel"), "cap": ("painted_m
                  "head": ("glowing", "lamp_head_glow")}
 LAMP_GLOW = 0.35
 POLE_WIDE = 0.12  # metres across the pole's square section
+# An attitude marker's symbol, set left of a label's words (2099 #257, the SAS grid's buttons): KSP's navball marks as
+# the game's ball draws them (2099 game/cockpit/instruments/BallMarks.Drawn), each a list of strokes in a unit square
+# (x right, y up, -0.55 to 0.55), plus a circle's (middle, radius) where a mark has one. A label of a mode the ball
+# shows no mark for takes the nearest sign: STABILITY the fixed nose's wings, OFF a power sign, the speed box's
+# ORBIT / SURFACE an orbit round a world.
+_LEAN = 0.5 ** 0.5
+_CORNERS = [(_LEAN, _LEAN), (-_LEAN, _LEAN), (_LEAN, -_LEAN), (-_LEAN, -_LEAN)]
+_FINS = [(np.cos(np.radians(angle)), np.sin(np.radians(angle))) for angle in (90.0, 210.0, 330.0)]
+MARKS = {
+    "prograde": {"circles": [(0.0, 0.0, 0.3)], "strokes": [((0.0, 0.3), (0.0, 0.55)), ((-0.3, 0.0), (-0.55, 0.0)),
+                                                         ((0.3, 0.0), (0.55, 0.0))]},
+    "retrograde": {"circles": [(0.0, 0.0, 0.3)], "strokes": [((-0.21, -0.21), (0.21, 0.21)), ((-0.21, 0.21), (0.21, -0.21)),
+                                                           ((0.0, 0.3), (0.0, 0.55)), ((-0.3, 0.0), (-0.55, 0.0)),
+                                                           ((0.3, 0.0), (0.55, 0.0))]},
+    "normal": {"strokes": [((0.0, 0.38), (-0.36, -0.24)), ((-0.36, -0.24), (0.36, -0.24)), ((0.36, -0.24), (0.0, 0.38))]},
+    "anti_normal": {"strokes": [((0.0, -0.38), (-0.36, 0.24)), ((-0.36, 0.24), (0.36, 0.24)), ((0.36, 0.24), (0.0, -0.38)),
+                                ((0.0, -0.05), (0.0, 0.05))]},
+    "radial_in": {"circles": [(0.0, 0.0, 0.3)], "strokes": [((x * 0.05, y * 0.05), (x * 0.24, y * 0.24)) for x, y in _CORNERS]},
+    "radial_out": {"circles": [(0.0, 0.0, 0.25)], "strokes": [((x * 0.25, y * 0.25), (x * 0.5, y * 0.5)) for x, y in _CORNERS]},
+    "burn": {"circles": [(0.0, 0.0, 0.28)],
+             "strokes": [stroke for x, y in _FINS for side in (1.0, -1.0) for stroke in
+                         [((x * 0.28 - y * 0.12 * side, y * 0.28 + x * 0.12 * side), (x * 0.5, y * 0.5))]]},
+    "stability": {"circles": [(0.0, 0.0, 0.06)], "strokes": [((-0.5, 0.0), (-0.18, 0.0)), ((-0.18, 0.0), (0.0, -0.18)),
+                                                           ((0.0, -0.18), (0.18, 0.0)), ((0.18, 0.0), (0.5, 0.0))]},
+    "off": {"arcs": [(0.0, -0.04, 0.36, 130.0, 410.0)], "strokes": [((0.0, 0.5), (0.0, 0.05))]},
+    "frame": {"ellipses": [(0.0, 0.0, 0.52, 0.24)], "circles": [(0.0, 0.0, 0.12)]},
+}
+MARK_STROKE = 0.08  # a mark's line width, of its square
 
 
 def ink(text, look, vertical=False):
@@ -61,6 +90,37 @@ def ink(text, look, vertical=False):
     return np.vstack(stacked)
 
 
+def mark_ink(mark):
+    """An attitude marker's symbol (MARKS[mark]) as a ROWS-square boolean raster, True where its lines are; y up in the
+    symbol is up in the raster."""
+    from PIL import Image, ImageDraw
+    shape = MARKS[mark]
+    picture = Image.new("L", (ROWS, ROWS), 0)
+    draw = ImageDraw.Draw(picture)
+    width = max(1, round(MARK_STROKE * ROWS))
+
+    def at(x, y):
+        return ((x + 0.55) / 1.1 * (ROWS - 1), (0.55 - y) / 1.1 * (ROWS - 1))
+
+    def scaled(radius):
+        return radius / 1.1 * (ROWS - 1)
+
+    for start, end in shape.get("strokes", []):
+        draw.line([at(*start), at(*end)], fill=255, width=width)
+    for x, y, radius in shape.get("circles", []):
+        (middle_x, middle_y), reach = at(x, y), scaled(radius)
+        draw.ellipse([middle_x - reach, middle_y - reach, middle_x + reach, middle_y + reach], outline=255, width=width)
+    for x, y, across, tall in shape.get("ellipses", []):
+        (middle_x, middle_y) = at(x, y)
+        draw.ellipse([middle_x - scaled(across), middle_y - scaled(tall), middle_x + scaled(across),
+                      middle_y + scaled(tall)], outline=255, width=width)
+    for x, y, radius, start, end in shape.get("arcs", []):
+        (middle_x, middle_y), reach = at(x, y), scaled(radius)
+        draw.arc([middle_x - reach, middle_y - reach, middle_x + reach, middle_y + reach], start, end, fill=255,
+                 width=width)
+    return np.asarray(picture) >= 128
+
+
 def runs(raster):
     """Each row's runs of ink as (row, first column, past the last column), rows counted from the top."""
     found = []
@@ -78,10 +138,11 @@ def box(low, high):
                                 transform=trimesh.transformations.translation_matrix((low + high) / 2.0))
 
 
-def sign_parts(text, size, look="bold sans", vertical=False, relief=1.0):
+def sign_parts(text, size, look="bold sans", vertical=False, relief=1.0, mark=None):
     """[(part, mesh)]: the casing, the face inset by BORDER standing FACE_PROUD out of it, and the letters standing
     LETTER_PROUD out of the face, the words centred on it as large as TEXT_TALL and TEXT_WIDE let them; `relief` scales
-    the border and both reliefs, so a label plate a few centimetres tall keeps a face (at a whole BORDER it has none)."""
+    the border and both reliefs, so a label plate a few centimetres tall keeps a face (at a whole BORDER it has none);
+    `mark` (a MARKS name) sets that symbol a line tall left of the words, a third of a line apart, raised as they are."""
     import trimesh
     across, tall, deep = (float(value) for value in size)
     border, face_proud, letter_proud = BORDER * relief, FACE_PROUD * relief, LETTER_PROUD * relief
@@ -90,6 +151,8 @@ def sign_parts(text, size, look="bold sans", vertical=False, relief=1.0):
     face_low, face_high = np.array([-across / 2 + border, border]), np.array([across / 2 - border, tall - border])
     face = box((*face_low, front), (*face_high, front + face_proud))
     raster = ink(text, look, vertical)
+    if mark is not None:
+        raster = np.hstack([mark_ink(mark), np.zeros((ROWS, ROWS // 3), dtype=bool), raster])
     span = face_high - face_low
     cell = min(span[1] * TEXT_TALL / raster.shape[0], span[0] * TEXT_WIDE / raster.shape[1])
     middle = (face_low + face_high) / 2.0
@@ -101,16 +164,18 @@ def sign_parts(text, size, look="bold sans", vertical=False, relief=1.0):
     return [("casing", casing), ("face", face), ("letters", letters)]
 
 
-def build(text, size, palette, look="bold sans", finishes=None, vertical=False, relief=1.0):
+def build(text, size, palette, look="bold sans", finishes=None, vertical=False, relief=1.0, mark=None):
     """(trimesh.Scene, record) of the sign: each part a node of its own name in its palette variant (FINISHES, or
     `finishes` {part: (recipe, variant)} over them), the record naming its text, size and parts as car.painted reads
-    them, and its `relief` (sign_parts). A glowing face gives off FACE_GLOW and reflects FACE_BASE of its colour, its letters then LETTER_GLOW."""
+    them, its `relief` and its `mark` (sign_parts). A glowing face gives off FACE_GLOW and reflects FACE_BASE of its colour, its letters then LETTER_GLOW."""
     import trimesh
     chosen = dict(FINISHES, **(finishes or {}))
     scene = trimesh.Scene()
     record = {"rule": "lightbox", "text": text, "look": look, "size": [float(value) for value in size],
               "vertical": bool(vertical), "relief": float(relief), "parts": []}
-    for name, mesh in sign_parts(text, size, look, vertical, relief):
+    if mark is not None:
+        record["mark"] = mark
+    for name, mesh in sign_parts(text, size, look, vertical, relief, mark):
         scene.add_geometry(mesh, node_name=name, geom_name=name)
         recipe, variant = chosen[name]
         record["parts"].append({"name": name, "finish": recipe, "variant": variant})

@@ -16,6 +16,9 @@ Breaks (each applied once, seen red, reverted), in score/stages/signs/__init__.p
     lamp_parts' `under = tall - head - BORDER` -> `under = tall - head` (the lamp's cap above its height)
     build_lamp's `value * LAMP_GLOW` -> `value` (the lamp's head a white bloom blob)
     sign_parts' `border, ... = BORDER * relief, ...` -> `= BORDER, ...` (a 3 cm label plate's face turned inside out)
+    sign_parts' `raster = np.hstack([mark_ink(mark), ...])` dropped (a SAS label's marker symbol missing)
+    mark_ink's `(0.55 - y)` -> `(y + 0.55)` (every marker drawn upside down: NORMAL's triangle points down)
+    MARKS' "anti_normal" strokes swapped for "normal"'s (two buttons carry one symbol)
 """
 import numpy as np
 
@@ -94,3 +97,18 @@ def test_a_lightbox_sign_carries_its_words_raised_on_its_glowing_face():
                        np.asarray(head.visual.material.baseColorFactor[:3]) / 255.0 / lightbox.FACE_BASE * lightbox.LAMP_GLOW,
                        atol=0.01) and not np.any(lamp.geometry["pole"].visual.material.emissiveFactor), \
         "the lamp's head glows part of its colour, its pole does not"
+    marked, marked_record = lightbox.build("NORMAL", (0.08, 0.022, 0.005), PALETTE, relief=0.03, mark="normal")
+    plain = lightbox.build("NORMAL", (0.08, 0.022, 0.005), PALETTE, relief=0.03)[0]
+    symbol = lightbox.mark_ink("normal")
+    marked_letters = marked.geometry["letters"].bounds
+    assert marked_record["mark"] == "normal" and symbol.shape == (lightbox.ROWS, lightbox.ROWS) \
+        and len(marked.geometry["letters"].faces) == len(plain.geometry["letters"].faces) + 12 * len(lightbox.runs(symbol)) \
+        and np.all(marked_letters[0, :2] >= marked.geometry["face"].bounds[0, :2] - 1e-9), \
+        "a SAS label carries its marker's symbol raised left of its words"
+    inked = np.flatnonzero(symbol.any(axis=1))
+    top, bottom = symbol[inked[0] + 2], symbol[inked[-1] - 2]
+    assert top.sum() < bottom.sum() / 3, "NORMAL's triangle points up, as the ball draws it"
+    drawn = {name: lightbox.mark_ink(name).tobytes() for name in lightbox.MARKS}
+    assert len(set(drawn.values())) == len(lightbox.MARKS) == 10 \
+        and all(0.02 < lightbox.mark_ink(name).mean() < 0.4 for name in lightbox.MARKS), \
+        "each of the ten SAS buttons' symbols is its own, drawn in lines"

@@ -15,3 +15,6 @@ sign model laid with its face out.
   letters `LETTER_GLOW` of theirs, deeper than the face (2099 #161 round 3: a whole cream face under its lamp drew a
   white slab, its red words salmon). `finishes` swaps a part's variant: a neon blade sign is a dark `gunmetal_steel`
   face with its letters glowing whole in a `neon_*` variant; `vertical` stacks the characters top to bottom.
+- **A SAS label carries its marker's symbol** (2099 #257, the 2x5 SAS grid): `mark=<MARKS name>` raises the attitude
+  marker's lines (`mark_ink`, drawn as 2099's `BallMarks.Drawn` draws them on the ball) a line tall left of the words,
+  so a button reads as the mark the ball shows. A changed mark there is changed in `MARKS` too.
