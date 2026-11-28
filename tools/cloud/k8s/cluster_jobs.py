@@ -74,6 +74,22 @@ class Elsewhere(RuntimeError):
         self.jobs = jobs
 
 
+# A fresh card node's start, from its creation (billed) to its first pod running: 10 min a node on 43 L4 nodes of the
+# tenant cluster, 2026-11-27 (the GPU operator's setup, the image's pull, the weights' cache), whatever its run's work.
+NODE_START_MINUTES = 10
+# The most of a node's billed time its start may be when a run is sized (nodes_for): 2099's prologue's runs of five
+# models each started a node of their own for about 10 min of work, half of every node's time its start.
+START_SHARE = 0.2
+
+
+def nodes_for(work_minutes, most):
+    """How many nodes a run of `work_minutes` of card work takes at once (its `parallel`): as many as keep each node's
+    start at most START_SHARE of its time (NODE_START_MINUTES), at least one and at most `most` (its jobs, or the
+    pool's max); its jobs chain on them, each next job on a node a job left."""
+    per_node = NODE_START_MINUTES * (1 - START_SHARE) / START_SHARE
+    return max(1, min(most, int(work_minutes // per_node)))
+
+
 def run_id(kind):
     """A run's id: the kind, the time and this process."""
     return f"{kind}-{time.strftime('%Y%m%d-%H%M%S')}-{os.getpid()}"

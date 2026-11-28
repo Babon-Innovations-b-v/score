@@ -2,12 +2,14 @@
 card queue runs it here, in the meshparts image's TRELLIS.2 (its SegviGen checkout's `trellis2`, whose pipelines are
 TRELLIS.2's own, on its author's published cumesh, flex_gemm and o_voxel wheels; tools/cloud/images/meshparts/), its
 weights from the node cache (images/meshparts/models.json: `trellis2-4b-make`, TRELLIS-image-large's structure
-decoder, DINOv3), one job for any number of pictures, each in its own process as generate.py asks.
+decoder, DINOv3), ROWS_A_JOB pictures a job, each in its own process as generate.py asks, all of a call's jobs one
+cluster run on the nodes their work keeps busy (cluster_jobs.nodes_for).
 
     made(pairs, who) -> {out.glb: its stats} for [(picture.png, out.glb[, faces[, seed]]), ...], run on the cluster
-    (SCORE_CLOUD=k8s); a pair's faces (maker.faces_for its size) as the PC's make passes them, else generate.FACES
+    (SCORE_CLOUD=k8s); a pair's faces (maker.faces_for its size) as the PC's make passes them, else generate.FACES;
+    give it every picture at once: one call is one run, its nodes started once for all of them
     remade(pairs, who, attempt[, sizes]) -> the same for a remake: generate.TAKES takes a picture at
-    generate.seeds_for(attempt) (never the failed make's seed 42) in the one job, all kept under
+    generate.seeds_for(attempt) (never the failed make's seed 42) in the one run, all kept under
     <out folder>/takes/seed<n>/, the take whose outline best overlaps its close-up's laid at out.glb (best_take)
 
 Each model comes back as generate.py leaves it here: its .json and its decoded mesh beside it (brought_back).
@@ -29,6 +31,10 @@ CHECKOUT = "/opt/sv/SegviGen"
 ENV = "/work/env"
 SETUP_MINUTES = 15  # the weights' first fetch onto a node (about 14 GB) and the pipeline's load
 MINUTES_A_PICTURE = 8  # about two minutes a model on the PC's card; the rest is headroom
+# A job's pictures: the image's start and the pipeline's load spent once on them (an L4 job of one model 3 min, of five
+# 9 min, 2026-11-27), and a failed job's pictures made again one a job.
+ROWS_A_JOB = 5
+ROW_MINUTES = 2  # a model's card minutes in a job of ROWS_A_JOB on an L4 (2026-11-27), what sizes a run's nodes
 READY = {"by": "the meshparts image's TRELLIS.2 (SegviGen's checkout, its author's wheels)",
          "weights": "tools/cloud/images/meshparts/models.json: trellis2-4b-make, trellis-image-large-ssdec, "
                     "dinov3-vitl16"}
@@ -42,9 +48,10 @@ ENV_LINES = [
     f"echo {shlex.quote(json.dumps(READY))} > {ENV}/ready.json"]
 
 
-def job_of(pairs):
+def job_of(pairs, first=0):
     """The cluster job making each (picture, out.glb) of `pairs`: the pictures at /work/in/<n>.png, the models at
-    /work/out/<n>/model.glb with their stats, each made in a process of its own."""
+    /work/out/<n>/model.glb with their stats, each made in a process of its own, brought back beside each out.glb as
+    .cloud-<first + n> (`first`: the pairs' place among a run's, so two jobs' models never meet in one folder)."""
     lines = list(ENV_LINES)
     for number, pair in enumerate(pairs):
         faces = f" {int(pair[2])}" if len(pair) > 2 and pair[2] else ""
@@ -64,28 +71,54 @@ def job_of(pairs):
             "env": {"MALLOC_ARENA_MAX": "2"},
             "inputs": [{"local": str(picture), "path": f"/work/in/{number}.png"}
                        for number, (picture, *_) in enumerate(pairs)],
-            "outputs": [{"path": f"/work/out/{number}", "local": str(pathlib.Path(out).parent / f".cloud-{number}")}
+            "outputs": [{"path": f"/work/out/{number}",
+                         "local": str(pathlib.Path(out).parent / f".cloud-{first + number}")}
                         for number, (_, out, *_) in enumerate(pairs)],
             "minutes": SETUP_MINUTES + MINUTES_A_PICTURE * len(pairs)}
 
 
 def made(pairs, who, takes=False):
-    """Each (picture, out.glb) of `pairs` made on one cloud card; {out: its stats}. A picture whose model did not come
-    back raises, naming it, unless the pairs are a remake's `takes`, where it is left out."""
+    """Each (picture, out.glb) of `pairs` made on cloud cards as one cluster run; {out: its stats}. The pairs go
+    ROWS_A_JOB to a job on as many nodes as their work keeps busy (cluster_jobs.nodes_for), each next job on a node a
+    job left, so a node's start is spent on many models (2099's prologue, 2026-11-27: ten runs side by side of five
+    models each, a node started for each, half of every node's billed time its start); the pairs of a job that failed
+    are made again one a job in one more run. Every model that came back is laid at its out.glb; a picture whose model
+    did not come back then raises, naming it, unless the pairs are a remake's `takes`, where it is left out."""
+    groups = [pairs[at:at + ROWS_A_JOB] for at in range(0, len(pairs), ROWS_A_JOB)]
+    stats, failed, lost = made_in_one_run(groups, who, takes)
+    alone = [[pair] for number in failed if len(groups[number]) > 1 for pair in groups[number]]
+    lost += [groups[number][0][0] for number in failed if len(groups[number]) == 1]
+    if alone:
+        more, failed_alone, lost_alone = made_in_one_run(alone, who, takes)
+        stats.update(more)
+        lost += lost_alone + [alone[number][0][0] for number in failed_alone]
+    if lost and not takes:
+        raise RuntimeError(f"TRELLIS.2's cloud make brought back no model for {len(lost)} of {len(pairs)} pictures: "
+                           + ", ".join(str(picture) for picture in lost))
+    return stats
+
+
+def made_in_one_run(groups, who, takes):
+    """Each group of pairs one job of one cluster run on the nodes its work keeps busy; ({out: stats} of the models
+    that came back, laid at their out.glb), the numbers of the jobs that failed, and the pictures of done jobs whose
+    model did not come back."""
     sys.path.insert(0, str(REPO / "tools/cloud/k8s"))
     import cluster_jobs
-    job = job_of(pairs)
-    failed = cluster_jobs.run(KIND, [job], who)
-    if failed:
-        raise RuntimeError(f"TRELLIS.2's cloud job failed ({len(pairs)} pictures)")
-    stats = {}
-    for output, (picture, out, *_) in zip(job["outputs"], pairs):
-        if not (pathlib.Path(output["local"]) / "model.glb").is_file():
-            if takes:
+    firsts = [sum(len(group) for group in groups[:number]) for number in range(len(groups))]
+    jobs = [job_of(group, first) for group, first in zip(groups, firsts)]
+    parallel = cluster_jobs.nodes_for(sum(len(group) for group in groups) * ROW_MINUTES, len(jobs))
+    failed = cluster_jobs.run(KIND, jobs, who, parallel=parallel)
+    stats, lost = {}, []
+    for number, (job, group) in enumerate(zip(jobs, groups)):
+        if number in failed:
+            continue
+        for output, (picture, out, *_) in zip(job["outputs"], group):
+            if not (pathlib.Path(output["local"]) / "model.glb").is_file():
+                if not takes:
+                    lost.append(picture)
                 continue
-            raise RuntimeError(f"{picture}: no model came back")
-        stats[str(out)] = brought_back(pathlib.Path(output["local"]), pathlib.Path(out))
-    return stats
+            stats[str(out)] = brought_back(pathlib.Path(output["local"]), pathlib.Path(out))
+    return stats, failed, lost
 
 
 def take_path(out, seed):

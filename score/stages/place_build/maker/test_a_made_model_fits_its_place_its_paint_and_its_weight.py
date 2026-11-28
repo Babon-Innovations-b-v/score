@@ -71,6 +71,10 @@ Breaks that turn this red (each applied once and seen red, then reverted):
   -> the made cabinet's parts and body no longer weigh its 12 kg (seen red 2026-11-25); parts.facing's axis by
   `np.abs(weighted).sum(0)` made the mean's `np.abs(weighted.sum(0))` -> the closed knob faces by noise (seen red
   2026-11-25)
+- cloud.made: a call's pictures one run, ROWS_A_JOB a job on cluster_jobs.nodes_for nodes, a failed job's pictures
+  made again alone. Break: `alone = []` in `made`. Break: `parallel = len(jobs)` in `made_in_one_run`. Break:
+  `.cloud-{number}` in `job_of` (two jobs' models meet in one folder). Break: `per_node = NODE_START_MINUTES` in
+  `cluster_jobs.nodes_for`.
 - cloud.job_of: a model it names missing from the meshparts image's models.json, two pictures made in one process
   (generate.py drops its flow models after one), a picture's output not brought back where its out.glb lies, or a
   pair's faces not passed to generate.py (the cloud make at 500k whatever its size);
@@ -99,6 +103,7 @@ Breaks that turn this red (each applied once and seen red, then reverted):
 import importlib.util
 import json
 import pathlib
+import sys
 
 import numpy as np
 
@@ -636,6 +641,31 @@ def test_a_made_model_fits_its_place_its_paint_and_its_weight(tmp_path, monkeypa
             (back / name).write_text(json.dumps({"from": name}))
         assert cloud.brought_back(back, out) == {"from": "model.json"} and not back.exists()
         assert (out.is_file(), generate.decoded_path(out).is_file()) == (True, decoded)
+    # a call's pictures go ROWS_A_JOB to a job, all one cluster run on the nodes their work keeps busy, a failed job's
+    # pictures made again one a job in one more run, two jobs' models never in one folder (2099's prologue, 2026-11-27:
+    # ten runs of five side by side, a node started for each, half its billed time its start)
+    sys.path.insert(0, str(cloud.REPO / "tools/cloud/k8s"))
+    import cluster_jobs
+    runs = []
+
+    def cluster_run(kind, jobs, who, parallel=None):
+        runs.append((kind, len(jobs), parallel))
+        failed = [1] if len(runs) == 1 else []
+        for number, job in enumerate(jobs):
+            for output in job["outputs"] if number not in failed else ():
+                back = pathlib.Path(output["local"])
+                back.mkdir(parents=True)  # raises when two jobs' models meet in one folder
+                (back / "model.glb").write_text("glb")
+                (back / "model.json").write_text(json.dumps({"made": back.name}))
+        return failed
+    monkeypatch.setattr(cluster_jobs, "run", cluster_run)
+    shelf = tmp_path / "shelf"
+    shelf.mkdir()
+    pictures = [(tmp_path / f"p{number}.png", shelf / f"m{number}.glb") for number in range(12)]
+    stats = cloud.made(pictures, "test")
+    assert runs == [("meshparts", 3, 1), ("meshparts", 5, 1)], runs  # 5, 5 and 2 a job; job 1's five alone after
+    assert sorted(stats) == sorted(str(out) for _, out in pictures) and all(out.is_file() for _, out in pictures)
+    assert [cluster_jobs.nodes_for(minutes, most) for minutes, most in ((24, 3), (400, 12), (10_000, 12))] == [1, 10, 12]
     remake_seeds = generate.seeds_for(1)  # 2099's prologue: remade at the failed make's seed 42, the same model again
     assert generate.seeds_for(0) == [generate.SEED] and generate.SEED not in remake_seeds
     assert len(set(remake_seeds) | set(generate.seeds_for(2))) == 2 * generate.TAKES == 2 * len(remake_seeds)
