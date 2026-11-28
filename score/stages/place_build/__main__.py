@@ -321,7 +321,12 @@ def run(args):
         from score.stages.place_build import maker
         return maker.make(args.folder, args.name, args.source, args.material, args.like, args.height,
                           numbers(args.size) if args.size else None, not args.no_take_in,
-                          args.card_only)
+                          args.card_only, args.near)
+    if args.step == "budget":
+        from score.stages.place_build.maker import budget
+        if args.entry:
+            return budget.rebudgeted(args.folder, args.entry, args.near)
+        return budget.nearest(args.folder)
     if args.step == "route":
         from score.stages.place_build import ready
         points, length = ready.route(args.folder, [numbers(spot) for spot in args.through])
@@ -561,6 +566,12 @@ def parser():
     step.add_argument("--no-take-in", action="store_true", help="keep the made files here, take nothing into score_lib")
     step.add_argument("--card-only", action="store_true", help="the card step alone: TRELLIS.2's model kept in "
                       "made/<entry>/ for a make after it to finish on the processor")
+    step.add_argument("--near", type=float, help="metres from the nearest a walker's eye comes (maker/budget.py)")
+    step = steps.add_parser("budget", help="a laid place's made models: how near the walkers' eyes come to each "
+                            "(no --entry), or one cut to the faces that show from --near and taken in again")
+    step.add_argument("folder")
+    step.add_argument("--entry", help="a made entry laid here (<name>_trellis.<place>)")
+    step.add_argument("--near", type=float, help="metres from its nearest eye (`budget <folder>`'s answer)")
     step = steps.add_parser("crowd", help="the laid crowd faced to --toward, the floor round it packed and walkers' "
                             "lanes laid, all measured clear on the scene's solids (crowd.py)")
     step.add_argument("folder")

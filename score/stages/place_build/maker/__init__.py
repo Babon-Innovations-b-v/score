@@ -12,7 +12,8 @@ place_build's `make`, one prop's model from its picture, made ready for the plac
    shaded from (bake.seamed, #159).
 3. Set in the place's frame (fit.py): over the library model it replaces (`like`, its turn, scale and spot found by
    covering it best), or `height` metres tall on the floor. Its mesh repaired, its shape kept (repair.py: collapsed,
-   repeated and membrane faces out, two solids touching along an edge parted, hidden crumbs out, wound outward).
+   repeated and membrane faces out, two solids touching along an edge parted, hidden crumbs out, wound outward). Its
+   faces cut to those that show from the nearest a walker's eye comes (budget.py; `budget` again once it is laid).
 4. Its own paint graded toward the place's palette (grade.py, palette.json's tokens); a group still far from every
    token is named a mismatch. A graded paint is still not a library surface: `put` lays the made model's paint parts
    (grade.parts) each as the palette variant nearest its colour (place_build/finished).
@@ -39,7 +40,7 @@ import sys
 import numpy as np
 
 from score.stages import place_build
-from score.stages.place_build.maker import fit, front, glb, grade, parts, repair, sim
+from score.stages.place_build.maker import budget, fit, front, glb, grade, parts, repair, sim
 
 HERE = pathlib.Path(__file__).resolve().parent
 REPO = HERE.parents[3]
@@ -403,13 +404,14 @@ def saved(values, root, entry, files, title, made_with, work):
     return place_build.resolved_address(f"model/{entry}", root)
 
 
-def make(folder, name, source, material, like=None, height=None, size=None, take_in=True, card_only=False):
+def make(folder, name, source, material, like=None, height=None, size=None, take_in=True, card_only=False, near=None):
     """One prop's model made with TRELLIS.2 from `source`'s picture, set in the place (over `like`, `height` metres
     tall, or at `size`), graded to its palette, made sim-ready, its moving parts cut and jointed (parts.made, #177:
     its record's `moving_parts`, the model's part nodes) and taken into score_lib unless not `take_in`; its address
     (None when not taken in) and measures. With `card_only`, only its card step: TRELLIS.2's model kept in its work
     folder, which a make after it takes from there (generated), so a queue frees the card for the next one while the
-    processor steps run."""
+    processor steps run. `near`: metres from the nearest a walker's eye comes (budget.faces_seen; None: budget.NEAREST,
+    where it will stand not yet known)."""
     try:
         sim.material(material)
     except ValueError as why:
@@ -430,6 +432,8 @@ def make(folder, name, source, material, like=None, height=None, size=None, take
     document, binary, mended = repair.repaired_glb(document, binary)
     final = work / f"{entry}-final.glb"
     glb.write(final, document, binary)
+    budget_counts = budget.budgeted(final, near, work / "budget")  # its faces those that show (budget.py)
+    document, binary = glb.read(final)
     decoded_placed(raw, document, decoded_file(work))
     palette = folder / place_build.PALETTE
     tokens = json.loads(palette.read_text()).get("tokens", {}) if palette.is_file() else {}
@@ -449,7 +453,7 @@ def make(folder, name, source, material, like=None, height=None, size=None, take
     record = {"maker": SOURCE, "picture": {"source": said, "sha256": sha256(picture)}, "trellis2": stats,
               "fit": how, "repair": mended, "size_m": [round(float(side), 3) for side in size], "grade": groups,
               "mismatch": [group for group in groups if group["mismatch"]], "physics": physics,
-              "hulls_file": f"{entry}-hulls.glb", "moving_parts": moving}
+              "hulls_file": f"{entry}-hulls.glb", "moving_parts": moving, "budget": budget_counts}
     (work / f"{entry}.json").write_text(json.dumps(record, indent=1))
     files = {path.name: path for path in (final, work / f"{entry}-hulls.glb", work / f"{entry}.json")}
     made_with = [{"what": f"{name}: its shape and paint, TRELLIS.2 (1024 cascade, seed {stats['seed']}) from {said}",

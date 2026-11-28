@@ -13,6 +13,11 @@ Breaks that turn this red (each applied once and seen red, then reverted):
 - maker.make: `card_only` not stopped after generated -> the card step alone goes on to set in the place a model
   the card has not made
 - maker.faces_for: FACES for every size -> the 0.3 m sprout is made at 500k faces, not LEAST_FACES
+- budget.faces_seen: its distance dropped (every model as seen at NEAREST) -> the pad's ferris wheel 400 m off keeps
+  its 452k faces (2099's prologue, 2026-11-28: the pad at 18.9 million); the outline's share dropped (the surface's
+  alone) -> the wheel is cut to 17k and its spokes go to blobs; budget.with_cut: a mesh matched by its order, not its
+  node's name -> the knob's geometry lands on the plate; the cut's vertices kept a face apart -> the plate's two
+  triangles hold 6 vertices, not 4; a node's matrix taken from the cut -> the knob's pivot is lost (moving parts)
 - fit.size_matrix: one uniform scale (TRELLIS.2's proportions kept), or its sides read as wide, deep, tall in the
   model's Y-up order -> the L drawn 10% tall and 12% shallow is not laid at the size, the L's at twice (#170);
   STRETCH made unbounded -> the L drawn twice as deep is squashed to the size's depth, not held a quarter off;
@@ -90,10 +95,24 @@ import pathlib
 
 import numpy as np
 
-from score.stages.place_build.maker import cloud, fit, front, glb, grade, repair, sim
+from score.stages.place_build.maker import budget, cloud, fit, front, glb, grade, repair, sim
 from score.stages.place_build.maker import parts as made_parts
 
 HERE = pathlib.Path(__file__).resolve().parent
+
+
+def two_part_glb(path, sizes, names, matrix):
+    """A GLB of two textured quads (`sizes` across) at nodes `names`, the second under a pivot node of `matrix`."""
+    import trimesh
+    scene = trimesh.Scene()
+    picture = __import__("PIL.Image", fromlist=["Image"]).new("RGB", (4, 4), (200, 30, 30))
+    for size, name, frame in zip(sizes, names, (np.eye(4), matrix)):
+        quad = trimesh.Trimesh([[0, 0, 0], [size, 0, 0], [size, size, 0], [0, size, 0]], [[0, 1, 2], [0, 2, 3]],
+                               process=False)
+        quad.visual = trimesh.visual.TextureVisuals(uv=[[0, 0], [1, 0], [1, 1], [0, 1]], image=picture)
+        scene.add_geometry(quad, node_name=name, geom_name=name, transform=frame)
+    scene.export(str(path))
+    return glb.read(path)
 
 
 def ell_points():
@@ -294,6 +313,39 @@ def test_a_made_model_fits_its_place_its_paint_and_its_weight(tmp_path, monkeypa
     from score.stages.place_build.maker import generate
     assert [maker.faces_for(size) for size in (0.3, 1.0, 3.0, None)] == [maker.LEAST_FACES, 125000, generate.FACES,
                                                                        generate.FACES]  # a sprout, a chair, a wall
+    pixels = budget.VIEW_ROWS / np.radians(budget.VIEW_DEGREES)  # a metre's at a metre
+    wheel = budget.faces_seen(6987.0, 9163.0, 400.0)  # the pad's ferris wheel (made at 452k faces, 5,458 pixels)
+    assert 150_000 < wheel < 200_000 and budget.faces_seen(6987.0, 9163.0, 4000.0) < 20_000, wheel
+    assert budget.faces_seen(202.0, 43.0, None) == budget.faces_seen(202.0, 43.0, 0.1) > 500_000  # held close: whole
+    assert budget.faces_seen(1e-6, 1e-6, 50.0) == budget.LEAST
+    assert abs(budget.faces_seen(1.0, 1.0, 10.0) - (pixels / 10) ** 2 / 4 * budget.SHOWN_FACES) < 2
+    pivot = np.eye(4)
+    pivot[:3, 3] = [0.5, 0.25, 0.0]  # the knob's spin pivot
+    document, binary = two_part_glb(tmp_path / "made.glb", (2.0, 0.2), ("plate", "knob"), pivot)
+    assert abs(budget.areas_of(document, binary)[0] - 4.04) < 1e-6
+    image = glb.image(document, binary, 0)
+    cut_document, cut_binary = two_part_glb(tmp_path / "cut.glb", (0.3, 2.0), ("knob", "plate"), np.eye(4))
+    for node in cut_document["nodes"]:  # a vertex a face, as Blender writes a mesh it has no normals for
+        node.pop("matrix", None)
+    plate = budget.primitive(cut_document, [number for number, node in enumerate(cut_document["nodes"])
+                                            if node.get("name") == "plate"][0])
+    corner_of, taken, pieces = np.array([0, 1, 2, 0, 2, 3]), set(range(len(cut_document["accessors"]))), {}
+    for attribute, number in plate["attributes"].items():  # the plate's two faces apart, on accessors of its own
+        values = repair.accessor_array(cut_document, cut_binary, number)[corner_of]
+        plate["attributes"][attribute] = number = budget.own_accessor(cut_document, number, taken)
+        pieces[cut_document["accessors"][number]["bufferView"]] = repair.with_accessor(cut_document, number, values)
+    plate["indices"] = number = budget.own_accessor(cut_document, plate["indices"], taken)
+    pieces[cut_document["accessors"][number]["bufferView"]] = repair.with_accessor(cut_document, number, np.arange(6))
+    cut_binary = glb.with_views(cut_document, cut_binary, pieces)
+    matrices = [node.get("matrix") for node in document["nodes"]]
+    document, binary = budget.with_cut(document, binary, cut_document, cut_binary)
+    sizes = {}
+    for node, _ in budget.mesh_frames(document):
+        found = budget.primitive(document, node)
+        points = repair.accessor_array(document, binary, found["attributes"]["POSITION"])
+        sizes[document["nodes"][node]["name"]] = (round(float(np.ptp(points[:, 0])), 6), len(points))
+    assert sizes == {"plate": (2.0, 4), "knob": (0.3, 4)}, sizes  # each its own node's cut, the plate welded again
+    assert [node.get("matrix") for node in document["nodes"]] == matrices and glb.image(document, binary, 0) == image
     assert [generate.band_for(clear) for clear in (0.0, 0.005, 0.02)] == [(1, 0.0), (1, 0.0), (
         generate.BAND, generate.PROJECT)]  # the drill, the cart and the locker at band 1; the fridge's glass at BAND
     filled = []

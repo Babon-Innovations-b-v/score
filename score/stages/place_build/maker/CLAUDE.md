@@ -56,6 +56,15 @@ score_lib as a draft `model/<name>_trellis.<place>` entry. `__init__.py` is the 
   signed volume of an open piece turned real parts inside out); a vertex normal pointing against its faces set to
   theirs (`facing_normals`, #159: the printer box's normals turned into its body drew black holes through its
   front). The bench's shape measures moved by 0.005 at most.
+- **Its faces those that show** (budget.py, 2099's prologue 2026-11-28: every model over 2 m came at 500k faces, the
+  pad's 52 at 18.9 million, past what a game draws and three laying checks held): `faces_for` is only the generation's
+  ceiling; the final model is cut (Blender's quadric collapse, budget_blender.py, vertices merged so a UV seam never
+  cracks; only each primitive's geometry replaced, every node, matrix, moving part and picture kept) to the more of one
+  face a FACE_PIXELS patch of its surface and SHOWN_FACES a pixel of its outline, seen by 2099's walker camera from the
+  nearest a walker's eye comes (the scene package's eyes). `make` knows no distance and cuts at NEAREST (nothing but
+  surplus); once a place is laid, `budget <folder>` gives each laid made entry's nearest eye and `budget <folder>
+  --entry <e> --near <m>` cuts it and takes it in again as the same draft. Never cut a thin far thing on surface alone:
+  the pad's ferris wheel at 400 m went to blobs at 17k and 50k faces and held at 180k.
 - **Only a cut-out goes in** (#156: the capsule's throttle, levers on a console top, came out a cube): `concept/<n>`
   is refused without its SAM 3 mask, and any picture whose opaque part is its own rectangle (no transparency, or a
   box cut) is refused (`cut_out`); a missing noun is asked with `split --nouns`.
