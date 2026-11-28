@@ -248,7 +248,11 @@ read (the old hair the jacket); the skin's anywhere for every released face (the
 person round 7: brown blotches on the older woman's scarf). That old hair is painted over as the kind it lies on (`cloth.painted_over`: taken
 off, it opened the collar's top over its black hollow), its own points weighted as that kind's nearest point. Breaks
 (each applied once, seen red, reverted, 2026-11-27): the head kept as a target (the second old hair the head); the
-weights left as they were. The skin's matte is read over plain skin (`skin.plain_skin`) and a socket's shade deeper than the
+weights left as they were. Drawn, the old hair's own texels are painted again with the garment's paint at their
+nearest points on it (`painted.repainted`), every texel a bilinear read of a triangle reaches, and only paint like the
+garment's (`painted.kind_like`). Breaks (each applied once, seen red, reverted, 2026-11-28): the donor triangle's
+first corner read for the whole triangle (a flat paint); TEXEL_REACH 0 (the tiny triangle given none); LIKE_SPREADS
+100 (the dark read). The skin's matte is read over plain skin (`skin.plain_skin`) and a socket's shade deeper than the
 fitted line is taken off (`skin.hollows`), a stain on open skin kept. Breaks (each applied once, seen red, reverted,
 2026-11-27): `skin.MATTE_DARK` 0 (the skin between a brow and the lashes pressed as a highlight); `skin.HOLLOW`'s
 `shut` (5, 6) (the socket left 18% dark); `shut` (-2, -1) with `MATTE_DARK` 0 (the stain lifted).
@@ -262,7 +266,7 @@ import trimesh
 from scipy.spatial import cKDTree
 
 from tools.characters.generated import (__main__, beard, cloth, cloth_tether, colour, curl, eyes, fibre, flow,
-                                        head, head_swap, labels, lids, person, scalp, skin, strands, volume)
+                                        head, head_swap, labels, lids, painted, person, scalp, skin, strands, volume)
 from tools.characters.whole import hair
 
 NOSE_Y = 0.06
@@ -2130,6 +2134,37 @@ def old_hair_painted_over():
     return [cloth.KINDS[kind] for kind in kinds[[1, 3, 4]]], over.tolist(), int(weights[3].argmax())
 
 
+def old_hair_repainted():
+    """A garment's square (z 0, its texture places the picture's left half, whose red rises with u) and a face of old
+    hair 1 cm over it (its own places in the dark right half) repainted (`painted.repainted`): [its texels' red the
+    garment's at their nearest points (within 1e-6), that red not one flat paint (spread over 0.02), a triangle smaller
+    than a texel given texels, a dark paint among sage ones not read as the garment's (`painted.kind_like`)]."""
+    size = 32
+    picture = np.zeros((size, size, 3))
+    picture[..., 0] = ((np.arange(size) + 0.5) / size)[None, :]
+    picture[..., 1:] = 0.5
+    picture[:, size // 2:] = (0.1, 0.05, 0.05)
+    square = np.array([[[0.0, 0.0, 0.0], [1.0, 0.0, 0.0], [1.0, 1.0, 0.0]],
+                       [[0.0, 0.0, 0.0], [1.0, 1.0, 0.0], [0.0, 1.0, 0.0]]])
+    square_places = square[..., :2] * np.array([0.5, 1.0])
+
+    def nearest(points):
+        located = np.clip(points, 0.0, 1.0) * np.array([1.0, 1.0, 0.0])
+        return located, (located[:, 0] < located[:, 1]).astype(int)
+    over = np.array([[[0.3, 0.4, 0.01], [0.6, 0.4, 0.01], [0.3, 0.6, 0.01]]])
+    places = np.array([[[0.7, 0.5], [0.8, 0.5], [0.7, 0.6]]])
+    painted_picture, count = painted.repainted(picture, places, over, square, square_places, nearest,
+                                               lambda found, triangle: painted.bilinear(picture, found))
+    rows, columns, _, weights = painted.texels(places, (size, size))
+    wanted = 0.5 * np.clip(weights @ over[0], 0.0, 1.0)[:, 0]
+    red = painted_picture[rows, columns, 0]
+    tiny = painted.texels(np.array([[[0.5, 0.5], [0.5004, 0.5], [0.5, 0.5004]]]), (size, size))[0]
+    sage = np.column_stack([np.linspace(0.4, 0.5, 20), np.full(20, 0.5), np.full(20, 0.45)])
+    like = painted.kind_like(np.vstack([sage, [[0.1, 0.05, 0.05]]]))
+    return [bool(count and np.abs(red - wanted).max() < 1e-6), bool(np.ptp(red) > 0.02), bool(len(tiny)),
+            bool(like[:-1].all() and not like[-1])]
+
+
 def hood_kept(open_front=False):
     """A body 1 high whose neck (4 cm radius) rises out of a high collar (a ring 10 to 12 cm out) above a cut at 0.80,
     the hood kept from 0.85 down (`head_swap.kept_region`; `open_front`, a hoodie's): which of the head's faces under
@@ -2391,6 +2426,8 @@ def tether_inside_read():
      cloth_neck_released, ["jacket", "head", "skin", "head", "jacket"]),
     ("the body's old hair round the neck is painted over as the kind it lies on, its own points weighted as it",
      old_hair_painted_over, (["jacket", "skin", "head"], [False, True, False, True, False], 0)),
+    ("the old hair's own texels wear the garment's paint at their nearest points, sage only, however small",
+     old_hair_repainted, [True, True, True, True]),
     ("a hollow the model shuts reads shut, the photo's darker, warmer light in it divided out", skin_hollow_light_off,
      [True, True]),
     ("the photo's fringe and lid openings are kept off, its brows and moustache kept; the model's painted fringe "

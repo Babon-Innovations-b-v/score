@@ -377,10 +377,18 @@ under his beard's underside). There the two cut edges are one closed loop each: 
   (`beard_density_m2`), and the neck under it wears a stubble shadow fading over NECK_STUBBLE_M (`neck_stubbled`).
   The hood's rim by the jaw lost faces to the cut (only the cloth's garments were kept; now every clothes kind,
   `clothes_of`) and an 858-face piece of its shaded inside, read as the plaid, hung on the jacket's sim mesh
-  (`cloth.hood_inside`). Open: (1) the hood's inside still shows light and dark shards: 22658 of its 51378 pixels
-  in the front close-up are the body's old hair painted over (`blender_cloth.painted_over`), each face wearing one
-  donor's flat paint; each corner its own donor's place streaked it with the texture's seams (tried, reverted), and
-  the stairwell woman (16200 such faces) and the older woman wear the same code. (2) A dark jagged line under the
+  (`cloth.hood_inside`). **The old hair painted over keeps its own texture places and its texels are painted again**
+  (`painted.py`, run by `blender_cloth.painted_over`; 2026-11-28): the hood's inside drew light and dark shards
+  (22658 of its 51378 pixels in the front close-up were that hair, each face one donor face's flat paint). Each corner
+  given its nearest donor's place streaked it across the atlas' seams, and one UV island per face read the charts'
+  dark edges: the shell's atlas is 43698 islands over 342k faces. Now each texel a bilinear read of such a face
+  reaches (`TEXEL_REACH`: its triangles are mostly finer than a texel) takes the paint at its nearest point on its
+  kind's surface, reading only donors 1 cm clear of the old hair (`CLEAR_M`: the collar's own texels round the hair
+  hold its dark) whose paint is like the kind's (`kind_like`); read without them, the stairwell woman's collar top
+  took paint at a median 0.27 sRGB against the collar's 0.45. The shell's materials share one picture: kept per material, the last
+  unpainted copy was written back over the paint. Left: the hood's geometry lumps, one dark shard at its lower rim,
+  and the stairwell woman's jaw flap (old hair hanging 3 cm off the collar, now in its sage; a quarter of her
+  painted collar faces hang as far, so taking such faces off is not a safe rule). (2) A dark jagged line under the
   beard: the beard skin is the sheet's two walls (two open rims 3 to 4 mm apart, smoothed apart); taking the inner
   wall off (56363 faces) opened cracks where the smoothed walls cross (tried, reverted). (3) The body's own neck
   under the cut paler and pinker than the head's. (4) Dark trouser lumps at the thighs where the hands' lumps were.

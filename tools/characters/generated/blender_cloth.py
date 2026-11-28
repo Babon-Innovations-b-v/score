@@ -28,6 +28,7 @@ import bmesh
 import bpy
 import numpy as np
 from mathutils import Vector
+from mathutils.bvhtree import BVHTree
 from mathutils.kdtree import KDTree
 
 ARGS = sys.argv[sys.argv.index("--") + 1:]
@@ -37,6 +38,7 @@ sys.path.insert(0, str(pathlib.Path(REPO) / "tools/characters/whole"))
 sys.path.insert(0, str(pathlib.Path(REPO) / "tools/characters/generated"))
 import render  # noqa: E402
 import blender_face  # noqa: E402  (on the path render.py put it)
+import painted  # noqa: E402
 
 # The people are developed plainly (sRGB), as blender_eyes.VIEW, not in the whole route's AgX look (2026-11-27: its
 # medium high contrast look takes lit skin's chroma down and a shadow's up).
@@ -113,28 +115,115 @@ def face_kinds(shell, data):
 
 def painted_over(shell, data):
     """The shell's faces cloth.py painted over (cloth.npz's `painted_over`: the body's own old hair round a swapped
-    head's neck, now the collar's or the neck's) worn in the paint of the nearest face of their own kind not painted
-    over: each corner's texture place that face's middle's, its material that face's; how many."""
+    head's neck, now the collar's, the hood's or the neck's) painted again texel by texel in their own texture places
+    with the paint of the nearest point of their own kind's surface not painted over, clear of them
+    (`painted.CLEAR_M`) and like the kind's (`painted.repainted`, `painted.kind_like`), each face in the material of
+    the donor nearest its middle; how many faces."""
     if "painted_over" not in data:
         return 0
     own = shell_faces_of(shell, data)
     over = data["painted_over"][own]
     kinds = data["kinds"][own]
     mesh = shell.data
+    loop_point, places, material, triangle_loops, triangle_face, middles = shell_arrays(mesh)
+    points = coordinates(mesh)
+    pictures = {}
+    near_over = nearest_on(points[loop_point[triangle_loops[over[triangle_face]]]], located=True)
     for kind in np.unique(kinds[over]):
-        donors = [polygon for polygon in mesh.polygons if kinds[polygon.index] == kind and not over[polygon.index]]
-        if not donors:
+        donors = np.flatnonzero((kinds[triangle_face] == kind) & ~over[triangle_face])
+        if not len(donors):
             continue
-        tree = tree_of([polygon.center for polygon in donors])
-        for index in np.flatnonzero(over & (kinds == kind)):
-            polygon = mesh.polygons[int(index)]
-            donor = donors[tree.find(polygon.center)[1]]
-            polygon.material_index = donor.material_index
-            for layer in mesh.uv_layers:
-                place = sum((layer.data[loop].uv for loop in donor.loop_indices), Vector((0.0, 0.0))) / donor.loop_total
-                for loop in polygon.loop_indices:
-                    layer.data[loop].uv = place
+        donor_material = material[triangle_face[donors]]
+
+        def read(found, triangle):
+            paint = np.zeros((len(found), 4))
+            for number in np.unique(donor_material[triangle]):
+                chosen = donor_material[triangle] == number
+                read_off = painted.bilinear(picture_of(mesh, number, pictures)[1], found[chosen])
+                paint[chosen, :read_off.shape[1]] = read_off
+            return paint
+        clear = np.linalg.norm(near_over(points[loop_point[triangle_loops[donors]]].mean(1)) -
+                               points[loop_point[triangle_loops[donors]]].mean(1), axis=1) > painted.CLEAR_M
+        like = clear & painted.kind_like(read(places[triangle_loops[donors]].mean(1), np.arange(len(donors))))
+        donors, donor_material = donors[like], donor_material[like]
+        triangles = points[loop_point[triangle_loops[donors]]]
+        nearest = nearest_on(triangles)
+        chosen = np.flatnonzero(over & (kinds == kind))
+        material[chosen] = donor_material[nearest(middles[chosen])[1]]
+        for number in np.unique(material[chosen]):
+            image, picture = picture_of(mesh, number, pictures)
+            faces = np.flatnonzero((kinds[triangle_face] == kind) & over[triangle_face] &
+                                   (material[triangle_face] == number))
+            picture, count = painted.repainted(picture, places[triangle_loops[faces]],
+                                               points[loop_point[triangle_loops[faces]]], triangles,
+                                               places[triangle_loops[donors]], nearest,
+                                               lambda found, triangle: read(found, triangle)[:, :picture.shape[2]])
+            pictures[image.name] = (image, picture)
+            print(f"painted over: {count} texels of {kinds_of(data)[kind]} in {image.name} ({like.mean():.3f} of its "
+                  f"donors read)", flush=True)
+    for image, picture in pictures.values():
+        image.pixels.foreach_set(picture.astype(np.float32).ravel())
+        image.update()
+    mesh.polygons.foreach_set("material_index", material.astype(np.int32))
     return int(over.sum())
+
+
+def shell_arrays(mesh):
+    """The mesh's corners' points and texture places, its faces' materials, its triangles' corners and faces, and its
+    faces' middles."""
+    loop_point = np.zeros(len(mesh.loops), np.int64)
+    mesh.loops.foreach_get("vertex_index", loop_point)
+    places = np.zeros(len(mesh.loops) * 2)
+    mesh.uv_layers.active.data.foreach_get("uv", places)
+    material = np.zeros(len(mesh.polygons), np.int64)
+    mesh.polygons.foreach_get("material_index", material)
+    mesh.calc_loop_triangles()
+    triangle_loops = np.zeros(len(mesh.loop_triangles) * 3, np.int64)
+    mesh.loop_triangles.foreach_get("loops", triangle_loops)
+    triangle_face = np.zeros(len(mesh.loop_triangles), np.int64)
+    mesh.loop_triangles.foreach_get("polygon_index", triangle_face)
+    middles = np.zeros(len(mesh.polygons) * 3)
+    mesh.polygons.foreach_get("center", middles)
+    return (loop_point, places.reshape(-1, 2), material, triangle_loops.reshape(-1, 3), triangle_face,
+            middles.reshape(-1, 3))
+
+
+def picture_of(mesh, number, pictures):
+    """The base colour image of the mesh's material `number` (`base_image`) and its pixels (rows from the bottom,
+    RGBA), read once into `pictures` by the image's name (the shell's materials share one: kept per material, each
+    copy was written back over the others' paint)."""
+    image = base_image(blender_face.principled_of(mesh.materials[int(number)]).inputs["Base Color"])
+    if image.name not in pictures:
+        picture = np.zeros(image.size[0] * image.size[1] * image.channels, np.float32)
+        image.pixels.foreach_get(picture)
+        pictures[image.name] = (image, picture.reshape(image.size[1], image.size[0], image.channels))
+    return pictures[image.name]
+
+
+def base_image(socket):
+    """The first image found upstream of a shader socket (the glTF's base colour map, also under the skin finish's
+    mixes)."""
+    waiting = [link.from_node for link in socket.links]
+    while waiting:
+        node = waiting.pop(0)
+        if node.type == "TEX_IMAGE" and node.image is not None:
+            return node.image
+        waiting += [link.from_node for found in node.inputs for link in found.links]
+    raise RuntimeError(f"no image under {socket.node.name}'s {socket.name}")
+
+
+def nearest_on(triangles, located=False):
+    """`painted.repainted`'s `nearest`: each point's closest point on `triangles` and that triangle's index, by one
+    BVH tree (`located`: the closest points alone)."""
+    corners = [Vector(point) for point in triangles.reshape(-1, 3)]
+    tree = BVHTree.FromPolygons(corners, [(3 * number, 3 * number + 1, 3 * number + 2)
+                                          for number in range(len(triangles))], epsilon=0.0)
+
+    def nearest(points):
+        hits = [tree.find_nearest(Vector(point)) for point in points]
+        found = np.array([tuple(hit[0]) for hit in hits]).reshape(-1, 3)
+        return found if located else (found, np.array([hit[2] for hit in hits], np.int64))
+    return nearest
 
 
 def split_off(shell, kinds, kind, number):
