@@ -27,7 +27,9 @@ nothing, is told no roof (passed in an outside place, a walled yard); in an outs
 stretch of the outside (an arcade) and passes, while a shop's room, one structure with a glassless window gap, is told
 open, and the same shop laid as a fixed model (a hull's hollow, a rocket's engine bay), or marked an open frame (a
 lattice tower), is no room and passes. The check's memory stays bounded: a surface's points are read a chunk at a
-time (the very points trimesh's sample_surface draws), so a floor of 6.6 million points holds under 64 MB; a post
+time (the very points trimesh's sample_surface draws), and what the per-object measures work out and keep (each
+mesh's trimesh cache, its face boxes) is let go once it holds CACHE_ROOM past the solids, and kept within it, so a
+floor of 6.6 million points holds under 64 MB; a post
 300 m off, stretching the walkers' grid past the memory budget, is refused by name before the grid is read; and the
 settle runs as many models side by side as fit the budget, refusing when not even its largest fits. A room seated
 in its area beside a neighbour holding its back wall (the doorway its door fills) and an alcove behind it is told,
@@ -117,6 +119,8 @@ Breaks that turn this red (each applied once and seen red, then reverted):
   scenery and pass
 - reach.surface_chunks: `lengths.bit_generator.advance(count)` left out -> the chunked points are not sample_surface's
 - reach.surface_chunks: `chunk` taken as 10 ** 12 (the whole surface at once) -> the floor holds 419 MB
+- ready.Place.forget: its caches never let go -> the place's caches past CACHE_ROOM are kept (2099's street held
+  17.6 GB by its walkers' floor, its solids 4.7 GB); its CACHE_ROOM unread -> caches within it are let go
 - ready.walkers_grid: its `within_memory` left uncalled -> the post's grid is read, not refused
 - ready.settle_workers: `room` left out of the count -> three models run where two fit
 - ready.settle_mass: its `engine_chosen(prim, "MuJoCo")` left out -> the adopted prop authoring its mass in its
@@ -759,6 +763,16 @@ def test_every_planted_physics_fault_is_told_by_name(tmp_path, monkeypatch):
     found = json.loads(pathlib.Path(summary["file"]).read_text())["objects"]
     told = {name: {fault["fault"] for fault in faults} for name, faults in found.items()}
     print(json.dumps(summary))
+    kept = ready.Place(*place_build.opened(folder))  # the measures' caches are let go past CACHE_ROOM, nothing told
+    kept.faces_meeting(kept.number["wall"], np.full(3, -1e9), np.full(3, 1e9))
+    kept.meshes["wall"].triangles_tree
+    kept.forget()
+    assert kept.face_boxes and kept.meshes["wall"]._cache.cache, "caches let go within CACHE_ROOM"
+    monkeypatch.setattr(ready, "CACHE_ROOM", -2 ** 40)
+    kept.forget()
+    assert not kept.face_boxes and not any(mesh._cache.cache for mesh in kept.meshes.values() if mesh is not None), \
+        "caches past CACHE_ROOM kept"
+    monkeypatch.undo()
     for name in ("wall", "desk", "monitor", "panel", "crate_ok", "rock_sunk", "bulkhead", "person_ok", "walker",
                  "ground", "field", "sky", "rock_far_a", "rock_far_b", "far_shore",
                  *(f"rock{number}" for number in range(300))):

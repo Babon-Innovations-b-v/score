@@ -139,6 +139,9 @@ SETTLE_TURN = 8.0  # degrees
 CAST_AT_ONCE = 2 ** 15  # rays a query casts at once, each batch against the faces its own box meets (2099's square,
 # 2026-11-22: its looks, cast all at once against the whole plaza's faces, held past 12 GB)
 COLLECTED = 200_000  # faces of a cast past which its ray structure is collected at once (`cast`)
+CACHE_ROOM = 2 * 2 ** 30  # bytes the measures' caches (each mesh's trimesh cache: its triangles, trees; the face
+# boxes) may hold past the place's own solids before they are let go (Place.forget): 2099's street, 79 million made
+# faces, held 17.6 GB of them by its walkers' floor, though its solids were 4.7 GB (2026-11-28)
 FACES_AT_ONCE = 2_000_000  # faces one ray structure is built over at most, a larger cast taken a part at a time
 # (2099 pad, 2026-11-28: its made poles and legs, ~500k faces each, 19.8 million in all, met by one far look, built
 # one structure past 20 GB)
@@ -402,11 +405,25 @@ class Place:
         self.number = {name: index for index, name in enumerate(self.names)}
         self.boxes = np.array([self.meshes[name].bounds for name in self.names])
         self.face_boxes = {}
+        self.held = in_use()  # what the solids hold: the measures' caches past it are let go at CACHE_ROOM
+
+    def forget(self):
+        """Lets go of what the measures worked out and kept (each mesh's trimesh cache, the face boxes), all worked
+        out again when asked, once they hold CACHE_ROOM past the solids."""
+        if in_use() <= self.held + CACHE_ROOM:
+            return
+        for mesh in self.meshes.values():
+            if mesh is not None:
+                mesh._cache.clear()
+        self.face_boxes = {}
+        gc.collect()
+        self.held = min(self.held, in_use())
 
     def faces_meeting(self, number, low, high):
         """The faces of one object whose box meets [low, high] (each object's face boxes worked out once)."""
         if number not in self.face_boxes:
-            triangles = self.meshes[self.names[number]].triangles
+            mesh = self.meshes[self.names[number]]
+            triangles = np.asarray(mesh.vertices)[mesh.faces]  # not mesh.triangles: trimesh keeps that, 72 B a face
             self.face_boxes[number] = (triangles.min(axis=1), triangles.max(axis=1))
         face_low, face_high = self.face_boxes[number]
         return np.flatnonzero(np.all(face_high >= low, axis=1) & np.all(face_low <= high, axis=1))
@@ -422,7 +439,8 @@ class Place:
                 continue
             faces = self.faces_meeting(number, low, high)
             if len(faces):
-                triangles.append(self.meshes[self.names[number]].triangles[faces])
+                mesh = self.meshes[self.names[number]]
+                triangles.append(np.asarray(mesh.vertices)[mesh.faces[faces]])
                 owners.append(np.full(len(faces), number))
         if not triangles:
             return np.zeros((0, 3, 3)), np.zeros(0, int)
@@ -1853,6 +1871,7 @@ def check(folder, settle=True, neighbours=None):
              and name not in lent}
     for name in laid.names:
         faults = object_faults(laid, name) if name not in lent else []
+        laid.forget()
         if faults:
             found.setdefault(name, []).extend(faults)
     for name in laid.people:
@@ -1861,6 +1880,7 @@ def check(folder, settle=True, neighbours=None):
             found.setdefault(name, []).extend(faults)
     record = place_build.record_of(folder)
     # Seated among its neighbours their floor stands past a joined leaf (and the joins are in the place's own frame).
+    laid.forget()  # the walkers' floor is read with what the per-object measures kept let go
     walkways, floor = walkway_faults(laid, None if neighbours else record.get("joins"))
     for fault in walkways:
         if fault["target"].split(" (")[0] not in lent:
@@ -1869,6 +1889,7 @@ def check(folder, settle=True, neighbours=None):
         for fault in (connector_faults(laid, name, floor) if name not in lent else []):
             found.setdefault(name, []).append(fault)
     del floor  # the looks start from a floor of their own, the doors shut (look_floor): one floor held at a time
+    laid.forget()
     gaps, seeing = open_faults(laid, record.get("kind") == "outside", record.get("joins"), lent)
     settled, engine = settle_faults(laid, folder) if settle else ({}, "not asked")
     for name, faults in settled.items():
