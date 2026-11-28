@@ -244,6 +244,15 @@ one command at a time and reads `compare.png` and the measures to choose the nex
   the underfloor rows. `cabin_ceiling` (row ceiling lining): a flat middle panel and a ring of flat panels over a
   backing plate. Parts panel, back, frame, rib, fastener; deck, joist, fastener, bay; each takes its library surface
   per part. Nothing in it shares a face with another part (a fastener's foot sinks SEAT into its seat).
+  The instrument side (2099 #246, 2026-11-28: the panels from one picture failed twice from TRELLIS.2): each panel is
+  a code plate the library hardware sits on, built in a made model's frame (origin at its foot's middle, y up, front
+  +z, depth centred), so the inventory's spots hold: `instrument_panel` (housing, face plate, a bezel of four convex
+  bars: a ring's middle lies in its hole, where the check read the panel inside the gauge standing there; fasteners),
+  `display` (a screen's dark glass part `glass`, `header` bezel over it for its lit label), `attitude_ball` (part
+  `ball_sky` over `ball_ground`, the front half of a ball standing on its plate, which the game turns round its
+  middle), `gauge` (part `dial`), `console_desk` (cockpit_kit.console's box), `porthole` (sleeve, flanges, bolts and
+  pane through the cabin wall, in the capsule's frame). The game's faces (GAME_FACES) are written turned half round
+  y, front -z as the game's cockpit reads a display, and laid turned back. No body of a piece overlaps another (LIFT).
 - **The launch kit** (`kit`, batch only; launch_kit.py, the pad, the 2099 judge 2026-11-23: "the wrong ship and looks
   messy", "a plain grey rectangular slab box", "stair-stepped block zigzags"): a launch site's big pieces in code at
   real size, laid like the cockpit kit's (same `kit` step, looks, cache): the steel ship of welded rings with its

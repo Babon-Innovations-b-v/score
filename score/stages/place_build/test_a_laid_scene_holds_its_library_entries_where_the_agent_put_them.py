@@ -124,6 +124,12 @@ Breaks that turn this red (each applied once and seen red, then reverted):
 - cabin_shell.panel_fasteners: the fades left out -> a fastener stands on the porthole's flange
 - cabin_shell.cabin_floor: the deck laid as a solid disc down to the bulkhead again -> the bay under the deck is filled
 - place_build.kit: a cabin shell piece laid under the cockpit kit's address -> the wall is not algorithm/cabin_shell
+- cabin_shell.ball_quarter: the ball's two halves laid meeting at the horizon again -> the attitude ball's halves
+  share a face (no closed solid)
+- cabin_shell.write: a display written facing +z again -> the main screen's glass is not its front as the game reads
+  it (its least z)
+- cabin_shell.bezel_bars: the bezel laid as one ring again -> a panel's bezel has its middle in its hole, outside
+  itself (the check read the panel inside the gauge standing there)
 - launch_kit.ship: the barrel and the nose turned as two solids (the barrel's top left open) -> the ship's welded
   mesh has an edge used three times (no closed solid)
 - launch_kit.ship: the aft skirt left off -> the ship's lowest points are its engine bells', not the skirt it stands on
@@ -1262,12 +1268,27 @@ def cabined(folder):
                                                                             "rib"], wall
     built = {kind: cabin_shell.KINDS[kind](**sizes) for kind, sizes in (
         ("cabin_wall", {"holes": holes, "fades": fades, "cut": cut, "sector": [16.0, 112.0]}),
-        ("cabin_floor", {}), ("cabin_ceiling", {}))}
+        ("cabin_floor", {}), ("cabin_ceiling", {}), ("instrument_panel", {}), ("display", {"header": 0.08}),
+        ("attitude_ball", {"header": 0.1}), ("gauge", {}), ("console_desk", {}), ("porthole", {"at": [28.0, 1.54]}))}
     for kind, pieces in built.items():
         points, triangles = cockpit_kit.welded(np.vstack([found[1] for found in pieces]), np.vstack(
             [found[2] + sum(len(earlier[1]) for earlier in pieces[:number]) for number, found in enumerate(pieces)]))
         bodies = trimesh.Trimesh(points, triangles, process=False).split(only_watertight=False)
         assert all(body.is_watertight and body.volume > 0 for body in bodies), kind
+    bezel = [found for found in built["instrument_panel"] if found[0] == "bezel"]
+    points, triangles = cockpit_kit.welded(np.vstack([found[1] for found in bezel]), np.vstack(
+        [found[2] + sum(len(earlier[1]) for earlier in bezel[:number]) for number, found in enumerate(bezel)]))
+    for body in trimesh.Trimesh(points, triangles, process=False).split(only_watertight=False):
+        assert body.contains(body.bounds.mean(axis=0)[None])[0], "a panel's bezel has its middle outside itself"
+    screen = folder / "display_piece.usda"
+    cabin_shell.write(screen, "display", {"header": 0.08})
+    written = Usd.Stage.Open(str(screen))
+    geo = UsdGeom.Mesh(written.GetPrimAtPath("/piece/geo"))
+    points = np.asarray(geo.GetPointsAttr().Get())
+    faces = np.asarray(geo.GetFaceVertexIndicesAttr().Get()).reshape(-1, 3)
+    glass = {subset.GetPrim().GetName(): np.asarray(subset.GetIndicesAttr().Get())
+             for subset in UsdGeom.Subset.GetAllGeomSubsets(geo)}["glass_dark"]
+    assert points[faces[glass]][..., 2].min() < (points[:, 2].min() + points[:, 2].max()) / 2, "the screen's glass is not its front (-z)"
     cone = cockpit_kit.Cone()
     corners = cabin_shell.panel_corners(cone, math.radians(16.0), math.radians(40.0), 0.0, 1.8)
     faces = [found[1] for found in cabin_shell.flat_panel(cone, corners, holes, None, "main") if found[0] == "panel"]

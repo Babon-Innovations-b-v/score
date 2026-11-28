@@ -32,8 +32,9 @@ import math
 
 import numpy as np
 
-from score.stages.place_build.cockpit_kit import (Cone, about, box, grid_solid, in_cut, moved, near_hole, turned,
-                                                  written)
+from score.stages.place_build.cockpit_kit import (Cone, about, bolt_ring, box, circle_path, collar_flange, console,
+                                                  frame_ring, grid_solid, in_cut, moved, near_hole, piece, placed,
+                                                  sleeve, turned, written)
 
 COURSES = (0.0, 1.80)  # the wall's course lines, metres up the cone from the floor: one tall panel a joint, as a
 # real cabin's wall (the inventory's lining panels, 0.8 x 1.9 m); the shoulder runs from the last to the ceiling ring
@@ -478,11 +479,215 @@ def flipped(pieces, low, high):
             for part, points, triangles, smooth in pieces]
 
 
-KINDS = {"cabin_wall": cabin_wall, "cabin_floor": cabin_floor, "cabin_ceiling": cabin_ceiling}
+# --- the instrument side (2099 #246, 2026-11-28): the panels, screens, ball, console and portholes the hardware sits on.
+# Each is built in a made model's frame (origin at its foot's middle, y up, its front +z, its depth centred on z = 0), so
+# the inventory's spots for it and for the library hardware on its face hold as written; the pieces the game draws on
+# (GAME_FACES: a display's glass, the attitude ball, a gauge's dial) are written turned half round y, their front -z, as
+# the game's cockpit reads a display's face, and laid turned back. The portholes are built in the capsule's frame.
+
+HOUSING_BACK = 0.008  # metres a panel's housing stops short of its face, under the face plate
+LIFT = 0.0003  # metres each body of a panel stands off the one under it: none overlaps or shares a face with another
+# (two closed bodies overlapping read their faces' count wrong, and the check found a panel inside its gauge)
+RIM = 0.005  # metres a bezel stands over the face it is laid on
+BORDER = 0.018  # a panel's bezel band, metres in from its edge
+FASTENER_PITCH = 0.12  # metres at most between the fasteners along a bezel
+GAME_FACES = ("display", "attitude_ball", "gauge")
+
+
+def housing(wide, high, deep, front):
+    """A panel's housing (part frame): a closed box `wide` x `high` from its back (z = -deep/2) to `front`."""
+    return box("frame", (-wide / 2, 0.0, -deep / 2), (wide / 2, high, front), 0.004)
+
+
+def face_plate(part, wide, high, low, face):
+    """The plate (part `part`) over a housing whose front is at z `low`: `wide` x `high`, its face at `face`."""
+    return box(part, (-wide / 2 + 0.004, 0.004, low + LIFT), (wide / 2 - 0.004, high - 0.004, face), 0.0015)
+
+
+def bezel_ring(outer, inner, low, top, middle):
+    """A bezel (part bezel) between the plans `outer` and `inner` round `middle` (x, y), from z `low` to `top`."""
+    return moved(frame_ring("bezel", outer, inner, low, top), offset=(middle[0], middle[1], 0.0))
+
+
+def bezel_fasteners(wide, high, border, top, middle):
+    """Round-headed fasteners (part fastener) along the middle of a `border` wide bezel band round a `wide` x `high`
+    plan at `middle`: one by each corner and more along each edge, at most FASTENER_PITCH apart, standing on `top`."""
+    reach_x, reach_y = wide / 2 - border / 2, high / 2 - border / 2
+    spots = [(sx * reach_x, sy * reach_y) for sx in (-1, 1) for sy in (-1, 1)]
+    for reach, edge, across in ((reach_x, reach_y, False), (reach_y, reach_x, True)):
+        count = max(1, math.ceil(2 * reach / FASTENER_PITCH))
+        for step in range(1, count):
+            along = -reach + 2 * reach * step / count
+            spots += [(side * edge, along) if across else (along, side * edge) for side in (-1, 1)]
+    head = fastener_head(FASTENER[0] * 0.8, FASTENER[1])
+    found = []
+    for x, y in spots:
+        found += moved(head, offset=(middle[0] + x, middle[1] + y, top + LIFT))
+    return found
+
+
+def bezel_bars(wide, high, border, low, top, bottom=0.0):
+    """A bezel band `border` wide round a `wide` x `high` plan from y = `bottom` (part bezel), from z `low` to `top`,
+    as four bars: each body convex, so its middle lies in itself and never in what stands in the band's hole (a ring's
+    middle lies in its hole: the check read a panel inside the gauge standing there)."""
+    left, right, foot, head = -wide / 2, wide / 2, bottom, bottom + high
+    found = box("bezel", (left, foot, low), (right, foot + border, top), 0.0015)
+    found += box("bezel", (left, head - border, low), (right, head, top), 0.0015)
+    found += box("bezel", (left, foot + border + 0.0005, low), (left + border, head - border - 0.0005, top), 0.0015)
+    found += box("bezel", (right - border, foot + border + 0.0005, low), (right, head - border - 0.0005, top), 0.0015)
+    return found
+
+
+def instrument_panel(wide=0.4, high=0.35, deep=0.06, **_):
+    """A wall instrument panel (rows power, fuel, tower, engine and radio panel, the attitude hold scenery panel, the
+    SAS strip): a housing `deep` deep (part frame), a face plate with its face at z = deep/2 (part plate) where the
+    library hardware sits, a raised bezel band round it (part bezel, bezel_bars) and fasteners along the bezel (part
+    fastener)."""
+    face = deep / 2
+    low = face - HOUSING_BACK
+    found = housing(wide, high, deep, low)
+    found += face_plate("plate", wide, high, low, face)
+    found += bezel_bars(wide - 0.004, high - 0.004, BORDER, face + LIFT, face + RIM, 0.002)
+    found += bezel_fasteners(wide, high, BORDER, face + RIM, (0.0, high / 2))
+    return found
+
+
+def display(wide=0.42, high=0.32, deep=0.08, glass="glass_dark", border=0.03, header=0.0, **_):
+    """A screen in its housing (rows main flight screen, burn timer): a housing (part frame), a wide bezel (part
+    bezel, bezel_bars) round a dark glass face (part `glass`, the face the game draws its page on) set a little behind
+    the bezel's top, `header` metres more of bezel over the glass (where its lit label sits), and fasteners along the
+    bezel."""
+    face = deep / 2
+    low = face - HOUSING_BACK
+    glass_high = high - 2 * border - header
+    found = housing(wide, high, deep, low)
+    found += box(glass, (-wide / 2 + border + 0.0005, border + 0.0005, low + LIFT),
+                 (wide / 2 - border - 0.0005, border + glass_high - 0.0005, face - 0.0015), 0.0005)
+    found += bezel_bars(wide - 0.004, high - 0.004, border, low + LIFT, face + RIM, 0.002)
+    if header:  # the band over the glass widened to the header: one more bar under the top one
+        found += box("bezel", (-wide / 2 + 0.002 + border, border + glass_high, low + LIFT),
+                     (wide / 2 - 0.002 - border, high - 0.002 - border - 0.0005, face + RIM), 0.0015)
+    found += bezel_fasteners(wide, high, min(border, BORDER), face + RIM, (0.0, high / 2))
+    return found
+
+
+def ball_quarter(part, radius, sign, rings=12, sides=24):
+    """A closed quarter ball: the front (+z) half of a ball of `radius` round the origin, its upper (`sign` 1) or lower
+    (-1) half, its dome shaded smooth and its two flat faces (across its horizon and its back) flat."""
+    polar = np.linspace(0.0, math.pi / 2, rings + 1)
+    around = np.linspace(0.0, math.pi, sides + 1)
+    grid = np.array([[(radius * math.sin(down) * math.cos(turn), sign * radius * math.sin(down) * math.sin(turn),
+                       radius * math.cos(down)) for turn in around] for down in polar[1:]])
+    points = np.vstack([[[0.0, 0.0, radius]], grid.reshape(-1, 3)])
+    index = lambda ring, side: 1 + ring * (sides + 1) + side  # noqa: E731 (the grid's point index, one line)
+    dome = [[0, index(0, side), index(0, side + 1)] for side in range(sides)]
+    for ring in range(rings - 1):
+        for side in range(sides):
+            dome += [[index(ring, side), index(ring + 1, side), index(ring + 1, side + 1)],
+                     [index(ring, side), index(ring + 1, side + 1), index(ring, side + 1)]]
+    centre = len(points)
+    points = np.vstack([points, [[0.0, 0.0, 0.0]]])
+    edge = ([index(ring, sides) for ring in range(rings - 1, -1, -1)] + [0] + [index(ring, 0) for ring in range(rings)])
+    flat = [[centre, edge[step], edge[step + 1]] for step in range(len(edge) - 1)]
+    flat += [[centre, index(rings - 1, side + 1), index(rings - 1, side)] for side in range(sides)]
+    middle = np.array([0.0, sign * radius * 0.42, radius * 0.375])
+    return [piece(part, points, outward(points, np.asarray(dome), middle), True),
+            piece(part, points, outward(points, np.asarray(flat), middle), False)]
+
+
+def outward(points, triangles, middle):
+    """The triangles of a convex solid round `middle` each wound to face away from it."""
+    corners = points[triangles]
+    normals = np.cross(corners[:, 1] - corners[:, 0], corners[:, 2] - corners[:, 0])
+    flip = np.einsum("ij,ij->i", normals, corners.mean(axis=1) - middle) < 0
+    triangles = triangles.copy()
+    triangles[flip] = triangles[flip][:, ::-1]
+    return triangles
+
+
+def attitude_ball(wide=0.22, high=0.22, deep=0.07, size=0.13, header=0.0, **_):
+    """The attitude ball (rows attitude ball, attitude ball sphere): a housing (part frame), its plate (part plate) and
+    a round bezel (part bezel) holding a ball `size` across whose front half stands out of the plate, its sky half over
+    its horizon (part ball_sky) and its ground half under it (part ball_ground; the game turns the two as one ball
+    round their middle, on the plate's face), `header` metres of plate over it for its lit label, an orange craft
+    marker before its face (part marker) and fasteners at the plate's corners."""
+    face, radius = deep / 2, size / 2
+    low = face - HOUSING_BACK
+    middle = (0.0, (high - header) / 2, face + LIFT)
+    found = housing(wide, high, deep, low)
+    found += face_plate("plate", wide, high, low, face)
+    found += bezel_ring(circle_path(radius * 1.32, radius * 1.32, steps=64)[:-1],
+                        circle_path(radius * 1.06, radius * 1.06, steps=64)[:-1], face + LIFT, face + RIM, middle[:2])
+    for part, sign in (("ball_sky", 1.0), ("ball_ground", -1.0)):  # parted a hair at the horizon: no shared face
+        found += moved(ball_quarter(part, radius, sign), offset=(middle[0], middle[1] + sign * 0.0004, middle[2]))
+    front = middle[2] + radius
+    for low_x, high_x in ((-radius * 0.5, -radius * 0.14), (radius * 0.14, radius * 0.5)):
+        found += box("marker", (low_x, middle[1] - 0.002, front + 0.002), (high_x, middle[1] + 0.002, front + 0.006),
+                     0.0006)
+    found += bezel_fasteners(wide, high, BORDER, face, (0.0, high / 2))[:4]
+    return found
+
+
+def gauge(size=0.09, deep=0.04, **_):
+    """A round dial gauge (FUEL's tank pressure gauge): a square housing (part frame), a round bezel (part bezel)
+    round a dark dial face (part dial, the face the game draws on) on the housing's front, and four corner
+    fasteners."""
+    face, radius = deep / 2, size * 0.4
+    low = face - HOUSING_BACK
+    found = housing(size, size, deep, low)
+    found += moved(turned("dial", [(0.0, low + LIFT), (radius - 0.0025, low + LIFT), (radius - 0.0025, face - 0.0015),
+                                   (0.0, face - 0.0015)], segments=48), offset=(0.0, size / 2, 0.0))
+    found += bezel_ring(circle_path(size * 0.47, size * 0.47, steps=48)[:-1],
+                        circle_path(radius - 0.002, radius - 0.002, steps=48)[:-1], low + LIFT, face + RIM,
+                        (0.0, size / 2))
+    corner = size / 2 - 0.0055
+    head = fastener_head(FASTENER[0] * 0.6, FASTENER[1] * 0.8)
+    for x in (-corner, corner):
+        for y in (size / 2 - corner, size / 2 + corner):
+            found += moved(head, offset=(x, y, low + LIFT))
+    return found
+
+
+def console_desk(wide=1.0, deep=0.3, front_high=0.52, back_high=0.62, **_):
+    """The pilot's console (row pilot console): cockpit_kit.console's box `wide` across, its sloping deck from
+    `back_high` at its back (z = 0) down to `front_high` on the pilot's side (z = `deep`), its lip, vent grille and
+    side equipment covers (parts body, deck, lip, vent, cover, hinge, bolt, plate), as the inventory's spots on its
+    deck are written for (the stick, throttle, SAS panel, screen and ball)."""
+    return console(wide=wide, deep=deep, front_high=front_high, back_high=back_high, grille=0.4, covers=True)
+
+
+def porthole(at=(76.0, 1.54), radius=0.18, wall=0.012, flange=0.05, bolts=12, outside=0.03, **sizes):
+    """A porthole through the cabin wall at `at` [theta (degrees), y] (rows porthole, its glass and its bolts), in the
+    capsule's frame: a sleeve of `radius` through the hull and the wall's panels (part rim), a flange hugging the
+    panels' face round it and one the hull's outside (part rim), `bolts` bolt heads round the inner flange (part
+    fastener) and its pane out past the hull (part glass)."""
+    cone = Cone(**sizes)
+    angle = math.radians(at[0])
+    right, up, axis = cone.frame(angle)
+    middle = cone.at(angle, at[1])
+    face = BACK + PANEL
+    found = sleeve(cone, middle, right, up, axis, radius, wall, -cone.sizes["hull"] - outside, face, "rim", "rim")
+    bedded = radius + wall - 0.003  # each flange reaches into the sleeve's wall, so no face of one lies on the other
+    found += collar_flange(cone, middle, right, up, axis, bedded, radius + wall + flange, face, 0.012, False, "rim")
+    found += collar_flange(cone, middle, right, up, axis, bedded, radius + wall + flange * 0.8, -cone.sizes["hull"],
+                           0.010, True, "rim")
+    found += [("fastener", *rest) for _, *rest in bolt_ring(cone, middle, right, up, axis, radius + wall + flange / 2,
+                                                             face, 0.0125, bolts)]
+    pane = -cone.sizes["hull"] - outside / 2
+    found += placed(turned("glass", [(0.0, pane - 0.002), (radius + 0.001, pane - 0.002), (radius + 0.001, pane + 0.002),
+                                     (0.0, pane + 0.002)], segments=96), middle, right, up, axis)
+    return found
+
+
+KINDS = {"cabin_wall": cabin_wall, "cabin_floor": cabin_floor, "cabin_ceiling": cabin_ceiling,
+         "instrument_panel": instrument_panel, "display": display, "attitude_ball": attitude_ball, "gauge": gauge,
+         "console_desk": console_desk, "porthole": porthole}
 
 
 def write(path, kind, sizes):
-    """The piece of `kind` (KINDS) with its `sizes` written at `path` as built (cockpit_kit.written); its parts."""
+    """The piece of `kind` (KINDS) with its `sizes` written at `path` as built (cockpit_kit.written), a GAME_FACES
+    piece turned half round y (its front -z, as the game reads a display's face); its parts."""
     if kind not in KINDS:
         raise ValueError(f"no cabin shell piece {kind!r} (pieces are {', '.join(sorted(KINDS))})")
-    return written(path, KINDS[kind](**sizes))
+    pieces = KINDS[kind](**sizes)
+    return written(path, moved(pieces, about("y", 180)) if kind in GAME_FACES else pieces)
