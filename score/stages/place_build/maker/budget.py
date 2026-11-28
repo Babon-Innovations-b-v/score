@@ -15,8 +15,8 @@ A cut is meshoptimizer's quadric-error simplification (meshopt_simplifyWithAttri
 the surface may move by what a pixel of 2099's walker camera (VIEW_DEGREES tall on VIEW_ROWS rows) subtends at the
 nearest a walker's eye comes, and always by LEAST_ERROR (0.5 mm: an eye 0.3 m off still keeps sub-millimetre detail),
 so a flat panel gives up its faces and an edge, a ridge or a small knob keeps its own; each kept vertex's smooth
-normal is an attribute of the cut (NORMAL_CHANGE), so a long triangle tilted within the bound draws no crease in the
-shading. Every open edge is locked (SIMPLIFY_LOCK_BORDER: a model's outline, a part's boundary, a moving part's split,
+normal is an attribute of the cut (NORMAL_CHANGE, a fixed weight), so near at hand a long triangle tilted within the
+bound draws no crease in the shading. Every open edge is locked (SIMPLIFY_LOCK_BORDER: a model's outline, a part's boundary, a moving part's split,
 each its own primitive),
 a UV seam is kept (meshoptimizer collapses a seam vertex only along its seam), only existing vertices are kept (every
 attribute of a kept vertex as it was) and no face is added. Each primitive's indices and vertex attributes are the
@@ -38,8 +38,9 @@ VIEW_ROWS = 1080  # 2099's viewport height (project.godot)
 VIEW_DEGREES = 70.0  # its walker camera's field of view, top to bottom (game/player/walker.tscn)
 NEAREST = 0.3  # metres: no eye comes nearer a surface (a walker's half WALKWAY, leaning in)
 LEAST_ERROR = 0.0005  # metres a cut may always move the surface (0.5 mm)
-NORMAL_CHANGE = 0.005  # a kept vertex's smooth normal moved this far costs a whole bound (none: the wardrobe's flat
-#                        door drew a crease along a long triangle tilted within the bound, 2026-11-28)
+NORMAL_CHANGE = 0.005  # a kept vertex's smooth normal moved this far costs LEAST_ERROR (none: the wardrobe's flat door
+#                        drew a crease along a long triangle tilted within the bound; scaled with the bound, the square's
+#                        launch tower 426 m off kept 238k faces of 486k, 32k at this fixed weight; 2026-11-28)
 
 
 def error_bound(near):
@@ -76,15 +77,16 @@ def simplifier():
 
 def simplified(points, faces, bound):
     """The faces (k x 3, indices into `points`) of meshoptimizer's quadric-error cut of (points, faces) that moves the
-    surface by `bound` (points' units) at most and each kept vertex's smooth normal by NORMAL_CHANGE a bound, its open
-    edges locked; never more faces than given."""
+    surface by `bound` (points' units) at most, a kept vertex's smooth normal moved by NORMAL_CHANGE counted as
+    LEAST_ERROR (so the shading holds near and gives way with the bound far off), its open edges locked; never more
+    faces than given."""
     import meshoptimizer
     faces = np.asarray(faces, dtype=np.int64).reshape(-1, 3)
     flat = np.ascontiguousarray(faces.reshape(-1), dtype=np.uint32)
     kept = np.zeros(len(flat), dtype=np.uint32)
     corners = np.ascontiguousarray(points, dtype=np.float32)
     normals = np.ascontiguousarray(smooth_normals(np.asarray(points, dtype=np.float64), faces), dtype=np.float32)
-    weights = np.full(3, float(bound) / NORMAL_CHANGE, dtype=np.float32)
+    weights = np.full(3, LEAST_ERROR / NORMAL_CHANGE, dtype=np.float32)
     options = meshoptimizer.SIMPLIFY_LOCK_BORDER | meshoptimizer.SIMPLIFY_ERROR_ABSOLUTE
     count = simplifier()(kept.ctypes.data, flat.ctypes.data, len(flat), corners.ctypes.data, len(corners), 12,
                          normals.ctypes.data, 12, weights.ctypes.data, 3, None, 0, float(bound), options, None)
