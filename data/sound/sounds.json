@@ -1303,16 +1303,76 @@
 		},
 		"cabin_relays": {
 			"pick": {
-				"page": "prologue",
-				"category": "shot",
-				"where": "the capsule cabin's switch relays clicking as systems come on",
+				"page": "prologue_moments",
+				"category": "room",
+				"where": "the capsule cabin's electrical relays clicking now and then as its systems stand by (its sparse shot take had no safe level: its clicks' peaks over the ceiling at the shot's loudness)",
 				"prompts": [
-					"Electrical relays inside a spacecraft control panel clicking on one after another: a short run of crisp mechanical clicks and clacks with tiny pauses, in a small quiet cabin, nothing else."
+					"Inside a small spacecraft cabin: a steady soft hiss of cooling fans with electrical relays behind the panels clicking now and then, a quiet tick or clack every second or two, even and constant, no voices, no alarms."
 				],
-				"seconds": 4
+				"seconds": 15,
+				"loop": true,
+				"bed": {
+					"plays": "layer",
+					"heard": "open",
+					"nouns": [
+						"relays"
+					]
+				}
 			},
-			"bus": "effects",
+			"bus": "ambience",
 			"reach": 3.0
+		},
+		"police_siren": {
+			"pick": {
+				"page": "prologue_moments",
+				"category": "shot",
+				"where": "a police car passing the end of the prologue's rainy street, its siren rising and falling away",
+				"prompts": [
+					"A police car siren passing at the end of a rainy city street at night: a two-tone electronic siren approaching from a distance, passing and fading away over about twelve seconds, with the hiss of tyres on wet road, no voices."
+				],
+				"seconds": 14
+			},
+			"bus": "effects"
+		},
+		"tv_behind_door": {
+			"pick": {
+				"page": "prologue_moments",
+				"category": "room",
+				"where": "a neighbour's television heard through a closed flat door on the stairwell's landing",
+				"prompts": [
+					"A television playing behind a closed apartment door, heard from the stairwell outside: muffled indistinct voices of a news broadcast and a little music, dull and low through the wood, constant, no words can be made out."
+				],
+				"seconds": 15,
+				"loop": true,
+				"bed": {
+					"plays": "layer",
+					"heard": "open",
+					"nouns": [
+						"television"
+					]
+				}
+			},
+			"bus": "ambience"
+		},
+		"crowd_chant": {
+			"pick": {
+				"page": "prologue_moments",
+				"category": "room",
+				"where": "the square's crowd chanting in unison under the balcony between the leader's lines",
+				"prompts": [
+					"A huge crowd in a city square at night chanting a two-syllable slogan together in rhythm, over and over, many thousands of voices echoing off tall buildings, steady and even, no music."
+				],
+				"seconds": 15,
+				"loop": true,
+				"bed": {
+					"plays": "layer",
+					"heard": "open",
+					"nouns": [
+						"crowd"
+					]
+				}
+			},
+			"bus": "ambience"
 		}
 	}
 }
