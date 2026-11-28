@@ -208,6 +208,11 @@ the chin dropped: the stairwell woman's torn chin under her lower lip).
 A scarf rides from where it meets anything over the chest (`cloth.riding_of`, `cloth.borders` reading each face pair
 both ways). Breaks (each applied once, seen red, reverted, 2026-11-27): the scarf's border read off the head and
 skin alone, and `borders` reading each pair one way (the turtleneck's collar met at no point: the scarf rode whole).
+Round 14 (2026-11-28): JAW_BAND under the hood's depth the head keeps its faces within the face's reach all round
+(`head_swap.kept_region`; the stairwell woman's hood at 0.125 cut her jaw's corner, whose skin reaches 0.132, and
+its open edge showed the neck tube as a dark red flap), and the neck tube runs all round under the skin from
+`scalp.JAW_KEPT_M` under the eyes down (kept in front only where nothing was met, its far side showed under her jaw
+as a dark red line). Breaks (each applied once, seen red, reverted): JAW_BAND 0; JAW_KEPT_M 1 m.
 Under the hood's depth the head model keeps only its neck (`head_swap.kept_region`): its throat in front kept, a chin's
 underside turned down kept, its own collar standing 10 cm out in front and at the side given to the body, a face
 inside a neck ring turned in refused. Break (applied once, seen red, reverted, 2026-11-27): the front kept whole
@@ -613,6 +618,20 @@ def neck_closes_jaw():
     tube, triangles = scalp.neck_closed(points, faces, np.zeros(len(faces), dtype=bool),
                                         np.ones(len(faces), dtype=bool), frame, patch)
     angle, height = np.meshgrid(np.radians(np.linspace(45, 75, 7)), np.linspace(-0.145, -0.125, 5))
+    ways = np.stack([np.sin(angle.ravel()), np.zeros(angle.size), np.cos(angle.ravel())], axis=1)
+    starts = np.stack([np.zeros(angle.size), height.ravel(), np.zeros(angle.size)], axis=1)
+    met = scalp.met_along(tube, triangles, starts, ways)
+    return round(float(np.mean(np.abs(met - 0.05) < 0.003)), 2)
+
+
+def neck_under_jaw():
+    """The neck closed all round under the jaw (`scalp.JAW_KEPT_M`) over the toy whose skin is whole in front: the share
+    of rays out from its middle 20 to 70 degrees off the front, 12.5 to 14.5 cm under the eyes, that meet the tube
+    within 3 mm inside the skin's 5 cm."""
+    points, faces, frame, patch = neck_toy(False)
+    tube, triangles = scalp.neck_closed(points, faces, np.zeros(len(faces), dtype=bool),
+                                        np.ones(len(faces), dtype=bool), frame, patch)
+    angle, height = np.meshgrid(np.radians(np.linspace(20, 70, 6)), np.linspace(-0.145, -0.125, 5))
     ways = np.stack([np.sin(angle.ravel()), np.zeros(angle.size), np.cos(angle.ravel())], axis=1)
     starts = np.stack([np.zeros(angle.size), height.ravel(), np.zeros(angle.size)], axis=1)
     met = scalp.met_along(tube, triangles, starts, ways)
@@ -2348,6 +2367,21 @@ def chin_cut():
     return found
 
 
+def jaw_corner_kept():
+    """Under a hood from 0.125 down over a chin 6 cm forward (`head_swap.kept_region`, JAW_BAND): which faces 55 degrees
+    off the front 5.5 cm out the head keeps (5 mm under the hood's depth, 1.5 cm under it, the body's 5 mm under it,
+    the head's 7.5 cm out past the face's reach 5 mm under it)."""
+    chin = head_swap.chin_of(chin_profile(0.142), (0.0, 0.0), 1.0, 1.0)
+    level = 1.0 - chin[0] - head_swap.CUT_UNDER_CHIN
+    kept = head_swap.kept_region(level, 1.0, 1.0, (0.0, 0.0), 0.125, np.zeros((0, 3)), chin=(1.0 - chin[0], chin[1]))
+    way = np.array([np.sin(np.radians(55.0)), -np.cos(np.radians(55.0))])
+    point = types.SimpleNamespace
+    out = point(x=way[0], y=way[1], z=0.0)
+    return [bool(kept(point(x=radius * way[0], y=radius * way[1], z=height), normal))
+            for radius, height, normal in ((0.055, 0.870, out), (0.055, 0.860, out), (0.055, 0.870, None),
+                                           (0.075, 0.870, out))]
+
+
 def person_framed():
     """A body (a box with a nose) thinned to a third, moved by a known similarity (scale 1.7, a 6 degree turn, a shift) and given half a
     millimetre of noise, framed again from a start 5% off in scale and 3 cm off in place (`person.framed`): (scale
@@ -2404,6 +2438,7 @@ def tether_inside_read():
      (True, True, True)),
     ("the neck's back under a bob meets the scalp's foot behind it", neck_meets_nape, -0.0792),
     ("the neck closes the hole the hair left in the jaw's corner at the skin's height", neck_closes_jaw, 1.0),
+    ("the neck runs all round under the jaw's skin, whichever side the swap gives the head", neck_under_jaw, 1.0),
     ("the scalp meets the jaw's corner standing out under the ear, never an ear", scalp_holds_jaw, (True, True)),
     ("a darker hair gets more melanin, a warm one its hue's redness, a grey head the white share, melanin and redness "
      "whose swatch shows its colour and spread", lambda: bool(fibre_fitted()[0]), True),
@@ -2534,6 +2569,8 @@ def tether_inside_read():
      chin_read, [0.02, "refused"]),
     ("the cut lies under the chin read off the swapped head, never through it", chin_cut,
      [0.1425, 0.06, 0.1425, True, False, 0.06, True, "refused", "refused"]),
+    ("under a hood's depth the jaw's corner within the face's reach stays the head's, the body keeping its own",
+     jaw_corner_kept, [True, False, False, False]),
     ("a head path that doubles back is laid along the body path in order, on the path", seam_order, [False, True, 0.0]),
     ("a ragged two-walled band is laid onto the body's cut edge with no fold", seam_band, [0, True, True]),
     ("a head loop under the jaw is laid all round the body's closed loop", seam_loop, [1.0, True, True]),

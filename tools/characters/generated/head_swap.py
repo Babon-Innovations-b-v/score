@@ -110,6 +110,11 @@ SKIRT_DEPTH = 0.008
 SKIRT_IN = 0.003
 CHIN_HELD = 0.006  # with a hood: the front's faces from the chin's bottom up stay the head's this far past the reach
 # of the face's middle column from the axis between the chin's bottom and the hood's depth (`face_reach`)
+JAW_BAND = 0.008  # with a hood: from its depth this far down (1.3 cm) the head keeps, all round, its faces within that
+# reach, the body its own as well (the drawing's `shell_cut` takes off what the head covers, never the clothes). The
+# stairwell woman's hood (0.125) cut her jaw's corner 40 to 60 degrees off the front, whose skin reaches 0.132: its edge
+# stood open as a slit and the neck tube showed through it as a dark red flap in three quarters (round 14,
+# 2026-11-28); the head model's copy of her collar lies from 0.135 down, 9 cm and more out
 
 
 def similarity(source, target, scale=None):
@@ -965,7 +970,9 @@ def kept_region(level, crown, height, axis, hood, body_points, open_front=False,
     head's face as a dark lump, 2026-11-27). The front stays FRONT_HALF_ANGLE wide: opened to 55 to 90 degrees, the
     hood's own front folds beside the jaw were cut and torn (Workbench close-ups, 2026-11-27).
     `chin` (its bottom's z, the face's reach from the axis over it, `face_reach`): the front from the chin's bottom up
-    within CHIN_HELD past that reach stays the head's whatever the hood (the chin is face, never neck)."""
+    within CHIN_HELD past that reach stays the head's whatever the hood (the chin is face, never neck), and so does
+    every head face within it JAW_BAND under the hood's depth all round (the jaw's corner); the body keeps its own
+    there too."""
     top = crown - hood * height if hood is not None else None
     gaps = neck_gaps(body_points, axis, level, height) if hood is not None else None
 
@@ -979,7 +986,8 @@ def kept_region(level, crown, height, axis, hood, body_points, open_front=False,
         front = abs(math.degrees(math.atan2(across[0], -across[1]))) < FRONT_HALF_ANGLE
         if open_front and front:
             return True
-        if chin is not None and front and centre.z >= chin[0] and radius <= chin[1] + CHIN_HELD * height:
+        held = chin is not None and centre.z >= chin[0] and radius <= chin[1] + CHIN_HELD * height
+        if held and (front or (normal is not None and centre.z >= top - JAW_BAND * height)):
             return True
         if radius > min(gaps[direction_bin(across)], NECK_FALLBACK * height):
             return False

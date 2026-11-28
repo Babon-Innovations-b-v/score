@@ -53,6 +53,10 @@ NECK_TUCK = 0.9  # the tube this share of the neck skin's width, so its sides st
 NECK_AROUND, NECK_UP = 96, 80
 NAPE_COS = 0.85  # within some 30 degrees of straight back, where nothing is met, the tube is the ellipse meeting the
 # nape (held: spread from the sides alone, the jaw's reach pushed the back 3 cm out past the scalp's foot)
+JAW_KEPT_M = 0.07  # from this far under the eyes down the tube is kept all round, under the skin (round 14, 2026-11-28:
+# kept in front only where the hair step's model meets nothing, it was missing under the stairwell woman's jaw's
+# corner, where the swap gives the neck to the body and its own old hair hangs: the tube's far side showed through as
+# a dark red line; under the swap's cut the drawing takes it off)
 NECK_REACH = 1.6  # a skin or scalp met this far out (a share of the tube's distance) is what the neck runs under;
 # further (a collar, a shoulder) is not
 # the scalp's foot behind the neck: its points behind the head this near the middle, in their lowest band; the tube's
@@ -220,7 +224,8 @@ def neck_closed(points, faces, hair, colours_skin_like, frame, patch):
     tube it runs TUCK_M under it, and the difference spreads over the rest (harmonic, as the scalp's; none within
     NAPE_COS of straight back where nothing is met), never past the hair less CLEAR_M. Kept: the back half, every
     place nothing is met (the jaw's corner, behind the ear) and RING places round them under the skin, so the skin's
-    edge meets it where the hair was taken off the jaw."""
+    edge meets it where the hair was taken off the jaw, and all round from JAW_KEPT_M under the eyes down (never past
+    anything met, less TUCK_M), so whichever side of the neck the swap gives the head, the tube lies under its edge."""
     middles = points[faces].mean(axis=1)
     eyes = frame["eyes_middle"]
     band = (~hair & colours_skin_like & (middles[:, 1] < eyes[1] - NECK_BAND_M[0])
@@ -238,7 +243,8 @@ def neck_closed(points, faces, hair, colours_skin_like, frame, patch):
     tube = np.linalg.norm(ellipse, axis=1)
     ways = np.stack([ellipse[:, 0] / tube, np.zeros(len(tube)), ellipse[:, 1] / tube], axis=1)
     axis = np.stack([np.full(len(tube), middle[0]), height.ravel(), np.full(len(tube), middle[1])], axis=1)
-    radius, kept = neck_reach(points, faces, hair, patch, axis, ways, tube, angle.ravel())
+    radius, kept = neck_reach(points, faces, hair, patch, axis, ways, tube, angle.ravel(),
+                              height.ravel() < eyes[1] - JAW_KEPT_M)
     placed = axis + ways * radius[:, None]
     corner = np.arange(NECK_AROUND * NECK_UP).reshape(NECK_AROUND, NECK_UP)
     quads = np.stack([corner, np.roll(corner, -1, axis=0)], axis=-1)
@@ -272,9 +278,10 @@ def met_along(points, faces, starts, ways):
     return met
 
 
-def neck_reach(points, faces, hair, patch, axis, ways, tube, angle):
+def neck_reach(points, faces, hair, patch, axis, ways, tube, angle, under_jaw):
     """Each neck place's distance from its axis point along its way (level, out from the axis) and whether it is kept
-    (see `neck_closed`); `tube` is the ellipse's distance there, `angle` its angle from the front."""
+    (see `neck_closed`); `tube` is the ellipse's distance there, `angle` its angle from the front, `under_jaw` whether
+    it lies JAW_KEPT_M or more under the eyes."""
     met = np.minimum(met_along(points, faces[~hair], axis, ways),
                      met_along(patch["points"], patch["triangles"], axis, ways))
     known = met < NECK_REACH * tube
@@ -282,6 +289,7 @@ def neck_reach(points, faces, hair, patch, axis, ways, tube, angle):
     nape = ~known & (np.cos(angle) < -NAPE_COS)
     neighbours = neck_grid()
     difference = np.where(known, met - TUCK_M - tube, 0.0)
-    radius = np.minimum(tube + harmonic(difference, known | nape, neighbours),
+    radius = np.minimum(np.minimum(tube + harmonic(difference, known | nape, neighbours), met - TUCK_M),
                         met_along(points, faces[hair], axis, ways) - CLEAR_M)
-    return np.maximum(radius, 0.0), (np.cos(angle) <= 0.0) | ~covered | grown_ring(~covered, neighbours, RING)
+    kept = (np.cos(angle) <= 0.0) | ~covered | grown_ring(~covered, neighbours, RING) | under_jaw
+    return np.maximum(radius, 0.0), kept

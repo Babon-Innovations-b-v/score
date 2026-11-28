@@ -351,6 +351,18 @@ under his beard's underside). There the two cut edges are one closed loop each: 
   and showed through it as a sawtooth band) and writes it over body.glb's own weights; the collar and the nape, hanging from no Head,
   keep theirs. Skinned through the walk, its worst frame's neck faces over 5 mm turned over at -0.03 went from 3 to 0 (the older
   woman's and the hoodie man's turned-over neck faces fewer or the same in every clip).
+  Round 14 (2026-11-28), ray cast off the three-quarter close-up: the dark red flap at the stairwell woman's jaw's
+  corner was the neck tube seen through a slit the swap's hood opened. Her hood (0.125) lay above her jaw's corner,
+  whose skin (painted skin, 40 to 60 degrees off the front, 5 to 7.5 cm off the axis) reaches 0.132, so its faces
+  under the hood's depth stood past NECK_FALLBACK and went to the body, whose own old hair hung there; the jaw's edge
+  stood open over the tube 4 cm inside it. JAW_BAND under the hood's depth the head now keeps, all round, its faces
+  within the face's reach (`face_reach`, as the chin; the head model's copy of her collar lies from 0.135 down, 9 cm
+  and more out), and the body keeps its own there too (`shell_cut` takes off what the head covers, never the clothes).
+  Under the jaw the hair step's neck tube was kept in front only where its model met nothing, so where the swap gives
+  that side to the body its far side showed as a dark red line: from `scalp.JAW_KEPT_M` under the eyes down it is now
+  kept all round, under whatever it meets, and the drawing's cut takes it off under the swap's. Close-ups: her jaw
+  whole, no red (a faint grey smudge of the body's painted old hair is left beside the hair); the hoodie man and the
+  older woman unchanged.
   Run: `python -m tools.characters.generated.person <name> <sources> <out> [--from <step> | --only <step>]` (head
   2 min, hair 5, swap 1.5, rig 3.5, cloth 5 to 10 at nice 19; the render some hours: 13 sheet frames and the 96-frame
   film with 240k strands, 5.7 GB).
