@@ -63,6 +63,9 @@ WALKERS_EVERY = 7.0  # metres of lane a walker
 WALKER_SIDE = 0.35  # metres off the lane's line a walker keeps (out on one side, back on the other)
 PROTOTYPES = 24  # the laid people the packed crowd is copied from
 RAY_TOP = 40.0  # metres over the highest floor the rays down start
+TILE = 12.0  # metres of plan whose rays are cast together, against the objects whose box meets it
+MARGIN = 2.0  # metres round a tile an object's box may stand off and still be cast against (over any reach read)
+CHUNK = 20000  # rays cast at once
 STEP = 0.5 * ready.CONTACT  # metres a person's two feet may stand apart off their floors: it stands on its lower one
 
 
@@ -150,12 +153,15 @@ def crowded(taken, x, z):
 
 
 class Solids:
-    """The scene's solids near the crowd (every object under Objects but people and sky domes, ready.role_of) as one
-    mesh, for rays straight down and across: a ground's faces within `low`..`high` (x, z), every other object's whole
-    when any of its faces is (a building reaching out of the crowd still closes round a spot inside it)."""
+    """The scene's solids near the crowd (every object under Objects but people and sky domes, ready.role_of), for rays
+    straight down and across: a ground's faces within `low`..`high` (x, z), every other object's whole when any of its
+    faces is (a building reaching out of the crowd still closes round a spot inside it). Rays are cast a TILE of plan
+    at a time against the objects whose plan box meets it (MARGIN round it), never every face in one ray structure
+    (ready.Place's rule: the square's made lamps, poles and screens, half a million faces each, came to 33 million
+    faces, whose one structure ran the crowd past 24 GB, 2099 #161)."""
 
     def __init__(self, stage, place, low, high):
-        triangles, owners, grounds = [], [], []
+        self.parts, grounds = [], []
         for prim in stage.GetPrimAtPath(f"/{place}/Objects").GetChildren():
             if ready.role_of(prim) in ready.UNSOLID or prim.IsA(UsdGeom.PointInstancer):
                 continue
@@ -167,39 +173,61 @@ class Solids:
             near = np.all(plan_high >= low, axis=1) & np.all(plan_low <= high, axis=1)
             if near.any():
                 ground = ready.role_of(prim) == "ground"
-                near = near if ground else np.ones(len(faces), bool)
-                triangles.append(faces[near])
-                owners.append(np.full(int(near.sum()), len(grounds)))
+                kept = faces[near] if ground else faces
+                normals = np.cross(kept[:, 1] - kept[:, 0], kept[:, 2] - kept[:, 0])
+                up = normals[:, 1] / np.maximum(np.linalg.norm(normals, axis=1), 1e-12)
+                box = kept[:, :, [0, 2]].reshape(-1, 2)
+                self.parts.append((kept, up, box.min(axis=0), box.max(axis=0)))
                 grounds.append(ground)
-        if not triangles:
+        if not self.parts:
             raise place_build.Refused("no solid lies under the crowd")
-        self.triangles = np.concatenate(triangles)
-        self.owner, self.ground = np.concatenate(owners), np.array(grounds)
-        normals = np.cross(self.triangles[:, 1] - self.triangles[:, 0], self.triangles[:, 2] - self.triangles[:, 0])
-        self.up = normals[:, 1] / np.maximum(np.linalg.norm(normals, axis=1), 1e-12)
+        self.ground = np.array(grounds)
+
+    def cast(self, origins, ways, multiple_hits=True):
+        """ready.cast of each ray against the objects whose plan box meets its origin's TILE (MARGIN round it):
+        (where, which ray, the object it meets, its face's up share); exact for every hit within MARGIN of its origin
+        in plan, and for every hit of a ray straight down."""
+        origins, ways = np.asarray(origins, float).reshape(-1, 3), np.asarray(ways, float).reshape(-1, 3)
+        tiles = np.floor(origins[:, [0, 2]] / TILE).astype(np.int64)
+        found = []
+        for tile in np.unique(tiles, axis=0):
+            rays = np.flatnonzero(np.all(tiles == tile, axis=1))
+            low, high = tile * TILE - MARGIN, (tile + 1) * TILE + MARGIN
+            meeting = [number for number, (_, _, part_low, part_high) in enumerate(self.parts)
+                       if np.all(part_high >= low) and np.all(part_low <= high)]
+            if not meeting:
+                continue
+            triangles = np.concatenate([self.parts[number][0] for number in meeting])
+            owner = np.concatenate([np.full(len(self.parts[number][0]), number) for number in meeting])
+            up = np.concatenate([self.parts[number][1] for number in meeting])
+            for start in range(0, len(rays), CHUNK):
+                chunk = rays[start:start + CHUNK]
+                where, hit, faces = ready.cast(triangles, origins[chunk], ways[chunk], multiple_hits=multiple_hits)
+                found.append((where.reshape(-1, 3), chunk[hit], owner[faces], up[faces]))
+            del triangles, owner, up
+        if not found:
+            return np.zeros((0, 3)), np.zeros(0, int), np.zeros(0, int), np.zeros(0)
+        return tuple(np.concatenate(parts) for parts in zip(*found))
 
     def down(self, points, top):
         """For each (x, z) of `points`, every hit of a ray straight down from height `top`: [[(height, faces up)]]
         from the top (a face's either side: a stage's underside reads as a solid over the floor)."""
         points = np.asarray(points, float).reshape(-1, 2)
         origins = np.column_stack([points[:, 0], np.full(len(points), top), points[:, 1]])
-        ways = np.tile([0.0, -1.0, 0.0], (len(points), 1))
+        where, rays, _, up = self.cast(origins, np.tile([0.0, -1.0, 0.0], (len(points), 1)))
         found = [[] for _ in points]
-        for start in range(0, len(points), 20000):
-            where, rays, faces = ready.cast(self.triangles, origins[start:start + 20000], ways[start:start + 20000])
-            for at, ray, face in zip(where, rays, faces):
-                found[start + ray].append((float(at[1]), bool(abs(self.up[face]) > 0.7 and self.up[face] != 0)))
+        for at, ray, share in zip(where, rays, up):
+            found[ray].append((float(at[1]), bool(abs(share) > 0.7 and share != 0)))
         return [sorted(hits, key=lambda hit: -hit[0]) for hits in found]
 
     def across(self, origins, ways):
-        """Each ray's first hit: (its distance, the object it meets: -1 for none), inf where it meets nothing."""
+        """Each ray's first hit: (its distance, the object it meets: -1 for none), inf where it meets nothing; a
+        distance is exact within MARGIN, and the object met is the first of those whose box meets its TILE."""
+        origins = np.asarray(origins, float).reshape(-1, 3)
         distances, owners = np.full(len(origins), np.inf), np.full(len(origins), -1)
-        for start in range(0, len(origins), 20000):
-            where, rays, faces = ready.cast(self.triangles, origins[start:start + 20000], ways[start:start + 20000],
-                                            multiple_hits=False)
-            rays = rays + start
-            distances[rays] = np.linalg.norm(where - origins[rays], axis=1)
-            owners[rays] = self.owner[faces]
+        where, rays, owner, _ = self.cast(origins, ways, multiple_hits=False)
+        distances[rays] = np.linalg.norm(where - origins[rays], axis=1)
+        owners[rays] = owner
         return distances, owners
 
     def under(self, points):
@@ -208,7 +236,7 @@ class Solids:
         points = np.asarray(points, float).reshape(-1, 3)
         gaps = np.full(len(points), np.inf)
         origins = points + [0.0, ready.RAY_START, 0.0]
-        where, rays, _ = ready.cast(self.triangles, origins, np.tile([0.0, -1.0, 0.0], (len(points), 1)))
+        where, rays, _, _ = self.cast(origins, np.tile([0.0, -1.0, 0.0], (len(points), 1)))
         np.minimum.at(gaps, rays, origins[rays, 1] - where[:, 1] - ready.RAY_START)
         return gaps
 
@@ -240,13 +268,16 @@ def reached_into(solids, spots, floors, reach):
     turns = np.radians(np.arange(0.0, 360.0, 45.0))
     ways = np.column_stack([np.cos(turns), np.zeros(len(turns)), np.sin(turns)])
     heights = np.asarray(REACH_HEIGHTS)
+    limit = reach / math.cos(math.radians(22.5))
+    if limit > MARGIN:
+        raise place_build.Refused(f"a body's reach of {reach:.2f} m reads past the {MARGIN} m its rays' solids hold")
     middles = np.column_stack([spots[:, 0], floors, spots[:, 1]])
     origins = (middles[:, None, None, :] + heights[None, :, None, None] * [0.0, 1.0, 0.0]
                + np.zeros((1, 1, len(ways), 1))).reshape(-1, 3)
     distances, owners = solids.across(origins, np.tile(ways, (len(spots) * len(heights), 1)))
     distances = distances.reshape(len(spots), len(heights), len(ways))
     owners = owners.reshape(len(spots), len(heights), len(ways))
-    near = (distances < reach / math.cos(math.radians(22.5))).any(axis=(1, 2))
+    near = (distances < limit).any(axis=(1, 2))
     walled = (owners >= 0) & ~solids.ground[np.maximum(owners, 0)]
     enclosed = (walled.all(axis=2) & (owners == owners[:, :, :1]).all(axis=2)).any(axis=1)
     return near | enclosed

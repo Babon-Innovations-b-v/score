@@ -43,6 +43,7 @@ walker's far end carried into the piece list; every laid person and every copy s
 Breaks that turn this red (each applied once and seen red, then reverted):
 - crowd.column_floors: the middle ray alone (no BODY rays round it) -> a packed person stands half into the stage
 - crowd.reached_into: left out -> packed people stand inside the hollow house, one with its hands in its thin wall
+- crowd.Solids.cast: the first tile's objects cast for every ray -> a level ray in another tile misses the wall by it
 - crowd.toes_forward: the model's +z taken as its front -> every person turns its back on the leader
 - crowd.laid_removed: the column check left out -> the person laid in the wall stays
 - crowd.stood: left out -> the people laid on the dais stand 3 cm into it
@@ -2737,6 +2738,17 @@ def crowded(folder):
     assert "person44" in done["removed"] and done["faced"] == 45 - len(done["removed"]) >= 35, done
     stage = Usd.Stage.Open(str(place_build.scene_path(folder)))
     toward = np.array([0.0, 1.0, 0.0])
+    tiled = crowd.Solids(stage, "sq", np.array([-20.0, -10.0]), np.array([20.0, 30.0]))
+    grid = np.array([(x, 1.0, z) for x in np.arange(-14.0, 8.0, 0.35) for z in np.arange(6.0, 17.0, 0.35)])
+    sideways = np.radians(np.arange(0.0, 360.0, 45.0))
+    origins = np.repeat(grid, len(sideways), axis=0)
+    ways = np.tile(np.column_stack([np.cos(sideways), np.zeros(len(sideways)), np.sin(sideways)]), (len(grid), 1))
+    every = np.concatenate([part[0] for part in tiled.parts])  # one structure of every face: the exact answer
+    where, rays, _ = ready.cast(every, origins, ways, multiple_hits=False)
+    exact = np.full(len(origins), np.inf)
+    exact[rays] = np.linalg.norm(where - origins[rays], axis=1)
+    near = np.minimum(exact, crowd.MARGIN)
+    assert np.allclose(np.minimum(tiled.across(origins, ways)[0], crowd.MARGIN), near, atol=1e-6)
 
     def off(forward, at):
         want = toward - np.asarray(at, float)
