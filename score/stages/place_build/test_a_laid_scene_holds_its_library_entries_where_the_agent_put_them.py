@@ -98,6 +98,8 @@ Breaks that turn this red (each applied once and seen red, then reverted):
 - render.views: the named views left out -> the inside view is not rendered
 - render.views: `review` kept True when final -> the final render runs at the review's samples
 - dome_shell.chamfered_box: the outward flip dropped -> a block's solid has negative volume (faces inward)
+- place_build.laid_reference: a re-laid ground keeping its old role -> deck markings laid again as the ground still read
+  fixed to the check, and penetrate one another
 - place_build.main: a check not ready exiting 0 again -> a chain goes on past a failed check to package the place
 - place_build.dome: its role not written -> a far city's dome reads as a shell and stretches the walkers' grid
 - place_build.blocks: the structure role not written -> a building's blocks read as a loose prop to the check
@@ -1164,6 +1166,7 @@ def test_a_laid_scene_holds_its_library_entries_where_the_agent_put_them(tmp_pat
     footprinted(tmp_path)
     crowded(tmp_path / "crowded")
     checked_exits()
+    relaid_ground(tmp_path / "relaid")
 
 
 def kitted(tmp_path):
@@ -1612,6 +1615,16 @@ def footprinted(tmp_path):
     with pytest.raises(place_build.Refused, match="would cut wall_a, wall_b"):
         place_build.put(folder, "bench", "model/old_bench")
     assert not place_build.opened(folder)[0].GetPrimAtPath("/slot/Objects/bench"), "a refused bench left laid"
+
+
+def relaid_ground(folder):
+    """Blocks laid as a fixed slab, then laid again as the ground, read as the ground (the pad's deck markings)."""
+    Image.new("RGB", (8, 8)).save(folder.parent / "relaid.png")
+    place_build.start(folder, "relaid", folder.parent / "relaid.png")
+    place_build.blocks(folder, "stripe", [[0.0, 0.0, 0.0, 1.0, 0.01, 1.0, "paint"]], role="fixed")
+    place_build.blocks(folder, "stripe", [[0.0, 0.0, 0.0, 1.0, 0.01, 1.0, "paint"]], ground=True)
+    stage, place = place_build.opened(folder)
+    assert ready.role_of(stage.GetPrimAtPath(f"/{place}/Objects/stripe")) == "ground"
 
 
 def checked_exits():

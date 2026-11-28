@@ -898,6 +898,9 @@ def laid_reference(stage, path, folder, asset, address, kind, pose, ground, metr
     prim.CreateAttribute("score:library", Sdf.ValueTypeNames.String).Set(address)
     prim.CreateAttribute("score:kind", Sdf.ValueTypeNames.String).Set(kind)
     prim.CreateAttribute("score:ground", Sdf.ValueTypeNames.Bool).Set(bool(ground))
+    if ground:  # the ground is no role's: a mark left from its laying as another (a fixed slab) would outrank it
+        prim.RemoveProperty("score:role")
+        prim.RemoveProperty("score:support")
     return relative
 
 
