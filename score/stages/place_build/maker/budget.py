@@ -17,10 +17,10 @@ nearest a walker's eye comes, and always by LEAST_ERROR (0.5 mm: an eye 0.3 m of
 so a flat panel gives up its faces and an edge, a ridge or a small knob keeps its own; each kept vertex's smooth
 normal is an attribute of the cut (NORMAL_CHANGE, a fixed weight), so near at hand a long triangle tilted within the
 bound draws no crease in the shading. Every open edge is locked (SIMPLIFY_LOCK_BORDER: a model's outline, a part's
-boundary, a moving part's split, each its own primitive), a UV seam is kept (its vertices locked under SEAM_FREE,
-else collapsed only along it), only existing vertices are kept (every attribute of a kept vertex as it was) and no
-face is added. Each primitive's indices and vertex attributes are the
-cut's; the rest of the GLB (nodes and their matrices, moving parts, materials, pictures) is kept byte for byte.
+boundary, a moving part's split, each its own primitive), a UV seam is kept (under SEAM_FREE its vertices and its
+faces' locked, else collapsed only along it), only existing vertices are kept (every attribute of a kept vertex as it
+was) and no face is added. Each primitive's indices and vertex attributes are the cut's; the rest of the GLB (nodes
+and their matrices, moving parts, materials, pictures) is kept byte for byte.
 
 `make` knows no distance and cuts at NEAREST; `budget <folder>`, after a place is laid, reads how near the walkers'
 eyes come to each made model (the scene package's eyes: ready's walkers' floor with every door open, LOOK_HEIGHTS over
@@ -42,9 +42,11 @@ LEAST_ERROR = 0.0005  # metres a cut may always move the surface (0.5 mm)
 # along a long triangle tilted within the bound; scaled with the bound, the square's launch tower 426 m off kept 238k
 # faces of 486k, 32k at this fixed weight; 2026-11-28)
 NORMAL_CHANGE = 0.005
-SEAM_FREE = 0.01  # metres: under this bound a UV seam's vertices are locked (collapsed along its seam, a chart's edge
-#                   went straight across its atlas gutter: the capsule's indicator lamp showed dark specks, 2026-11-28);
-#                   over it they may go (the launch tower 426 m off: 168k faces locked, 32k free)
+# under SEAM_FREE metres of bound a UV seam's vertices and those of every face touching it are locked (collapsed along
+# its seam, a chart's edge went straight across its atlas gutter: the capsule's indicator lamp showed dark specks; a
+# vertex next to a concave chart edge moved its triangle over the gutter: a speck on the stairwell's door handle at
+# any bound, 2026-11-28); over it they may go (the launch tower 426 m off: 168k faces locked, 32k free)
+SEAM_FREE = 0.01
 
 
 def error_bound(near):
@@ -83,7 +85,8 @@ def simplified(points, faces, bound):
     """The faces (k x 3, indices into `points`) of meshoptimizer's quadric-error cut of (points, faces) that moves the
     surface by `bound` (points' units) at most, a kept vertex's smooth normal moved by NORMAL_CHANGE counted as
     LEAST_ERROR (so the shading holds near and gives way with the bound far off), its open edges locked and, under
-    SEAM_FREE, its UV seams' vertices (a position several vertices share); never more faces than given."""
+    SEAM_FREE, its UV seams' vertices (a position several vertices share) with every vertex of a face touching one;
+    never more faces than given."""
     import meshoptimizer
     faces = np.asarray(faces, dtype=np.int64).reshape(-1, 3)
     flat = np.ascontiguousarray(faces.reshape(-1), dtype=np.uint32)
@@ -92,7 +95,9 @@ def simplified(points, faces, bound):
     normals = np.ascontiguousarray(smooth_normals(np.asarray(points, dtype=np.float64), faces), dtype=np.float32)
     weights = np.full(3, LEAST_ERROR / NORMAL_CHANGE, dtype=np.float32)
     _, spot, shared = np.unique(np.asarray(points), axis=0, return_inverse=True, return_counts=True)
-    locked = np.ascontiguousarray((shared[spot.reshape(-1)] > 1) & (float(bound) < SEAM_FREE), dtype=np.uint8)
+    locked = np.zeros(len(corners), dtype=np.uint8)
+    if float(bound) < SEAM_FREE:
+        locked[faces[(shared[spot.reshape(-1)] > 1)[faces].any(axis=1)].reshape(-1)] = 1
     options = meshoptimizer.SIMPLIFY_LOCK_BORDER | meshoptimizer.SIMPLIFY_ERROR_ABSOLUTE
     count = simplifier()(kept.ctypes.data, flat.ctypes.data, len(flat), corners.ctypes.data, len(corners), 12,
                          normals.ctypes.data, 12, weights.ctypes.data, 3, locked.ctypes.data, 0, float(bound),

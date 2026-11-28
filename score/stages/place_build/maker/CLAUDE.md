@@ -60,17 +60,17 @@ score_lib as a draft `model/<name>_trellis.<place>` entry. `__init__.py` is the 
   prologue's made models at 28 million, past what a game draws and what the laying checks held; a face count set by
   the projected density at the nearest eye kept every face, since a walker comes within 0.3 m of nearly everything):
   `faces_for` is only the generation's ceiling; the final model is cut by meshoptimizer's quadric-error simplifier
-  (meshopt_simplifyWithAttributes, MIT, an absolute error) so the surface moves by no more than a pixel of 2099's walker
-  camera (70 degrees on 1080 rows) subtends at the nearest a walker's eye comes, never less than LEAST_ERROR (0.5 mm):
-  TRELLIS.2's uniform triangles on a flat panel go, an edge, a ridge or a knob keeps its own; each vertex's smooth
-  normal is a weighted attribute (NORMAL_CHANGE, a fixed weight: without it the wardrobe's flat door drew a crease along a long
-  triangle tilted within the bound). Open edges are locked
-  (the outline, each part's and moving part's split: a primitive each), a UV seam's vertices too under SEAM_FREE
-  (1 cm: collapsed along, a chart's edge crossed its atlas gutter, dark specks on a lamp), only existing vertices are
-  kept with every attribute, no face is added; only each primitive's indices and vertex attributes change, every
-  node, matrix, moving part and picture kept. `make` knows no distance and cuts at NEAREST; once a place is laid,
-  `budget <folder>` gives each laid made entry's nearest eye and `budget <folder> --entry <e> --near <m>` cuts it
-  (from the library's own files, never the place's converted copies) and takes it in again as the same draft.
+  (meshopt_simplifyWithAttributes, MIT, an absolute error) so the surface moves by no more than a pixel of 2099's
+  walker camera (70 degrees on 1080 rows) subtends at the nearest a walker's eye comes, never less than LEAST_ERROR
+  (0.5 mm): TRELLIS.2's uniform triangles on a flat panel go, an edge, a ridge or a knob keeps its own; each vertex's
+  smooth normal is a weighted attribute (NORMAL_CHANGE, a fixed weight: without it the wardrobe's flat door drew a
+  crease along a long triangle tilted within the bound). Open edges are locked (the outline, each part's and moving
+  part's split: a primitive each), under SEAM_FREE (1 cm) a UV seam's vertices and those of every face touching it too
+  (else a chart's edge crosses its atlas gutter: dark specks on a lamp and a door handle), only existing vertices are
+  kept with every attribute, no face is added; only each primitive's indices and vertex attributes change, every node,
+  matrix, moving part and picture kept. `make` knows no distance and cuts at NEAREST; once a place is laid, `budget
+  <folder>` gives each laid made entry's nearest eye and `budget <folder> --entry <e> --near <m>` cuts it (from the
+  library's own files, never the place's converted copies) and takes it in again as the same draft.
 - **Only a cut-out goes in** (#156: the capsule's throttle, levers on a console top, came out a cube): `concept/<n>`
   is refused without its SAM 3 mask, and any picture whose opaque part is its own rectangle (no transparency, or a
   box cut) is refused (`cut_out`); a missing noun is asked with `split --nouns`.
